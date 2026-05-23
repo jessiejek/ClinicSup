@@ -16,8 +16,6 @@ import { SupabaseService } from './supabase.service';
 export class PatientDocumentsService {
   private readonly supabase = inject(SupabaseService);
 
-  // ── Medical Records / Prescriptions / Follow-ups (not part of Phase 4A, return empty) ──
-
   getMyMedicalRecords(): Observable<PatientMedicalRecord[]> {
     return of([]);
   }
@@ -66,7 +64,7 @@ export class PatientDocumentsService {
     return from(this.uploadAndRegisterLab(request, patientId));
   }
 
-  // ── Download ─────────────────────────────────────
+  // ── Download / File Access ───────────────────────
 
   downloadFile(url: string): Observable<Blob> {
     return from(this.fetchBlob(url));
@@ -88,14 +86,22 @@ export class PatientDocumentsService {
     return throwError(() => new Error('PDF download not available in Supabase yet.'));
   }
 
+  /**
+   * Download a media file. If fileUrl is a signed URL, uses it directly.
+   * Otherwise generates a fresh signed URL from the stored file path.
+   */
   downloadMediaFile(
-    item: { id: string; fileUrl?: string; fileName?: string; fileContentType?: string },
-    _kind: 'document' | 'lab-result',
+    item: { id: string; fileUrl?: string; fileName?: string; fileContentType?: string; filePath?: string },
+    kind: 'document' | 'lab-result',
     _patientId?: string
   ): Observable<Blob> {
     const url = item.fileUrl;
-    if (!url) return throwError(() => new Error('No file URL available.'));
-    return from(this.fetchBlob(url));
+    if (url) return from(this.fetchBlob(url));
+    if (item.filePath) {
+      const bucket = kind === 'document' ? 'patient-documents' : 'lab-results';
+      return from(this.downloadViaSignedUrl(bucket, item.filePath));
+    }
+    return throwError(() => new Error('No file URL or path available.'));
   }
 
   // ── Internal ─────────────────────────────────────
@@ -103,23 +109,7 @@ export class PatientDocumentsService {
   private async loadDocuments(patientId?: string, bookingId?: string): Promise<PatientDocument[]> {
     try {
       const rows = await this.supabase.getPatientDocuments(patientId || '', bookingId);
-      return rows.map((r: any) => ({
-        id: r.id,
-        patientId: r.patient_id,
-        bookingId: r.booking_id,
-        consultationId: r.consultation_id,
-        documentType: r.document_type || 'Other',
-        title: r.title,
-        description: r.description,
-        fileUrl: r.file_url || '',
-        fileName: r.file_name || '',
-        fileContentType: r.file_content_type,
-        fileSize: r.file_size,
-        source: r.source || 'StaffUpload',
-        uploadedByUserId: r.uploaded_by_user_id,
-        uploadedAt: r.uploaded_at,
-        createdAt: r.created_at,
-      }));
+      return Promise.all(rows.map((r: any) => this.mapDocRow(r)));
     } catch {
       return [];
     }
@@ -128,33 +118,62 @@ export class PatientDocumentsService {
   private async loadLabResults(patientId?: string, bookingId?: string): Promise<PatientLabResult[]> {
     try {
       const rows = await this.supabase.getPatientLabResults(patientId || '', bookingId);
-      return rows.map((r: any) => ({
-        id: r.id,
-        patientId: r.patient_id,
-        bookingId: r.booking_id,
-        consultationId: r.consultation_id,
-        labOrderItemId: r.lab_order_item_id,
-        resultTitle: r.result_title,
-        resultText: r.result_text,
-        fileUrl: r.file_url || '',
-        fileName: r.file_name || '',
-        fileContentType: r.file_content_type,
-        status: r.status || 'Uploaded',
-        uploadedByUserId: r.uploaded_by_user_id,
-        uploadedAt: r.uploaded_at,
-        createdAt: r.created_at,
-      }));
+      return Promise.all(rows.map((r: any) => this.mapLabRow(r)));
     } catch {
       return [];
     }
+  }
+
+  private async mapDocRow(r: any): Promise<PatientDocument> {
+    const bucket = 'patient-documents';
+    const filePath = r.file_path || '';
+    const signedUrl = filePath ? await this.supabase.getSignedUrl(bucket, filePath, 3600) : '';
+    return {
+      id: r.id,
+      patientId: r.patient_id,
+      bookingId: r.booking_id,
+      consultationId: r.consultation_id,
+      documentType: r.document_type || 'Other',
+      title: r.title,
+      description: r.description,
+      fileUrl: signedUrl || '',
+      fileName: r.file_name || '',
+      fileContentType: r.file_content_type,
+      fileSize: r.file_size,
+      source: r.source || 'StaffUpload',
+      uploadedByUserId: r.uploaded_by_user_id,
+      uploadedAt: r.uploaded_at,
+      createdAt: r.created_at,
+    };
+  }
+
+  private async mapLabRow(r: any): Promise<PatientLabResult> {
+    const bucket = 'lab-results';
+    const filePath = r.file_path || '';
+    const signedUrl = filePath ? await this.supabase.getSignedUrl(bucket, filePath, 3600) : '';
+    return {
+      id: r.id,
+      patientId: r.patient_id,
+      bookingId: r.booking_id,
+      consultationId: r.consultation_id,
+      labOrderItemId: r.lab_order_item_id,
+      resultTitle: r.result_title,
+      resultText: r.result_text,
+      fileUrl: signedUrl || '',
+      fileName: r.file_name || '',
+      fileContentType: r.file_content_type,
+      status: r.status || 'Uploaded',
+      uploadedByUserId: r.uploaded_by_user_id,
+      uploadedAt: r.uploaded_at,
+      createdAt: r.created_at,
+    };
   }
 
   private async uploadAndRegister(
     request: PatientDocumentUploadRequest,
     patientId?: string
   ): Promise<PatientDocument> {
-    const userId = this.supabase.client.auth.getUser();
-    const { data: { user } } = await userId;
+    const { data: { user } } = await this.supabase.client.auth.getUser();
     if (!user) throw new Error('Authentication required.');
 
     const bucket = 'patient-documents';
@@ -163,7 +182,7 @@ export class PatientDocumentsService {
     const upload = await this.supabase.uploadFile(bucket, filePath, request.file);
     if (upload.error) throw new Error(upload.error);
 
-    const publicUrl = this.supabase.getPublicUrl(bucket, filePath);
+    const signedUrl = await this.supabase.getSignedUrl(bucket, filePath, 3600);
     const reg = await this.supabase.registerPatientDocument({
       p_patient_id: patientId || user.id,
       p_booking_id: request.bookingId || '',
@@ -186,7 +205,7 @@ export class PatientDocumentsService {
       documentType: request.documentType || 'Other',
       title: request.title,
       description: request.description,
-      fileUrl: publicUrl || '',
+      fileUrl: signedUrl || '',
       fileName: request.file.name,
       fileContentType: request.file.type,
       fileSize: request.file.size,
@@ -210,7 +229,7 @@ export class PatientDocumentsService {
     const upload = await this.supabase.uploadFile(bucket, filePath, request.file);
     if (upload.error) throw new Error(upload.error);
 
-    const publicUrl = this.supabase.getPublicUrl(bucket, filePath);
+    const signedUrl = await this.supabase.getSignedUrl(bucket, filePath, 3600);
     const reg = await this.supabase.registerLabResult({
       p_patient_id: patientId || user.id,
       p_booking_id: request.bookingId || '',
@@ -231,7 +250,7 @@ export class PatientDocumentsService {
       consultationId: request.consultationId,
       resultTitle: request.resultTitle,
       resultText: request.resultText,
-      fileUrl: publicUrl || '',
+      fileUrl: signedUrl || '',
       fileName: request.file.name,
       fileContentType: request.file.type,
       status: 'Uploaded',
@@ -239,6 +258,12 @@ export class PatientDocumentsService {
       uploadedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
     };
+  }
+
+  private async downloadViaSignedUrl(bucket: string, filePath: string): Promise<Blob> {
+    const url = await this.supabase.getSignedUrl(bucket, filePath, 60);
+    if (!url) throw new Error('Failed to generate download URL.');
+    return this.fetchBlob(url);
   }
 
   private async fetchBlob(url: string): Promise<Blob> {
