@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { concatMap, from, map, Observable, of, take, throwError } from 'rxjs';
-import { catchError, defaultIfEmpty, filter, switchMap } from 'rxjs/operators';
+import { from, map, Observable, of, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import {
   PatientDocument,
   PatientDocumentUploadRequest,
@@ -10,452 +10,240 @@ import {
   PatientMedicalRecord,
   PatientPrescription
 } from '../models';
-import { ApiService } from './api.service';
-
-type NullableString = string | null | undefined;
-
-interface PatientMedicalRecordDto {
-  id: string;
-  bookingId: string;
-  patientId: string;
-  doctorId: string;
-  doctorName: string;
-  appointmentDate: string;
-  diagnosis?: NullableString;
-  soapNotes?: NullableString;
-  doctorNotes?: NullableString;
-  followUpInstructions?: NullableString;
-  followUpDate?: NullableString;
-  notes?: NullableString;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface PatientPrescriptionItemDto {
-  id: string;
-  medicineName: string;
-  genericName?: NullableString;
-  dosageForm?: NullableString;
-  strength?: NullableString;
-  sig?: NullableString;
-  quantity?: number | null;
-  frequency?: NullableString;
-  duration?: NullableString;
-  instructions?: NullableString;
-  isControlledSubstance?: boolean | null;
-  route?: NullableString;
-  routeDescription?: NullableString;
-  unitOfMeasure?: NullableString;
-  unitOfMeasureDescription?: NullableString;
-  brandName?: NullableString;
-  frequencyCode?: NullableString;
-}
-
-interface PatientPrescriptionDto {
-  id: string;
-  bookingId: string;
-  patientId: string;
-  doctorId: string;
-  doctorName: string;
-  appointmentDate: string;
-  medicineName?: NullableString;
-  genericName?: NullableString;
-  strength?: NullableString;
-  unit?: NullableString;
-  route?: NullableString;
-  frequency?: NullableString;
-  duration?: NullableString;
-  instructions?: NullableString;
-  createdAt: string;
-  items?: PatientPrescriptionItemDto[];
-}
-
-interface PatientFollowUpDto {
-  id: string;
-  bookingId: string;
-  patientId: string;
-  doctorId: string;
-  doctorName: string;
-  appointmentDate: string;
-  followUpDate?: NullableString;
-  followUpInstructions?: NullableString;
-  notes?: NullableString;
-  createdAt: string;
-}
-
-interface PatientDocumentDto {
-  id: string;
-  patientId: string;
-  bookingId?: NullableString;
-  consultationId?: NullableString;
-  documentType?: NullableString;
-  title?: NullableString;
-  description?: NullableString;
-  fileUrl?: NullableString;
-  fileName?: NullableString;
-  fileContentType?: NullableString;
-  fileSize?: number | null;
-  source?: NullableString;
-  uploadedByUserId?: NullableString;
-  uploadedAt: string;
-  createdAt: string;
-}
-
-interface PatientLabResultDto {
-  id: string;
-  patientId: string;
-  bookingId?: NullableString;
-  consultationId?: NullableString;
-  labOrderItemId?: NullableString;
-  resultTitle?: NullableString;
-  resultText?: NullableString;
-  fileUrl?: NullableString;
-  fileName?: NullableString;
-  fileContentType?: NullableString;
-  status?: NullableString;
-  uploadedByUserId?: NullableString;
-  uploadedAt: string;
-  createdAt: string;
-}
+import { SupabaseService } from './supabase.service';
 
 @Injectable({ providedIn: 'root' })
 export class PatientDocumentsService {
-  private readonly apiService = inject(ApiService);
+  private readonly supabase = inject(SupabaseService);
+
+  // ── Medical Records / Prescriptions / Follow-ups (not part of Phase 4A, return empty) ──
 
   getMyMedicalRecords(): Observable<PatientMedicalRecord[]> {
-    return this.apiService.get<PatientMedicalRecordDto[]>('/medical-records/me').pipe(
-      map((records) => (Array.isArray(records) ? records.map((record) => mapMedicalRecord(record)) : []))
-    );
+    return of([]);
   }
 
   getMyPrescriptions(): Observable<PatientPrescription[]> {
-    return this.apiService.get<PatientPrescriptionDto[]>('/prescriptions/me').pipe(
-      map((records) => (Array.isArray(records) ? records.map((record) => mapPrescription(record)) : []))
-    );
+    return of([]);
   }
 
   getMyFollowUps(): Observable<PatientFollowUp[]> {
-    return this.apiService.get<PatientFollowUpDto[]>('/follow-ups/me').pipe(
-      map((records) => (Array.isArray(records) ? records.map((record) => mapFollowUp(record)) : []))
-    );
+    return of([]);
   }
 
+  // ── Documents ────────────────────────────────────
+
   getMyDocuments(bookingId?: string): Observable<PatientDocument[]> {
-    const params = bookingId?.trim() ? { bookingId: bookingId.trim() } : undefined;
-    return this.apiService.get<PatientDocumentDto[]>('/patients/me/documents', { params }).pipe(
-      map((records) => (Array.isArray(records) ? records.map((record) => mapDocument(record)) : []))
-    );
+    return from(this.loadDocuments(undefined, bookingId));
   }
 
   getPatientDocuments(patientId: string, bookingId?: string): Observable<PatientDocument[]> {
-    const params = bookingId?.trim() ? { bookingId: bookingId.trim() } : undefined;
-    return this.apiService
-      .get<PatientDocumentDto[]>(`/patients/${encodeURIComponent(patientId)}/documents`, { params })
-      .pipe(map((records) => (Array.isArray(records) ? records.map((record) => mapDocument(record)) : [])));
-  }
-
-  getMyLabResults(bookingId?: string): Observable<PatientLabResult[]> {
-    const params = bookingId?.trim() ? { bookingId: bookingId.trim() } : undefined;
-    return this.apiService.get<PatientLabResultDto[]>('/patients/me/lab-results', { params }).pipe(
-      map((records) => (Array.isArray(records) ? records.map((record) => mapLabResult(record)) : []))
-    );
-  }
-
-  getPatientLabResults(patientId: string, bookingId?: string): Observable<PatientLabResult[]> {
-    const params = bookingId?.trim() ? { bookingId: bookingId.trim() } : undefined;
-    return this.apiService
-      .get<PatientLabResultDto[]>(`/patients/${encodeURIComponent(patientId)}/lab-results`, { params })
-      .pipe(map((records) => (Array.isArray(records) ? records.map((record) => mapLabResult(record)) : [])));
+    return from(this.loadDocuments(patientId, bookingId));
   }
 
   uploadMyDocument(request: PatientDocumentUploadRequest): Observable<PatientDocument> {
-    return this.apiService.post<PatientDocumentDto>('/patients/me/documents', buildDocumentUploadFormData(request)).pipe(
-      map((record) => mapDocument(record))
-    );
+    return from(this.uploadAndRegister(request, undefined));
   }
 
   uploadPatientDocument(patientId: string, request: PatientDocumentUploadRequest): Observable<PatientDocument> {
-    return this.apiService
-      .post<PatientDocumentDto>(
-        `/patients/${encodeURIComponent(patientId)}/documents`,
-        buildDocumentUploadFormData(request)
-      )
-      .pipe(map((record) => mapDocument(record)));
+    return from(this.uploadAndRegister(request, patientId));
+  }
+
+  // ── Lab Results ──────────────────────────────────
+
+  getMyLabResults(bookingId?: string): Observable<PatientLabResult[]> {
+    return from(this.loadLabResults(undefined, bookingId));
+  }
+
+  getPatientLabResults(patientId: string, bookingId?: string): Observable<PatientLabResult[]> {
+    return from(this.loadLabResults(patientId, bookingId));
   }
 
   uploadMyLabResult(request: PatientLabResultUploadRequest): Observable<PatientLabResult> {
-    return this.apiService
-      .post<PatientLabResultDto>('/patients/me/lab-results', buildLabResultUploadFormData(request))
-      .pipe(map((record) => mapLabResult(record)));
+    return from(this.uploadAndRegisterLab(request, undefined));
   }
 
   uploadPatientLabResult(patientId: string, request: PatientLabResultUploadRequest): Observable<PatientLabResult> {
-    return this.apiService
-      .post<PatientLabResultDto>(
-        `/patients/${encodeURIComponent(patientId)}/lab-results`,
-        buildLabResultUploadFormData(request)
-      )
-      .pipe(map((record) => mapLabResult(record)));
+    return from(this.uploadAndRegisterLab(request, patientId));
   }
 
+  // ── Download ─────────────────────────────────────
+
   downloadFile(url: string): Observable<Blob> {
-    return this.apiService.getBlob(normalizeDownloadPath(url));
+    return from(this.fetchBlob(url));
+  }
+
+  downloadMedicalRecordPdf(_recordId: string): Observable<Blob> {
+    return throwError(() => new Error('PDF download not available in Supabase yet.'));
+  }
+
+  downloadConsultationSummaryPdf(_bookingId: string): Observable<Blob> {
+    return throwError(() => new Error('PDF download not available in Supabase yet.'));
+  }
+
+  downloadPrescriptionPdf(_prescriptionId: string): Observable<Blob> {
+    return throwError(() => new Error('PDF download not available in Supabase yet.'));
+  }
+
+  downloadAllClinicalRecordsPdf(): Observable<Blob> {
+    return throwError(() => new Error('PDF download not available in Supabase yet.'));
   }
 
   downloadMediaFile(
     item: { id: string; fileUrl?: string; fileName?: string; fileContentType?: string },
-    kind: 'document' | 'lab-result',
-    patientId?: string
+    _kind: 'document' | 'lab-result',
+    _patientId?: string
   ): Observable<Blob> {
-    const paths = buildMediaDownloadPaths(item, kind, patientId);
-    return downloadFromPaths(this.apiService, paths);
+    const url = item.fileUrl;
+    if (!url) return throwError(() => new Error('No file URL available.'));
+    return from(this.fetchBlob(url));
   }
 
-  downloadConsultationSummaryPdf(bookingId: string): Observable<Blob> {
-    return this.apiService.getBlob(`/patient-documents/me/bookings/${encodeURIComponent(bookingId)}/pdf`);
-  }
+  // ── Internal ─────────────────────────────────────
 
-  downloadPrescriptionPdf(prescriptionId: string): Observable<Blob> {
-    return this.apiService.getBlob(`/patient-documents/me/prescriptions/${encodeURIComponent(prescriptionId)}/pdf`);
-  }
-
-  downloadMedicalRecordPdf(recordId: string): Observable<Blob> {
-    return this.apiService.getBlob(`/patient-documents/me/medical-records/${encodeURIComponent(recordId)}/pdf`);
-  }
-
-  downloadAllClinicalRecordsPdf(): Observable<Blob> {
-    return this.apiService.getBlob('/patient-documents/me/all.pdf');
-  }
-}
-
-function mapMedicalRecord(dto: PatientMedicalRecordDto): PatientMedicalRecord {
-  return {
-    id: dto.id,
-    bookingId: dto.bookingId,
-    patientId: dto.patientId,
-    doctorId: dto.doctorId,
-    doctorName: dto.doctorName,
-    appointmentDate: normalizeString(dto.appointmentDate) ?? '',
-    diagnosis: normalizeString(dto.diagnosis),
-    soapNotes: normalizeString(dto.soapNotes),
-    doctorNotes: normalizeString(dto.doctorNotes),
-    followUpInstructions: normalizeString(dto.followUpInstructions),
-    followUpDate: normalizeString(dto.followUpDate),
-    notes: normalizeString(dto.notes),
-    createdAt: dto.createdAt,
-    updatedAt: dto.updatedAt
-  };
-}
-
-function mapPrescription(dto: PatientPrescriptionDto): PatientPrescription {
-  return {
-    id: dto.id,
-    bookingId: dto.bookingId,
-    patientId: dto.patientId,
-    doctorId: dto.doctorId,
-    doctorName: dto.doctorName,
-    appointmentDate: normalizeString(dto.appointmentDate) ?? '',
-    medicineName: normalizeString(dto.medicineName),
-    genericName: normalizeString(dto.genericName),
-    strength: normalizeString(dto.strength),
-    unit: normalizeString(dto.unit),
-    route: normalizeString(dto.route),
-    frequency: normalizeString(dto.frequency),
-    duration: normalizeString(dto.duration),
-    instructions: normalizeString(dto.instructions),
-    createdAt: dto.createdAt,
-    items: Array.isArray(dto.items) ? dto.items.map((item) => mapPrescriptionItem(item)) : []
-  };
-}
-
-function mapPrescriptionItem(dto: PatientPrescriptionItemDto): PatientPrescription['items'][number] {
-  return {
-    id: dto.id,
-    medicineName: dto.medicineName,
-    genericName: normalizeString(dto.genericName),
-    dosageForm: normalizeString(dto.dosageForm),
-    strength: normalizeString(dto.strength),
-    sig: normalizeString(dto.sig),
-    quantity: typeof dto.quantity === 'number' && Number.isFinite(dto.quantity) ? dto.quantity : 1,
-    frequency: normalizeString(dto.frequency),
-    duration: normalizeString(dto.duration),
-    instructions: normalizeString(dto.instructions),
-    isControlledSubstance: dto.isControlledSubstance ?? undefined,
-    route: normalizeString(dto.route),
-    routeDescription: normalizeString(dto.routeDescription),
-    unitOfMeasure: normalizeString(dto.unitOfMeasure),
-    unitOfMeasureDescription: normalizeString(dto.unitOfMeasureDescription),
-    brandName: normalizeString(dto.brandName),
-    frequencyCode: normalizeString(dto.frequencyCode)
-  };
-}
-
-function mapFollowUp(dto: PatientFollowUpDto): PatientFollowUp {
-  return {
-    id: dto.id,
-    bookingId: dto.bookingId,
-    patientId: dto.patientId,
-    doctorId: dto.doctorId,
-    doctorName: dto.doctorName,
-    appointmentDate: normalizeString(dto.appointmentDate) ?? '',
-    followUpDate: normalizeString(dto.followUpDate),
-    followUpInstructions: normalizeString(dto.followUpInstructions),
-    notes: normalizeString(dto.notes),
-    createdAt: dto.createdAt
-  };
-}
-
-function mapDocument(dto: PatientDocumentDto): PatientDocument {
-  return {
-    id: dto.id,
-    patientId: dto.patientId,
-    bookingId: normalizeString(dto.bookingId),
-    consultationId: normalizeString(dto.consultationId),
-    documentType: normalizeString(dto.documentType) ?? 'Other',
-    title: normalizeString(dto.title),
-    description: normalizeString(dto.description),
-    fileUrl: normalizeString(dto.fileUrl) ?? '',
-    fileName: normalizeString(dto.fileName) ?? '',
-    fileContentType: normalizeString(dto.fileContentType),
-    fileSize: normalizeNumber(dto.fileSize),
-    source: normalizeString(dto.source) ?? 'StaffUpload',
-    uploadedByUserId: normalizeString(dto.uploadedByUserId),
-    uploadedAt: dto.uploadedAt,
-    createdAt: dto.createdAt
-  };
-}
-
-function mapLabResult(dto: PatientLabResultDto): PatientLabResult {
-  return {
-    id: dto.id,
-    patientId: dto.patientId,
-    bookingId: normalizeString(dto.bookingId),
-    consultationId: normalizeString(dto.consultationId),
-    labOrderItemId: normalizeString(dto.labOrderItemId),
-    resultTitle: normalizeString(dto.resultTitle),
-    resultText: normalizeString(dto.resultText),
-    fileUrl: normalizeString(dto.fileUrl) ?? '',
-    fileName: normalizeString(dto.fileName) ?? '',
-    fileContentType: normalizeString(dto.fileContentType),
-    status: normalizeString(dto.status) ?? 'Uploaded',
-    uploadedByUserId: normalizeString(dto.uploadedByUserId),
-    uploadedAt: dto.uploadedAt,
-    createdAt: dto.createdAt
-  };
-}
-
-function buildDocumentUploadFormData(request: PatientDocumentUploadRequest): FormData {
-  const formData = new FormData();
-  appendOptional(formData, 'bookingId', request.bookingId);
-  appendOptional(formData, 'consultationId', request.consultationId);
-  appendOptional(formData, 'documentType', request.documentType);
-  appendOptional(formData, 'title', request.title);
-  appendOptional(formData, 'description', request.description);
-  formData.append('file', request.file, request.file.name);
-  return formData;
-}
-
-function buildLabResultUploadFormData(request: PatientLabResultUploadRequest): FormData {
-  const formData = new FormData();
-  appendOptional(formData, 'bookingId', request.bookingId);
-  appendOptional(formData, 'consultationId', request.consultationId);
-  appendOptional(formData, 'resultTitle', request.resultTitle);
-  appendOptional(formData, 'resultText', request.resultText);
-  formData.append('file', request.file, request.file.name);
-  return formData;
-}
-
-function appendOptional(formData: FormData, name: string, value: string | undefined): void {
-  const trimmed = value?.trim();
-  if (trimmed) {
-    formData.append(name, trimmed);
-  }
-}
-
-function normalizeNumber(value: number | null | undefined): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-}
-
-function normalizeString(value: NullableString): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function normalizeDownloadPath(url: string): string {
-  const trimmed = url.trim();
-  if (/^https?:\/\//i.test(trimmed)) {
-    return trimmed;
-  }
-
-  let path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-  if (path.startsWith('/api/')) {
-    path = path.slice(4);
-  }
-
-  return path;
-}
-
-function buildMediaDownloadPaths(
-  item: { id: string; fileUrl?: string },
-  kind: 'document' | 'lab-result',
-  patientId?: string
-): string[] {
-  const segment = kind === 'document' ? 'documents' : 'lab-results';
-  const paths: string[] = [];
-  const scopedPatientId = patientId?.trim();
-
-  if (scopedPatientId) {
-    const base = `/patients/${encodeURIComponent(scopedPatientId)}/${segment}/${encodeURIComponent(item.id)}`;
-    paths.push(`${base}/file`, `${base}/download`, `${base}/content`);
-  } else {
-    const base = `/patients/me/${segment}/${encodeURIComponent(item.id)}`;
-    paths.push(`${base}/file`, `${base}/download`, `${base}/content`);
-  }
-
-  const fileUrl = item.fileUrl?.trim();
-  if (fileUrl) {
-    const normalized = normalizeDownloadPath(fileUrl);
-    const isPatientMeUrl = normalized.includes('/patients/me/');
-    if (!scopedPatientId || !isPatientMeUrl) {
-      paths.unshift(normalized);
+  private async loadDocuments(patientId?: string, bookingId?: string): Promise<PatientDocument[]> {
+    try {
+      const rows = await this.supabase.getPatientDocuments(patientId || '', bookingId);
+      return rows.map((r: any) => ({
+        id: r.id,
+        patientId: r.patient_id,
+        bookingId: r.booking_id,
+        consultationId: r.consultation_id,
+        documentType: r.document_type || 'Other',
+        title: r.title,
+        description: r.description,
+        fileUrl: r.file_url || '',
+        fileName: r.file_name || '',
+        fileContentType: r.file_content_type,
+        fileSize: r.file_size,
+        source: r.source || 'StaffUpload',
+        uploadedByUserId: r.uploaded_by_user_id,
+        uploadedAt: r.uploaded_at,
+        createdAt: r.created_at,
+      }));
+    } catch {
+      return [];
     }
   }
 
-  return [...new Set(paths)];
-}
-
-function downloadFromPaths(
-  apiService: ApiService,
-  paths: string[]
-): Observable<Blob> {
-  if (paths.length === 0) {
-    return throwError(() => new Error('No download path available.'));
+  private async loadLabResults(patientId?: string, bookingId?: string): Promise<PatientLabResult[]> {
+    try {
+      const rows = await this.supabase.getPatientLabResults(patientId || '', bookingId);
+      return rows.map((r: any) => ({
+        id: r.id,
+        patientId: r.patient_id,
+        bookingId: r.booking_id,
+        consultationId: r.consultation_id,
+        labOrderItemId: r.lab_order_item_id,
+        resultTitle: r.result_title,
+        resultText: r.result_text,
+        fileUrl: r.file_url || '',
+        fileName: r.file_name || '',
+        fileContentType: r.file_content_type,
+        status: r.status || 'Uploaded',
+        uploadedByUserId: r.uploaded_by_user_id,
+        uploadedAt: r.uploaded_at,
+        createdAt: r.created_at,
+      }));
+    } catch {
+      return [];
+    }
   }
 
-  return from(paths).pipe(
-    concatMap((path) =>
-      apiService.getBlob(path).pipe(
-        map((blob) => ({ blob, path })),
-        catchError(() => of(null))
-      )
-    ),
-    filter((result): result is { blob: Blob; path: string } => result !== null && isValidMediaBlob(result.blob)),
-    take(1),
-    map((result) => result.blob),
-    defaultIfEmpty(null),
-    switchMap((blob) => (blob ? of(blob) : throwError(() => new Error('File not available.'))))
-  );
-}
+  private async uploadAndRegister(
+    request: PatientDocumentUploadRequest,
+    patientId?: string
+  ): Promise<PatientDocument> {
+    const userId = this.supabase.client.auth.getUser();
+    const { data: { user } } = await userId;
+    if (!user) throw new Error('Authentication required.');
 
-function isValidMediaBlob(blob: Blob): boolean {
-  if (!blob || blob.size === 0) {
-    return false;
+    const bucket = 'patient-documents';
+    const filePath = `${user.id}/${Date.now()}_${request.file.name}`;
+
+    const upload = await this.supabase.uploadFile(bucket, filePath, request.file);
+    if (upload.error) throw new Error(upload.error);
+
+    const publicUrl = this.supabase.getPublicUrl(bucket, filePath);
+    const reg = await this.supabase.registerPatientDocument({
+      p_patient_id: patientId || user.id,
+      p_booking_id: request.bookingId || '',
+      p_file_path: filePath,
+      p_file_name: request.file.name,
+      p_file_size: request.file.size,
+      p_content_type: request.file.type,
+      p_title: request.title || null,
+      p_description: request.description || null,
+      p_document_type: request.documentType || null,
+      p_consultation_id: request.consultationId || null,
+    });
+    if (reg.error) throw new Error(reg.error);
+
+    return {
+      id: reg.data?.id || '',
+      patientId: patientId || user.id,
+      bookingId: request.bookingId,
+      consultationId: request.consultationId,
+      documentType: request.documentType || 'Other',
+      title: request.title,
+      description: request.description,
+      fileUrl: publicUrl || '',
+      fileName: request.file.name,
+      fileContentType: request.file.type,
+      fileSize: request.file.size,
+      source: 'PatientUpload',
+      uploadedByUserId: user.id,
+      uploadedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
   }
 
-  const type = blob.type.toLowerCase();
-  if (type.includes('json') || type.includes('html') || type === 'text/plain') {
-    return false;
+  private async uploadAndRegisterLab(
+    request: PatientLabResultUploadRequest,
+    patientId?: string
+  ): Promise<PatientLabResult> {
+    const { data: { user } } = await this.supabase.client.auth.getUser();
+    if (!user) throw new Error('Authentication required.');
+
+    const bucket = 'lab-results';
+    const filePath = `${user.id}/${Date.now()}_${request.file.name}`;
+
+    const upload = await this.supabase.uploadFile(bucket, filePath, request.file);
+    if (upload.error) throw new Error(upload.error);
+
+    const publicUrl = this.supabase.getPublicUrl(bucket, filePath);
+    const reg = await this.supabase.registerLabResult({
+      p_patient_id: patientId || user.id,
+      p_booking_id: request.bookingId || '',
+      p_file_path: filePath,
+      p_file_name: request.file.name,
+      p_file_size: request.file.size,
+      p_content_type: request.file.type,
+      p_title: request.resultTitle || null,
+      p_notes: request.resultText || null,
+      p_consultation_id: request.consultationId || null,
+    });
+    if (reg.error) throw new Error(reg.error);
+
+    return {
+      id: reg.data?.id || '',
+      patientId: patientId || user.id,
+      bookingId: request.bookingId,
+      consultationId: request.consultationId,
+      resultTitle: request.resultTitle,
+      resultText: request.resultText,
+      fileUrl: publicUrl || '',
+      fileName: request.file.name,
+      fileContentType: request.file.type,
+      status: 'Uploaded',
+      uploadedByUserId: user.id,
+      uploadedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
   }
 
-  return true;
+  private async fetchBlob(url: string): Promise<Blob> {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to download file.');
+    return response.blob();
+  }
 }
