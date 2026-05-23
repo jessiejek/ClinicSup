@@ -1,0 +1,90 @@
+<div class="clinic-card receipt-container" *ngIf="data">
+  <div class="receipt-header">
+    <div class="clinic-info">
+      <div class="clinic-name">{{ data.clinicName }}</div>
+      <div class="clinic-address">{{ data.clinicAddress }}</div>
+    </div>
+    <div class="receipt-meta">
+      <div class="receipt-title">PAYMENT RECEIPT</div>
+      <div class="or-number">{{ data.orNumber }}</div>
+    </div>
+  </div>
+
+  <div class="receipt-details">
+    <div class="detail-row">
+      <span class="label">Patient</span>
+      <span class="value">{{ data.patientName }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">Doctor</span>
+      <span class="value">{{ data.doctorName }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">Services</span>
+      <span class="value">{{ (data.services ?? []).join(', ') || data.serviceName }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">Date</span>
+      <span class="value">{{ data.appointmentDate }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">Time</span>
+      <span class="value">{{ data.slotStartTime || data.slotTime }}</span>
+    </div>
+    <div class="detail-row" *ngIf="data.doctorCompletedAt">
+      <span class="label">Doctor Completed</span>
+      <span class="value">{{ data.doctorCompletedAt | date : 'MMM d, y h:mm a' }}</span>
+    </div>
+  </div>
+
+  <div class="receipt-fees">
+    <hr class="fee-divider" />
+    <div class="fee-row total-row">
+      <span>{{ data.isWaived ? 'WAIVED' : 'AMOUNT PAID' }}</span>
+      <span class="amount">{{ data.amountPaid | peso }}</span>
+    </div>
+  </div>
+
+  <div class="receipt-payment">
+    <div class="detail-row">
+      <span class="label">Payment Method</span>
+      <span class="value">{{ data.paymentMethod }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="label">Status</span>
+      <span class="value">
+        <span class="status-badge" [ngClass]="'status-' + (data.isWaived ? 'waived' : 'paid')">
+          {{ (data.isWaived ? 'Waived' : 'Paid') | uppercase }}
+        </span>
+      </span>
+    </div>
+    <div class="detail-row mt-2" *ngIf="data.referenceNumber">
+      <span class="label">Reference #</span>
+      <span class="value">{{ data.referenceNumber }}</span>
+    </div>
+    <div class="detail-row mt-2" *ngIf="data.paidAt">
+      <span class="label">Paid At</span>
+      <span class="value">{{ data.paidAt | date : 'MMM d, y h:mm a' }}</span>
+    </div>
+    <div class="detail-row mt-2" *ngIf="data.isWaived && data.waivedReason">
+      <span class="label">Waived Reason</span>
+      <span class="value text-muted">{{ data.waivedReason }}</span>
+    </div>
+    <div class="detail-row mt-2" *ngIf="data.cashierName">
+      <span class="label">Cashier</span>
+      <span class="value">{{ data.cashierName }}</span>
+    </div>
+    <div class="detail-row mt-2" *ngIf="data.verifiedByName">
+      <span class="label">Verified By</span>
+      <span class="value">{{ data.verifiedByName }}</span>
+    </div>
+    <div class="detail-row mt-2" *ngIf="data.waivedByName">
+      <span class="label">Waived By</span>
+      <span class="value">{{ data.waivedByName }}</span>
+    </div>
+  </div>
+
+  <div class="receipt-footer">
+    <div class="footer-note">This serves as your official receipt.</div>
+  </div>
+</div>

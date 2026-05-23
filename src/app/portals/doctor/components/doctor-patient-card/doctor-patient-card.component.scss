@@ -1,0 +1,40 @@
+:host {
+  display: block;
+}
+
+.patient-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.patient-card__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.patient-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.patient-card__name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--clinic-text-primary);
+}
+
+.patient-card__code {
+  font-size: 12px;
+  color: var(--clinic-text-muted);
+}
+
+.patient-card__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  font-size: 13px;
+  color: var(--clinic-text-secondary);
+}

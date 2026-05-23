@@ -1,0 +1,35 @@
+.actions-menu__button {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--clinic-border);
+  background: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--clinic-text-secondary);
+}
+
+.actions-menu {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+  min-width: 160px;
+}
+
+.actions-menu__item {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  color: var(--clinic-text-primary);
+}
+
+.actions-menu__item:hover {
+  background: var(--color-neutral-100);
+}
+
+.actions-menu__item--danger {
+  color: var(--ion-color-danger);
+}

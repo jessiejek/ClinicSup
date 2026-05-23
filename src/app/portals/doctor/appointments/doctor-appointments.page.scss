@@ -1,0 +1,160 @@
+:host {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.doctor-appointments-page {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-5);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+  align-items: stretch;
+  min-width: 0;
+}
+
+.stats-grid .stat-card {
+  min-width: 0;
+  min-height: 120px;
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.stats-grid .stat-card__value {
+  font-size: var(--text-2xl);
+  line-height: 1;
+}
+
+.filters-card {
+  margin-bottom: 0;
+  padding: var(--space-5);
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr auto;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.filters-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--clinic-text-secondary);
+  min-width: 0;
+}
+
+.filters-grid input,
+.filters-grid select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--clinic-border);
+  border-radius: 12px;
+  background: white;
+  color: var(--clinic-text-primary);
+}
+
+.filters-grid__actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+.appointments-desktop {
+  padding: var(--space-5);
+  min-width: 0;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.appointments-mobile {
+  display: none;
+  gap: var(--space-3);
+}
+
+.appointment-card {
+  min-width: 0;
+}
+
+.appointment-card__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.appointment-card__actions .btn-primary,
+.appointment-card__actions .btn-outline {
+  width: 100%;
+}
+
+@media (max-width: 1023px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .appointments-desktop {
+    display: none;
+  }
+
+  .appointments-mobile {
+    display: grid;
+  }
+}
+
+@media (max-width: 639px) {
+  .doctor-appointments-page {
+    gap: var(--space-4);
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+
+  .stats-grid .stat-card {
+    min-height: 108px;
+    padding: var(--space-3);
+  }
+
+  .stats-grid .stat-card__value {
+    font-size: var(--text-xl);
+  }
+
+  .filters-card,
+  .appointments-desktop {
+    padding: var(--space-4);
+  }
+
+  .filters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filters-grid__actions {
+    justify-content: stretch;
+  }
+
+  .filters-grid__actions .btn-ghost {
+    width: 100%;
+  }
+
+  .appointment-card__actions {
+    grid-template-columns: 1fr;
+  }
+}

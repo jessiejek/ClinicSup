@@ -1,0 +1,62 @@
+:host {
+  display: block;
+}
+
+.section-card {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.section-card__head h3 {
+  margin: 0;
+}
+
+.section-card__head p {
+  margin: 4px 0 0;
+  color: var(--clinic-text-secondary);
+}
+
+.lab-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.quick-buttons,
+.attachment-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.request-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.request-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--clinic-border);
+  background: var(--color-neutral-50);
+}
+
+.request-item__info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.request-item__actions {
+  display: flex;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.field {
+  --background: transparent;
+}

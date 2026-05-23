@@ -1,0 +1,216 @@
+:host {
+  display: none;
+}
+
+.booking-print-document {
+  width: 210mm;
+  max-width: 100%;
+  margin: 0 auto;
+  color: #111827;
+  background: #ffffff;
+}
+
+.booking-print-document__page {
+  display: grid;
+  gap: 18px;
+  padding: 18mm 16mm 16mm;
+}
+
+.booking-print-document__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #d1d5db;
+}
+
+.booking-print-document__brand {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.booking-print-document__logo {
+  width: 56px;
+  height: 56px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  background: #f8fafc;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.booking-print-document__logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.booking-print-document__clinic {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.booking-print-document__clinic h1,
+.booking-print-document__clinic p,
+.booking-print-document__eyebrow,
+.booking-print-document__reference,
+.booking-print-document__timestamp,
+.booking-print-document__section h2,
+.booking-print-document__notice p,
+.booking-print-document__footer p,
+.booking-print-document__grid dt,
+.booking-print-document__grid dd {
+  margin: 0;
+}
+
+.booking-print-document__clinic h1 {
+  font-size: 1.15rem;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.booking-print-document__clinic p {
+  font-size: 0.82rem;
+  color: #4b5563;
+  line-height: 1.35;
+}
+
+.booking-print-document__meta {
+  text-align: right;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.booking-print-document__eyebrow {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #0f172a;
+}
+
+.booking-print-document__reference {
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.booking-print-document__timestamp {
+  font-size: 0.78rem;
+  color: #4b5563;
+}
+
+.booking-print-document__notice {
+  padding: 12px 14px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: #eff6ff;
+}
+
+.booking-print-document__notice--waived {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.booking-print-document__notice strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+
+.booking-print-document__notice p {
+  color: #374151;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.booking-print-document__section {
+  display: grid;
+  gap: 10px;
+}
+
+.booking-print-document__section h2 {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #475569;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.booking-print-document__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+
+.booking-print-document__grid > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.booking-print-document__grid dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.booking-print-document__grid dd {
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #111827;
+  overflow-wrap: anywhere;
+}
+
+.booking-print-document__grid-span {
+  grid-column: 1 / -1;
+}
+
+.booking-print-document__amount {
+  font-size: 1.05rem !important;
+  font-weight: 800;
+}
+
+.data-mono {
+  font-family: Consolas, 'Courier New', monospace;
+}
+
+.booking-print-document__footer {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #d1d5db;
+  display: grid;
+  gap: 4px;
+  font-size: 0.76rem;
+  color: #4b5563;
+}
+
+@media print {
+  :host {
+    display: block !important;
+  }
+
+  .booking-print-document {
+    width: 210mm;
+  }
+
+  .booking-print-document__page {
+    padding: 0;
+  }
+}

@@ -1,0 +1,285 @@
+<section class="page-shell">
+  <div class="page-shell__header">
+    <div class="page-shell__heading">
+      <button type="button" class="btn-ghost" (click)="back()">Back to Patients</button>
+      <p class="page-kicker">Staff patient record</p>
+      <h2 class="page-title" *ngIf="patient; else loadingTitle">{{ patientDisplayName() }}</h2>
+      <ng-template #loadingTitle>
+        <h2 class="page-title">Patient Detail</h2>
+      </ng-template>
+      <div class="page-subtitle page-subtitle--muted" *ngIf="isLoading">Loading patient record...</div>
+      <div class="page-subtitle data-mono" *ngIf="patient">{{ patient.patientCode }}</div>
+    </div>
+
+    <app-status-badge
+      *ngIf="patient"
+      [status]="patientStatusLabel"
+      [labelOverride]="patientStatusLabelText"
+    ></app-status-badge>
+  </div>
+
+  <div class="loading-panel" *ngIf="isLoading">
+    <div class="clinic-card loading-card">
+      <app-skeleton variant="title" [width]="'32%'" [count]="1"></app-skeleton>
+      <app-skeleton variant="text" [width]="'55%'" [count]="2"></app-skeleton>
+      <div class="loading-grid">
+        <app-skeleton variant="card" [count]="4"></app-skeleton>
+      </div>
+    </div>
+  </div>
+
+  <div class="clinic-card error-card" *ngIf="!isLoading && errorMessage">
+    <p class="error-card__eyebrow">Unable to load patient record</p>
+    <h3 class="error-card__title">We hit a loading issue</h3>
+    <p class="error-card__description">{{ errorMessage }} Please try again or go back to the patient list.</p>
+    <div class="error-card__actions">
+      <button type="button" class="btn-primary" (click)="retry()">Retry</button>
+      <button type="button" class="btn-ghost" (click)="back()">Back to Patients</button>
+    </div>
+  </div>
+
+  <ng-container *ngIf="!isLoading && patient">
+    <div class="detail-toolbar">
+      <ion-segment [value]="selectedTab" (ionChange)="setSelectedTab($event.detail.value)">
+        <ion-segment-button value="overview">
+          <ion-label>Overview</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="bookings">
+          <ion-label>Bookings</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="records">
+          <ion-label>Medical Records</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+    </div>
+
+    <div *ngIf="selectedTab === 'overview'" class="detail-grid">
+      <article class="clinic-card detail-card detail-card--full">
+        <div class="section-heading">Identity</div>
+        <div class="patient-hero">
+          <app-avatar [name]="patientDisplayName()" size="lg"></app-avatar>
+          <div class="patient-hero__content">
+            <div class="patient-code data-mono">{{ patient.patientCode }}</div>
+            <h3 class="patient-hero__name">{{ patientDisplayName() }}</h3>
+            <app-status-badge [status]="patientStatusLabel"></app-status-badge>
+          </div>
+        </div>
+
+        <dl class="detail-list detail-list--identity">
+          <div class="detail-item">
+            <dt>Patient Code</dt>
+            <dd class="data-mono">{{ patient.patientCode || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item detail-item--full">
+            <dt>Full Name</dt>
+            <dd>{{ patientDisplayName() }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>First Name</dt>
+            <dd>{{ patient.firstName || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Middle Name</dt>
+            <dd>{{ patient.middleName || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Last Name</dt>
+            <dd>{{ patient.lastName || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Date of Birth</dt>
+            <dd>{{ patient.dateOfBirth || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Sex</dt>
+            <dd>{{ patient.sex || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Civil Status</dt>
+            <dd>{{ patient.civilStatus || 'Not specified' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Login Account Status</dt>
+            <dd>{{ patientStatusLabelText }}</dd>
+          </div>
+          <div class="detail-item" *ngIf="patient.userId">
+            <dt>User ID</dt>
+            <dd class="data-mono">{{ patient.userId }}</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="clinic-card detail-card detail-card--full" *ngIf="!patient.hasAccount && !patient.userId">
+        <div class="section-heading">Create Portal Account</div>
+        <p class="portal-account-card__description">
+          Link this patient to the portal with a temporary password. The patient can change it after first login.
+        </p>
+
+        <form class="portal-account-form" [formGroup]="portalAccountForm" novalidate (ngSubmit)="createPortalAccount()">
+          <div class="portal-account-grid">
+            <label class="modal-field" [class.is-invalid]="showPortalAccountError('email')">
+              <span class="portal-account-field__label">Email *</span>
+              <input class="portal-account-input" type="email" formControlName="email" autocomplete="email" placeholder="Patient email" />
+              <small *ngIf="showPortalAccountError('email')">A valid email is required.</small>
+            </label>
+
+            <label class="modal-field" [class.is-invalid]="showPortalAccountError('temporaryPassword')">
+              <span class="portal-account-field__label">Temporary Password *</span>
+              <input
+                class="portal-account-input"
+                type="password"
+                formControlName="temporaryPassword"
+                autocomplete="new-password"
+                placeholder="Temporary password"
+              />
+              <small *ngIf="showPortalAccountError('temporaryPassword')">Enter a strong temporary password.</small>
+            </label>
+
+            <label class="modal-field" [class.is-invalid]="showPortalAccountError('confirmTemporaryPassword') || portalAccountPasswordMismatch">
+              <span class="portal-account-field__label">Confirm Temporary Password *</span>
+              <input
+                class="portal-account-input"
+                type="password"
+                formControlName="confirmTemporaryPassword"
+                autocomplete="new-password"
+                placeholder="Confirm temporary password"
+              />
+              <small *ngIf="showPortalAccountError('confirmTemporaryPassword')">Confirmation is required.</small>
+              <small *ngIf="portalAccountPasswordMismatch && !showPortalAccountError('confirmTemporaryPassword')">
+                Passwords do not match.
+              </small>
+            </label>
+          </div>
+
+          <div class="portal-account-actions">
+            <button
+              type="submit"
+              class="btn-primary portal-account-submit"
+              [disabled]="isCreatingPortalAccount || portalAccountForm.invalid"
+            >
+              {{ isCreatingPortalAccount ? 'Creating...' : 'Create Portal Account' }}
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <article class="clinic-card detail-card">
+        <div class="section-heading">Contact & Address</div>
+        <dl class="detail-list">
+          <div class="detail-item">
+            <dt>Contact Number</dt>
+            <dd>{{ patient.contactNumber || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Email</dt>
+            <dd>{{ patient.email || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item detail-item--full">
+            <dt>Address</dt>
+            <dd>{{ patient.address || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>City</dt>
+            <dd>{{ patient.city || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Zip Code</dt>
+            <dd>{{ patient.zipCode || 'N/A' }}</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="clinic-card detail-card">
+        <div class="section-heading">Emergency Contact</div>
+        <dl class="detail-list">
+          <div class="detail-item">
+            <dt>Name</dt>
+            <dd>{{ patient.emergencyContactName || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>Number</dt>
+            <dd>{{ patient.emergencyContactNumber || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item detail-item--full">
+            <dt>Relationship</dt>
+            <dd>{{ patient.emergencyContactRelationship || 'N/A' }}</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="clinic-card detail-card detail-card--full">
+        <div class="section-heading">Insurance</div>
+        <dl class="detail-list detail-list--insurance">
+          <div class="detail-item">
+            <dt>Blood Type</dt>
+            <dd>{{ patient.bloodType || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>PhilHealth Number</dt>
+            <dd>{{ patient.philHealthNumber || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>HMO Provider</dt>
+            <dd>{{ patient.hmoProvider || 'N/A' }}</dd>
+          </div>
+          <div class="detail-item">
+            <dt>HMO Card Number</dt>
+            <dd>{{ patient.hmoCardNumber || 'N/A' }}</dd>
+          </div>
+        </dl>
+      </article>
+    </div>
+
+    <div *ngIf="selectedTab === 'bookings'" class="clinic-card detail-card">
+      <div class="clinic-table-wrap" *ngIf="bookings.length > 0">
+        <table class="clinic-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Status</th>
+              <th>Payment</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let booking of bookings">
+              <td class="data-mono">{{ booking.id }}</td>
+              <td>{{ booking.appointmentDate }}</td>
+              <td>{{ booking.slotStartTime }}</td>
+              <td><app-status-badge [status]="booking.status"></app-status-badge></td>
+              <td><app-status-badge [status]="booking.paymentStatus"></app-status-badge></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <app-empty-state
+        *ngIf="bookings.length === 0"
+        icon="calendar-outline"
+        title="No bookings"
+        description="This patient has no bookings yet."
+      ></app-empty-state>
+    </div>
+
+    <div *ngIf="selectedTab === 'records'" class="media-stack">
+      <app-patient-media-panel
+        *ngIf="patient"
+        kind="document"
+        [patientId]="patient.id"
+        [allowUpload]="true"
+        heading="Patient Documents"
+        subheading="Upload referrals, certificates, and supporting documents. Booking and consultation IDs are optional."
+      ></app-patient-media-panel>
+
+      <app-patient-media-panel
+        *ngIf="patient"
+        kind="lab-result"
+        [patientId]="patient.id"
+        [allowUpload]="true"
+        heading="Patient Lab Results"
+        subheading="Upload lab reports and test results without requiring a booking."
+      ></app-patient-media-panel>
+    </div>
+  </ng-container>
+</section>

@@ -1,0 +1,128 @@
+:host {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.doctor-queue-table {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.doctor-queue-table__scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.doctor-queue-table__scroll .clinic-table {
+  min-width: 860px;
+}
+
+.cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cell-stack strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cell-muted {
+  font-size: 12px;
+  color: var(--clinic-text-muted);
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.doctor-queue-mobile {
+  display: none;
+}
+
+.doctor-queue-card {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--clinic-border);
+  border-radius: var(--radius-lg);
+  background: var(--clinic-bg-elevated);
+  box-shadow: var(--shadow-sm);
+}
+
+.doctor-queue-card__head,
+.doctor-queue-card__badges,
+.doctor-queue-card__details > div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.doctor-queue-card__badges {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.doctor-queue-card__details {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.doctor-queue-card__details dt {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--clinic-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.doctor-queue-card__details dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--clinic-text-primary);
+  font-size: var(--text-sm);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doctor-queue-card__actions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.doctor-queue-card__actions .btn-primary,
+.doctor-queue-card__actions .btn-ghost {
+  width: 100%;
+  justify-content: center;
+}
+
+@media (max-width: 720px) {
+  .doctor-queue-table {
+    padding: var(--space-4);
+  }
+
+  .doctor-queue-table__scroll {
+    display: none;
+  }
+
+  .doctor-queue-mobile {
+    display: grid;
+    gap: var(--space-3);
+  }
+}

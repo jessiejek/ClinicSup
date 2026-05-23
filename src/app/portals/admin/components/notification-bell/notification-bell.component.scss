@@ -1,0 +1,71 @@
+:host {
+  display: inline-flex;
+  position: relative;
+}
+
+.notification-bell-shell {
+  display: inline-flex;
+  position: relative;
+}
+
+.notification-bell {
+  position: relative;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--clinic-border);
+  background: white;
+  color: var(--clinic-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-bell ion-icon {
+  font-size: 20px;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--ion-color-danger);
+  color: white;
+  font-size: 10px;
+  font-weight: var(--font-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+  padding: 0 4px;
+  animation: badgePop 300ms var(--transition-spring);
+}
+
+.notification-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 998;
+  background: transparent;
+}
+
+.notification-popover-panel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 999;
+  width: min(380px, calc(100vw - var(--space-4)));
+}
+
+@media (max-width: 768px) {
+  .notification-popover-panel {
+    position: fixed;
+    top: 72px;
+    left: var(--space-2);
+    right: var(--space-2);
+    width: auto;
+  }
+}

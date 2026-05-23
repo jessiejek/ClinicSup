@@ -1,0 +1,13 @@
+.proof-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.proof-form__subtitle {
+  margin: calc(-1 * var(--space-2)) 0 0 0;
+  color: var(--clinic-text-secondary);
+}
+
+.proof-form__actions {
+  padding-top: var(--space-2);
+}

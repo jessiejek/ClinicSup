@@ -1,0 +1,59 @@
+.page-shell {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.page-loading {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+}
+
+.page-shell__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: var(--space-8);
+}
+
+.page-title {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.page-subtitle {
+  margin: var(--space-1) 0 0;
+  color: var(--clinic-text-secondary);
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+select {
+  height: 36px;
+  border: 1px solid var(--clinic-border);
+  border-radius: var(--radius-md);
+  background: white;
+}
+
+.table-mobile {
+  display: none;
+}
+
+.empty-state-wrap {
+  padding: var(--space-12) 0;
+}
+
+@media (max-width: 768px) {
+  .table-desktop {
+    display: none;
+  }
+
+  .table-mobile {
+    display: grid;
+    gap: var(--space-3);
+  }
+}

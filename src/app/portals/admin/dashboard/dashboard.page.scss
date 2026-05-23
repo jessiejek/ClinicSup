@@ -1,0 +1,166 @@
+.page-shell,
+:host {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.page-shell {
+  display: grid;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+.page-shell__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
+}
+
+.page-title {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+}
+
+.page-subtitle {
+  margin: var(--space-1) 0 0;
+  color: var(--clinic-text-secondary);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.chart-grid > .clinic-card,
+.page-shell > .clinic-card {
+  min-width: 0;
+}
+
+.chart-card {
+  display: grid;
+  gap: var(--space-4);
+  min-height: 220px;
+}
+
+.chart-card--bar {
+  align-content: center;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 3fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.bar-row__label,
+.bar-row__value {
+  font-size: var(--text-sm);
+  color: var(--clinic-text-secondary);
+}
+
+.bar-row__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-row__value {
+  font-weight: var(--font-semibold);
+  color: var(--clinic-text-primary);
+  min-width: 24px;
+  text-align: right;
+}
+
+.bar-row__track {
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-100);
+  overflow: hidden;
+}
+
+.bar-row__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gradient-card-green);
+}
+
+.area-chart {
+  width: 100%;
+  height: 220px;
+  display: block;
+}
+
+.area-chart__legend {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-2);
+  font-size: 10px;
+  color: var(--clinic-text-muted);
+  text-align: center;
+}
+
+@media (max-width: 1200px) {
+  .stats-grid,
+  .chart-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .page-shell {
+    gap: var(--space-3);
+  }
+
+  .page-shell__header {
+    margin-bottom: 0;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+
+  .stats-grid ::ng-deep app-stat-card {
+    display: block;
+    min-width: 0;
+  }
+
+  .stats-grid > app-stat-card {
+    min-width: 0;
+  }
+
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-grid > .clinic-card,
+  .page-shell > .clinic-card {
+    padding: var(--space-4);
+  }
+
+  .bar-row {
+    grid-template-columns: minmax(84px, 1fr) minmax(0, 2fr) auto;
+    gap: var(--space-2);
+  }
+}
+
+@media (min-width: 641px) and (max-width: 768px) {
+  .page-shell__header {
+    margin-bottom: var(--space-4);
+  }
+}

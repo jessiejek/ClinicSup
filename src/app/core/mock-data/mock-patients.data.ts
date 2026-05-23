@@ -1,0 +1,82 @@
+﻿import { Patient } from '../models';
+
+export const MOCK_PATIENTS: Patient[] = [
+    {
+      id: 'pat-1',
+      patientCode: 'PT-2025-00001',
+      firstName: 'Juan',
+      middleName: 'Santos',
+      lastName: 'dela Cruz',
+      dateOfBirth: '1990-05-15',
+      sex: 'Male',
+      address: '123 Mango Street, Buaya',
+      city: 'Lapu-Lapu City',
+      zipCode: '6015',
+      contactNumber: '09171234567',
+      email: 'patient@gavino.clinic',
+      emergencyContactName: 'Maria dela Cruz',
+      emergencyContactNumber: '09171230000',
+      emergencyContactRelationship: 'Spouse',
+      bloodType: 'O+',
+      hmoProvider: 'Maxicare',
+      hmoCardNumber: 'HMO-2025-0001',
+      philHealthNumber: '12-345678901-2',
+      consentedAt: '2025-03-01T08:30:00Z',
+      consentVersion: 'v0.9',
+      isEmailVerified: false,
+      isGuest: false,
+      userId: 'user-patient-1'
+    },
+    {
+      id: 'pat-2',
+      patientCode: 'PT-2025-00002',
+      firstName: 'Maria',
+      lastName: 'Santos',
+      dateOfBirth: '1985-11-22',
+      sex: 'Female',
+      contactNumber: '09182345678',
+      email: 'maria@example.com',
+      bloodType: 'A+',
+      isGuest: false,
+      consentVersion: 'v1.0'
+    },
+    {
+      id: 'pat-3',
+      patientCode: 'PT-2025-00003',
+      firstName: 'Pedro',
+      lastName: 'Reyes',
+      dateOfBirth: '2010-03-08',
+      sex: 'Male',
+      contactNumber: '09193456789',
+      email: 'pedro@example.com',
+      bloodType: 'B+',
+      isGuest: false,
+      consentVersion: 'v1.0'
+    },
+    {
+      id: 'pat-4',
+      patientCode: 'PT-2025-00004',
+      firstName: 'Ana',
+      lastName: 'Gomez',
+      dateOfBirth: '1995-07-30',
+      sex: 'Female',
+      contactNumber: '09204567890',
+      email: 'ana@example.com',
+      bloodType: 'AB+',
+      isGuest: false,
+      consentVersion: 'v1.0'
+    },
+    {
+      id: 'pat-5',
+      patientCode: 'PT-2025-00005',
+      firstName: 'Carlos',
+      lastName: 'Mendoza',
+      dateOfBirth: '1978-12-01',
+      sex: 'Male',
+      contactNumber: '09215678901',
+      email: 'carlos@example.com',
+      bloodType: 'O-',
+      isGuest: false,
+      consentVersion: 'v1.0'
+    }
+  ];

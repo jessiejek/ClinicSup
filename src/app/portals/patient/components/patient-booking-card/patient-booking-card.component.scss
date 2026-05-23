@@ -1,0 +1,81 @@
+.booking-card {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.booking-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.booking-card__id {
+  font-size: var(--text-xs);
+  margin-bottom: 4px;
+}
+
+.booking-card h3 {
+  margin: 0 0 4px 0;
+  font-size: var(--text-lg);
+  color: var(--clinic-text-primary);
+}
+
+.booking-card p {
+  margin: 0;
+  color: var(--clinic-text-secondary);
+}
+
+.booking-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.booking-card__details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.booking-card__details div {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--clinic-border);
+}
+
+.booking-card__details span {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--clinic-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.booking-card__details strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--clinic-text-primary);
+}
+
+.booking-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+@media (max-width: 720px) {
+  .booking-card__header {
+    flex-direction: column;
+  }
+
+  .booking-card__badges {
+    justify-content: flex-start;
+  }
+
+  .booking-card__details {
+    grid-template-columns: 1fr;
+  }
+}

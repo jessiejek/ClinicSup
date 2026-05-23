@@ -1,0 +1,51 @@
+.hours-bar {
+  background: white;
+  border-bottom: 1px solid var(--clinic-border);
+  padding: var(--space-3) var(--space-8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-6);
+  font-size: var(--text-sm);
+  flex-wrap: wrap;
+}
+
+.hours-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--clinic-text-secondary);
+}
+
+.hours-day {
+  font-weight: var(--font-semibold);
+  color: var(--clinic-text-primary);
+}
+
+.hours-divider {
+  color: var(--clinic-border-strong);
+}
+
+@media (max-width: 640px) {
+  .hours-bar {
+    padding: var(--space-2) var(--space-4);
+    justify-content: flex-start;
+    gap: var(--space-4);
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .hours-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hours-item {
+    flex-shrink: 0;
+  }
+
+  .hours-divider {
+    display: none;
+  }
+}

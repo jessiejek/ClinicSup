@@ -1,0 +1,116 @@
+.public-footer {
+  background: var(--color-neutral-900);
+  color: rgba(255, 255, 255, 0.75);
+  padding-top: var(--space-16);
+  padding-bottom: max(var(--space-8), env(safe-area-inset-bottom));
+  padding-left: max(var(--space-4), env(safe-area-inset-left));
+  padding-right: max(var(--space-4), env(safe-area-inset-right));
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-8);
+  margin-bottom: var(--space-12);
+}
+
+.footer-heading {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--space-4);
+}
+
+.footer-link {
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  display: block;
+  margin-bottom: var(--space-2);
+  transition: color var(--transition-fast);
+}
+
+.footer-link:hover {
+  color: white;
+}
+
+.footer-brand {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.footer-logo {
+  height: 40px;
+  width: auto;
+}
+
+.footer-brand-name {
+  font-weight: var(--font-bold);
+  color: white;
+  font-size: var(--text-lg);
+  margin-bottom: var(--space-2);
+}
+
+.footer-tagline {
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.65);
+  margin-bottom: var(--space-4);
+  line-height: var(--leading-relaxed);
+}
+
+.footer-social {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.footer-social a {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 24px;
+  transition: color var(--transition-fast);
+}
+
+.footer-social a:hover {
+  color: white;
+}
+
+.footer-contact {
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-2);
+  line-height: var(--leading-relaxed);
+}
+
+.footer-hours {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: var(--space-2);
+}
+
+.footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: space-between;
+  padding-top: var(--space-8);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.footer-powered {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+@media (max-width: 768px) {
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer-grid {
+    grid-template-columns: 1fr;
+  }
+}

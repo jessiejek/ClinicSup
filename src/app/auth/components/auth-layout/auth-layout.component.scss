@@ -1,0 +1,129 @@
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+.auth-wrapper {
+  display: flex;
+  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
+}
+
+.auth-left {
+  width: 420px;
+  flex-shrink: 0;
+  background: var(--gradient-hero);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-16);
+  position: relative;
+  overflow: hidden;
+  color: var(--clinic-text-inverse);
+}
+
+.auth-left::before {
+  content: '';
+  position: absolute;
+  top: -100px;
+  right: -100px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.auth-left__logo {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-extrabold);
+  font-size: var(--text-xl);
+  margin-bottom: var(--space-6);
+  position: relative;
+  z-index: 1;
+}
+
+.auth-left__title {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: white;
+  margin: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.auth-left__tagline {
+  font-size: var(--text-base);
+  color: rgba(255, 255, 255, 0.8);
+  margin: var(--space-3) 0 0;
+  position: relative;
+  z-index: 1;
+}
+
+.auth-badges {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-8);
+  position: relative;
+  z-index: 1;
+}
+
+.trust-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  width: fit-content;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.auth-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  overflow-y: auto;
+  padding: var(--space-8);
+}
+
+.auth-form-container {
+  width: 100%;
+  max-width: 440px;
+}
+
+.auth-mobile-brand {
+  display: none;
+  text-align: center;
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--ion-color-primary);
+  margin-bottom: var(--space-6);
+}
+
+@media (max-width: 768px) {
+  .auth-left {
+    display: none;
+  }
+
+  .auth-mobile-brand {
+    display: block;
+  }
+
+  .auth-right {
+    justify-content: flex-start;
+    padding-top: var(--space-12);
+  }
+}

@@ -1,0 +1,120 @@
+.page-wrap {
+  padding-bottom: var(--space-16);
+}
+
+@media (max-width: 640px) {
+  .page-wrap {
+    padding-bottom: var(--space-12);
+  }
+
+  .page-title {
+    font-size: var(--text-2xl);
+  }
+
+  .filter-row {
+    gap: var(--space-2);
+    margin-bottom: var(--space-6);
+  }
+
+  .filter-pill {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+  }
+}
+
+.page-header {
+  margin-bottom: var(--space-8);
+}
+
+.page-loading {
+  min-height: 240px;
+  display: grid;
+  place-items: center;
+}
+
+.page-title {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  color: var(--clinic-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.page-subtitle {
+  font-size: var(--text-base);
+  color: var(--clinic-text-muted);
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-8);
+}
+
+.filter-pill {
+  border: 1px solid var(--clinic-border);
+  background: white;
+  color: var(--clinic-text-secondary);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filter-pill:hover {
+  border-color: var(--ion-color-primary);
+  color: var(--ion-color-primary);
+}
+
+.filter-pill--active {
+  background: var(--gradient-card-green);
+  border-color: transparent;
+  color: white;
+}
+
+.doctors-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+}
+
+@media (max-width: 1024px) {
+  .doctors-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .doctors-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .skeleton-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+}
+
+@media (max-width: 1024px) {
+  .skeleton-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.skeleton-grid .skeleton-card {
+  min-height: 280px;
+}
+
+.empty-hint {
+  text-align: center;
+  padding: var(--space-12) 0;
+}

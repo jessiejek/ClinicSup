@@ -1,0 +1,33 @@
+:host {
+  display: block;
+}
+
+.section-card {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.section-card__head h3 {
+  margin: 0;
+}
+
+.section-card__head p {
+  margin: 4px 0 0;
+  color: var(--clinic-text-secondary);
+}
+
+.soap-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.field--full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  .soap-grid {
+    grid-template-columns: 1fr;
+  }
+}

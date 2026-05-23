@@ -1,0 +1,136 @@
+<app-auth-layout>
+  <div class="login-page">
+    <h2 class="page-heading">Welcome Back</h2>
+    <p class="page-sub">Sign in to your account</p>
+
+    <app-banner
+      *ngIf="error$ | async as err"
+      variant="danger"
+      [message]="err"
+      class="login-error-banner"
+    ></app-banner>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onLogin()" novalidate>
+      <ion-item class="clinic-input" lines="full">
+        <ion-label position="floating">Email Address</ion-label>
+        <ion-input type="email" formControlName="email" autocomplete="email"></ion-input>
+      </ion-item>
+      <div
+        class="form-error-message"
+        *ngIf="loginForm.get('email')?.touched && loginForm.get('email')?.invalid"
+      >
+        <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+        <span *ngIf="loginForm.get('email')?.errors?.['required']">Email is required</span>
+        <span *ngIf="loginForm.get('email')?.errors?.['email']">Please enter a valid email</span>
+      </div>
+
+      <ion-item class="clinic-input" lines="full">
+        <ion-label position="floating">Password</ion-label>
+        <ion-input
+          [type]="showPassword ? 'text' : 'password'"
+          formControlName="password"
+          autocomplete="current-password"
+        ></ion-input>
+        <ion-button
+          slot="end"
+          fill="clear"
+          type="button"
+          aria-label="Toggle password visibility"
+          (click)="showPassword = !showPassword"
+        >
+          <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+        </ion-button>
+      </ion-item>
+      <div
+        class="form-error-message"
+        *ngIf="loginForm.get('password')?.touched && loginForm.get('password')?.errors?.['required']"
+      >
+        <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+        Password is required
+      </div>
+
+      <div class="forgot-row">
+        <a routerLink="/auth/forgot-password" class="link-forgot">Forgot password?</a>
+      </div>
+
+      <button class="btn-primary login-submit" type="submit" [disabled]="(isLoading$ | async) === true">
+        <ion-spinner
+          *ngIf="(isLoading$ | async) === true"
+          name="crescent"
+          style="width: 16px; height: 16px; margin-right: 8px"
+        ></ion-spinner>
+        {{ (isLoading$ | async) ? 'Signing in...' : 'Sign In' }}
+      </button>
+    </form>
+
+    <div class="auth-divider">
+      <hr />
+      <span>OR</span>
+      <hr />
+    </div>
+
+    <div class="google-signin">
+      <div #googleButton class="google-signin__button" *ngIf="canUseGoogleLogin && !googleSdkError"></div>
+      <button
+        *ngIf="!canUseGoogleLogin || googleSdkError"
+        type="button"
+        class="btn-social"
+        (click)="onGoogleFallbackClick()"
+        [disabled]="googleLoading || (isLoading$ | async) === true"
+      >
+        {{ googleSdkError ? 'Retry Google Sign-In' : 'Continue with Google' }}
+      </button>
+      <div class="google-status" *ngIf="googleLoading">
+        <ion-spinner name="crescent" style="width: 16px; height: 16px"></ion-spinner>
+        <span>Finishing Google sign-in...</span>
+      </div>
+      <p class="google-status google-status--error" *ngIf="googleSdkError">
+        {{ googleSdkError }}
+      </p>
+    </div>
+
+    <div class="facebook-signin">
+      <button
+        type="button"
+        class="btn-social btn-social--facebook"
+        (click)="onFacebookLoginClick()"
+        [disabled]="facebookLoading || (isLoading$ | async) === true"
+      >
+        <span class="btn-social__icon" aria-hidden="true">f</span>
+        {{ facebookLoading ? 'Finishing Facebook sign-in...' : 'Continue with Facebook' }}
+      </button>
+
+      <p class="google-status google-status--error" *ngIf="facebookSdkError">
+        {{ facebookSdkError }}
+      </p>
+    </div>
+
+    <p class="register-hint">
+      Don't have an account?
+      <a routerLink="/auth/register">Create one</a>
+    </p>
+
+    <div class="dev-credentials">
+      <button type="button" class="dev-credentials__toggle" (click)="devExpanded = !devExpanded">
+        Quick Login (Dev Only) {{ devExpanded ? 'â–¼' : 'â–¶' }}
+      </button>
+      <div *ngIf="devExpanded" class="dev-credentials__body">
+        <button type="button" class="dev-chip" (click)="fillCreds('patient@gavino.clinic', 'Patient@123456')">
+          patient
+        </button>
+        <button type="button" class="dev-chip" (click)="fillCreds('admin@gavino.clinic', 'Admin@123456')">
+          Admin
+        </button>
+        <button type="button" class="dev-chip" (click)="fillCreds('staff@gavino.clinic', 'Staff@123456')">
+          Staff
+        </button>
+        <button type="button" class="dev-chip" (click)="fillCreds('dr.santos@gavino.clinic', 'Doctor@123456')">
+          Doctor
+        </button>
+        <button type="button" class="dev-chip" (click)="fillCreds('dr.reyes@gavino.clinic', 'Doctor@123456')">
+          First-Login Doctor
+        </button>
+      </div>
+    </div>
+  </div>
+</app-auth-layout>

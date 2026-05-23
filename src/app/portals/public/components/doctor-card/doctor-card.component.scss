@@ -1,0 +1,119 @@
+.doctor-card {
+  background: white;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--clinic-border);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-6);
+  text-align: center;
+  transition: all var(--transition-base);
+  cursor: default;
+}
+
+.doctor-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+}
+
+.doctor-card__avatar {
+  margin: 0 auto var(--space-4);
+  position: relative;
+}
+
+.doctor-card__avatar-ring {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 3px solid var(--color-primary-100);
+  padding: 3px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doctor-card__name {
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
+  color: var(--clinic-text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.doctor-card__spec {
+  font-size: var(--text-xs);
+  color: var(--clinic-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-3);
+}
+
+.doctor-card__status {
+  margin-bottom: var(--space-2);
+  display: flex;
+  justify-content: center;
+}
+
+.doctor-card__fee {
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--ion-color-primary);
+  font-family: var(--font-mono);
+  margin-bottom: var(--space-2);
+}
+
+.doctor-card__rating {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--clinic-text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.star {
+  color: #fbbf24;
+}
+
+.doctor-card__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.btn-book {
+  background: var(--gradient-card-green);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  flex: 1;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.btn-profile {
+  background: var(--color-neutral-100);
+  color: var(--clinic-text-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  text-decoration: none;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-bold);
+}
+
+.btn-book:hover,
+.btn-profile:hover {
+  filter: brightness(1.05);
+}

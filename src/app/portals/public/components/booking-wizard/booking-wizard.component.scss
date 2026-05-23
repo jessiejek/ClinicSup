@@ -1,0 +1,118 @@
+:host {
+  display: block;
+}
+
+.booking-wizard {
+  display: block;
+}
+
+.booking-wizard__body {
+  background: transparent;
+}
+
+.wizard-steps {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  margin-bottom: var(--space-8);
+  overflow-x: auto;
+  padding: var(--space-4) 0;
+}
+
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 80px;
+  position: relative;
+}
+
+.wizard-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--clinic-border);
+}
+
+.wizard-step--completed::after {
+  background: var(--ion-color-primary) !important;
+}
+
+.wizard-step__circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--clinic-border);
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--clinic-text-muted);
+  position: relative;
+  z-index: 1;
+  transition: all var(--transition-base);
+}
+
+.wizard-step--active .wizard-step__circle,
+.wizard-step--completed .wizard-step__circle {
+  border-color: var(--ion-color-primary);
+  background: var(--ion-color-primary);
+  color: white;
+}
+
+.wizard-step__label {
+  font-size: 10px;
+  color: var(--clinic-text-muted);
+  text-align: center;
+  margin-top: var(--space-2);
+  white-space: nowrap;
+}
+
+.wizard-step--active .wizard-step__label {
+  color: var(--ion-color-primary);
+  font-weight: var(--font-semibold);
+}
+
+@media (max-width: 640px) {
+  .wizard-steps {
+    padding: var(--space-2) 0;
+    margin-bottom: var(--space-5);
+    scrollbar-width: none;
+  }
+
+  .wizard-steps::-webkit-scrollbar {
+    display: none;
+  }
+
+  .wizard-step {
+    min-width: 44px;
+    flex-shrink: 0;
+  }
+
+  .wizard-step__circle {
+    width: 28px;
+    height: 28px;
+    font-size: var(--text-xs);
+  }
+
+  .wizard-step:not(:last-child)::after {
+    top: 14px;
+  }
+
+  .wizard-step__label {
+    font-size: 9px;
+    white-space: normal;
+    max-width: 44px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.2;
+  }
+}

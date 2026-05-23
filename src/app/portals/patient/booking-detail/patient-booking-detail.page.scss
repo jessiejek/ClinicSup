@@ -1,0 +1,98 @@
+.booking-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.8fr);
+  gap: var(--space-6);
+}
+
+.booking-detail-main {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.booking-summary__top,
+.side-profile {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.booking-summary h3,
+.side-profile h3 {
+  margin: 0 0 6px 0;
+  color: var(--clinic-text-primary);
+}
+
+.booking-summary p,
+.side-profile p,
+.detail-copy,
+.cancellation-panel p {
+  margin: 0;
+  color: var(--clinic-text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.booking-summary__badges {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.summary-grid--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.summary-grid div,
+.detail-meta div {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--clinic-border);
+}
+
+.summary-grid span,
+.detail-meta span {
+  display: block;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--clinic-text-muted);
+}
+
+.summary-grid strong,
+.detail-meta strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--clinic-text-primary);
+}
+
+.booking-detail-side {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+
+.detail-meta {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.cancellation-panel {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (max-width: 1024px) {
+  .booking-detail-grid,
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}

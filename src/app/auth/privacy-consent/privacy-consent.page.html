@@ -1,0 +1,28 @@
+<app-auth-layout>
+  <div class="privacy-page">
+    <h2 class="page-heading">Privacy Policy Update</h2>
+    <p class="page-sub">
+      Our privacy policy has been updated. Please review and accept to continue.
+    </p>
+
+    <div
+      #policyScroll
+      class="policy-scroll"
+      (scroll)="onScroll()"
+    >
+      <p *ngFor="let para of policyParagraphs">{{ para }}</p>
+    </div>
+
+    <div class="privacy-footer">
+      <span class="version-chip">Version: {{ consentVersion }}</span>
+      <button
+        class="btn-primary accept-btn"
+        type="button"
+        [disabled]="!acceptEnabled"
+        (click)="onAccept()"
+      >
+        Accept and continue
+      </button>
+    </div>
+  </div>
+</app-auth-layout>

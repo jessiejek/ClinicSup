@@ -1,0 +1,91 @@
+:host {
+  display: block;
+}
+
+.wizard-panel {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.wizard-title {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--clinic-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.wizard-subtitle {
+  color: var(--clinic-text-secondary);
+}
+
+.summary-card {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--clinic-border);
+  font-size: var(--text-sm);
+}
+
+.summary-row:last-child {
+  border-bottom: none;
+}
+
+.summary-subrow {
+  margin-top: calc(var(--space-2) * -1);
+  margin-bottom: var(--space-1);
+  color: var(--clinic-text-muted);
+  font-size: var(--text-xs);
+}
+
+.summary-row--total {
+  font-size: var(--text-base);
+}
+
+.fee-total {
+  color: var(--ion-color-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+}
+
+.wizard-actions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.wizard-actions--split {
+  gap: var(--space-3);
+}
+
+.auth-modal {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6);
+}
+
+.auth-modal h3 {
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--clinic-text-primary);
+}
+
+.auth-modal p {
+  color: var(--clinic-text-secondary);
+  margin: 0;
+}
+
+.auth-modal__actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.auth-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+}

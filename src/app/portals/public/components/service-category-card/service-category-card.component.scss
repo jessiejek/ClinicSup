@@ -1,0 +1,67 @@
+.gradient-card-green {
+  background: var(--gradient-card-green);
+}
+
+.gradient-card-blue {
+  background: var(--gradient-card-blue);
+}
+
+.gradient-card-amber {
+  background: var(--gradient-card-amber);
+}
+
+.gradient-card-rose {
+  background: var(--gradient-card-rose);
+}
+
+.service-cat-card {
+  border: none;
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  color: white;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.service-cat-card:hover {
+  transform: translateY(-4px) scale(1.02);
+}
+
+.service-cat-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.service-cat-card__name {
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+}
+
+.service-cat-card__desc {
+  font-size: var(--text-sm);
+  opacity: 0.85;
+}
+
+.service-cat-card__count {
+  font-size: var(--text-xs);
+  opacity: 0.7;
+  font-weight: var(--font-medium);
+}
+
+.service-cat-card__arrow {
+  margin-top: auto;
+  font-size: 20px;
+  align-self: flex-end;
+}

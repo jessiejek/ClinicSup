@@ -1,0 +1,54 @@
+:host {
+  display: block;
+}
+
+.records-shell {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.section-card {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.section-card__head h3 {
+  margin: 0;
+}
+
+.section-card__head p,
+.muted-copy {
+  margin: 4px 0 0;
+  color: var(--clinic-text-secondary);
+}
+
+.record-item {
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--clinic-border);
+  background: var(--color-neutral-50);
+}
+
+.record-item strong {
+  display: block;
+}
+
+.mini-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.field {
+  --background: transparent;
+}
+
+.field--full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  .mini-form {
+    grid-template-columns: 1fr;
+  }
+}

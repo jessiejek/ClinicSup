@@ -1,0 +1,49 @@
+.consent-card {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 920px;
+}
+
+.consent-text {
+  margin: 0;
+  color: var(--clinic-text-secondary);
+  line-height: var(--leading-relaxed);
+  white-space: pre-line;
+}
+
+.consent-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.consent-meta div {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--clinic-border);
+}
+
+.consent-meta span {
+  display: block;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--clinic-text-muted);
+}
+
+.consent-meta strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--clinic-text-primary);
+}
+
+.consent-checkbox {
+  --inner-border-radius: 9999px;
+}
+
+@media (max-width: 720px) {
+  .consent-meta {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,75 @@
+.page-shell {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.page-loading {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+}
+
+.page-shell__header {
+  margin-bottom: var(--space-8);
+}
+
+.page-shell__header .page-title {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-2xl);
+}
+
+.doctor-form {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.doctor-form__hero {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.file-input {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--clinic-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.file-input input {
+  display: none;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.filter-input,
+.textarea {
+  border: 1px solid var(--clinic-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: white;
+}
+
+.textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+@media (max-width: 900px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}

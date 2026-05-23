@@ -1,0 +1,36 @@
+.review-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.review-form__stars {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.star-button {
+  border: none;
+  background: transparent;
+  font-size: 28px;
+  color: var(--color-neutral-300);
+  cursor: pointer;
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.star-button.is-active {
+  color: #f59e0b;
+}
+
+.star-button:disabled {
+  cursor: not-allowed;
+}
+
+.review-form__error {
+  margin: 0;
+  color: var(--ion-color-danger);
+}
+
+.review-form__actions {
+  display: flex;
+  justify-content: flex-end;
+}

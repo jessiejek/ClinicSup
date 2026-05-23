@@ -1,0 +1,31 @@
+.not-found {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  background: linear-gradient(180deg, #f7faf7 0%, #eef6f1 100%);
+}
+
+.not-found__card {
+  width: min(100%, 560px);
+  background: white;
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--clinic-border);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  padding: var(--space-10) var(--space-6);
+}
+
+.not-found__card ion-icon {
+  font-size: 72px;
+  color: var(--ion-color-primary);
+}
+
+.not-found__card h1 {
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.not-found__card p {
+  margin: 0 0 var(--space-6);
+  color: var(--clinic-text-secondary);
+}

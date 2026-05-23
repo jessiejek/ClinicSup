@@ -1,0 +1,80 @@
+.booking-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: var(--space-6);
+}
+
+.bookings-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+  color: var(--clinic-text-secondary);
+}
+
+.bookings-pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.bookings-pagination__page {
+  color: var(--clinic-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+}
+
+.bookings-loading {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.booking-filter {
+  border: 1px solid var(--clinic-border);
+  background: white;
+  color: var(--clinic-text-secondary);
+  border-radius: var(--radius-full);
+  padding: 10px 14px;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+}
+
+.booking-filter.active {
+  background: var(--color-primary-50);
+  color: var(--ion-color-primary);
+  border-color: transparent;
+}
+
+.bookings-table-card {
+  overflow: auto;
+}
+
+.table-time {
+  color: var(--clinic-text-muted);
+  font-size: var(--text-xs);
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mobile-cards {
+  display: none;
+  gap: var(--space-4);
+}
+
+@media (max-width: 960px) {
+  .desktop-table {
+    display: none;
+  }
+
+  .mobile-cards {
+    display: grid;
+  }
+}

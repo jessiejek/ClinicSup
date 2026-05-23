@@ -1,0 +1,55 @@
+:host{display:block;min-width:0}
+.page-shell{display:grid;gap:var(--space-5);width:100%;min-width:0}
+.page-shell__header{margin-bottom:0}
+.page-title,.page-subtitle{margin:0}
+.page-subtitle{color:var(--clinic-text-secondary)}
+.patients-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-3);align-items:center}
+.patients-search{position:relative;min-width:0}
+.filter-input{border:1px solid var(--clinic-border);border-radius:var(--radius-md);background:#fff}
+.patients-search__icon{position:absolute;top:50%;left:var(--space-4);transform:translateY(-50%);color:var(--clinic-text-muted);pointer-events:none}
+.patients-search__input{width:100%;min-width:0;height:48px;padding-left:2.75rem;padding-right:var(--space-4);border-radius:9999px}
+.patients-toolbar__add{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:48px;white-space:nowrap}
+.patients-meta{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;color:var(--clinic-text-secondary)}
+.patients-pagination{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap}
+.patients-table{min-width:860px}
+.patients-table thead th{background:rgba(122,76,255,.04)}
+.patients-table tbody tr{cursor:pointer;transition:background-color .18s ease}
+.patients-table tbody tr:hover{background:rgba(122,76,255,.035)}
+.patients-table tbody tr:last-child td{border-bottom:0}
+.patient-code-chip{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 var(--space-3);border:1px solid rgba(122,76,255,.16);border-radius:9999px;background:rgba(122,76,255,.08);color:var(--ion-color-primary);font-size:var(--text-xs);font-weight:var(--font-semibold);letter-spacing:.04em;white-space:nowrap}
+
+::ng-deep ion-modal.admin-patient-create-modal {
+  --width: min(92vw, 860px);
+  --max-width: 860px;
+  --height: min(90vh, calc(100vh - 24px));
+  --max-height: 90vh;
+  --border-radius: 16px;
+  --box-shadow: 0 30px 70px rgba(15, 23, 42, 0.28);
+}
+
+::ng-deep ion-modal.admin-patient-create-modal::part(content) {
+  width: min(92vw, 860px);
+  max-width: 860px;
+  height: min(90vh, calc(100vh - 24px));
+  max-height: 90vh;
+  margin: auto;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+@media (max-width:960px){.patients-toolbar{grid-template-columns:1fr}.patients-toolbar__add{width:100%}}
+@media (max-width:720px){.page-shell{gap:var(--space-4)}.patients-meta{align-items:flex-start}.patients-pagination{width:100%;justify-content:space-between}}
+
+@media (max-width:768px) {
+  ::ng-deep ion-modal.admin-patient-create-modal {
+    --width: 96vw;
+    --height: 92vh;
+    --max-height: 92vh;
+  }
+
+  ::ng-deep ion-modal.admin-patient-create-modal::part(content) {
+    width: 96vw;
+    height: min(92vh, calc(100vh - 16px));
+    max-height: 92vh;
+  }
+}

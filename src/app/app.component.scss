@@ -1,0 +1,9 @@
+/* ion-app fills viewport when body uses Ionic defaults (structure.css: fixed + overflow hidden). */
+:host {
+  display: block;
+  height: 100%;
+}
+
+ion-app {
+  height: 100%;
+}

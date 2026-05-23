@@ -1,0 +1,37 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+::ng-deep ion-modal.admin-patient-edit-modal {
+  --width: min(92vw, 860px);
+  --max-width: 860px;
+  --height: min(90vh, calc(100vh - 24px));
+  --max-height: 90vh;
+  --border-radius: 16px;
+  --box-shadow: 0 30px 70px rgba(15, 23, 42, 0.28);
+}
+
+::ng-deep ion-modal.admin-patient-edit-modal::part(content) {
+  width: min(92vw, 860px);
+  max-width: 860px;
+  height: min(90vh, calc(100vh - 24px));
+  max-height: 90vh;
+  margin: auto;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+@media (max-width: 768px) {
+  ::ng-deep ion-modal.admin-patient-edit-modal {
+    --width: 96vw;
+    --height: 92vh;
+    --max-height: 92vh;
+  }
+
+  ::ng-deep ion-modal.admin-patient-edit-modal::part(content) {
+    width: 96vw;
+    height: min(92vh, calc(100vh - 16px));
+    max-height: 92vh;
+  }
+}

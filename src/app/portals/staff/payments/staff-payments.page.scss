@@ -1,0 +1,52 @@
+:host{display:block;min-width:0;max-width:100%}
+.pp{display:grid;gap:var(--space-6);min-width:0}
+.sg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-4)}
+.sg .stat-card{display:flex;flex-direction:column;background:#fff;border:1px solid #e2e8f0;border-radius:var(--radius-lg);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:0}
+.sg .stat-card::after{display:none}
+.sg .stat-card__accent{height:4px;flex-shrink:0}
+.sg .stat-card--green .stat-card__accent{background:#7c3aed}
+.sg .stat-card--red .stat-card__accent{background:#dc2626}
+.sg .stat-card--blue .stat-card__accent{background:#2563eb}
+.sg .stat-card__body{display:grid;gap:4px;padding:var(--space-4);background:none}
+.sg .stat-card__label{margin:0;font-size:var(--text-sm);font-weight:600;color:#475569}
+.sg .stat-card__value{font-size:1.5rem;font-weight:700;line-height:1.1;color:#111827}
+.sg .stat-card__trend{margin:0;font-size:var(--text-xs);color:#94a3b8;opacity:1}
+.pc{display:grid;gap:var(--space-5);padding-top:var(--space-5)}
+.pch{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-4)}
+.tw{overflow-x:auto}
+.pt{width:100%;border-collapse:collapse}
+.pt th{font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#64748b;padding:var(--space-3);border-bottom:2px solid #e2e8f0;white-space:nowrap;text-align:left}
+.pt th:last-child{text-align:right}
+.pt td{padding:var(--space-3);border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.pt tr{cursor:pointer}.pt tr:hover{background:#f8fafc}.pt tr:last-child td{border-bottom:none}
+.pt .cd{display:flex;flex-direction:column;gap:2px}
+.pt .cn{font-weight:500}.pt .cs{font-size:var(--text-xs);color:#6b21a8}
+.qn{white-space:nowrap;text-align:center}
+.pt .am{white-space:nowrap;font-weight:600}
+.pt .dc{white-space:nowrap;color:#475569}
+.pt .ac{text-align:right}
+.pt .ar{display:flex;flex-direction:column;gap:var(--space-1);align-items:flex-end}
+.pt .ar .btn-primary,.pt .ar .btn-outline{height:32px;padding:0 var(--space-3);font-size:var(--text-xs);min-height:0}
+.ml{display:none}
+.mc{margin-bottom:var(--space-3)}
+.mcb{display:flex;flex-wrap:wrap;gap:var(--space-1)}
+.pg{display:flex;align-items:center;justify-content:center;gap:var(--space-3);padding:var(--space-4);border-top:1px solid #f1f5f9}
+.pg span{font-size:var(--text-sm);color:#64748b}
+.pb{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:var(--space-4);overflow-y:auto;background:rgba(15,23,42,.52);backdrop-filter:blur(10px)}
+.pw{width:min(100%,760px);display:grid;gap:var(--space-5);max-height:calc(100vh - 2rem);overflow:auto;padding:var(--space-6);box-shadow:var(--shadow-2xl);background:#fff;border-radius:var(--radius-lg)}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-4)}
+.ph .btn-ghost{color:#64748b}
+.ps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-4);padding:var(--space-5);border:1px solid #e2e8f0;border-radius:var(--radius-lg);background:var(--color-neutral-50)}
+.ps div{display:grid;gap:var(--space-1)}
+.ps small{font-size:var(--text-xs);color:#94a3b8;text-transform:uppercase;letter-spacing:.06em}
+.pf{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-4)}
+.pd{display:grid;gap:var(--space-2);min-width:0;padding:var(--space-4);border:1px solid #e2e8f0;border-radius:var(--radius-lg);background:#fff}
+.pd label{font-size:var(--text-sm);font-weight:500;color:#334155}
+@media(max-width:960px){.sg{grid-template-columns:1fr}.ps{grid-template-columns:1fr}.pf{grid-template-columns:1fr}.pw{width:min(100%,640px)}}
+@media(max-width:720px){
+  .pp{gap:var(--space-4)}.pc{padding:var(--space-4)}.pch{flex-direction:column;align-items:flex-start}
+  .tw{display:none}.ml{display:block}
+  .pt .ar .btn-primary,.pt .ar .btn-outline{width:100%;justify-content:center;min-height:38px;height:38px}
+  .pg{flex-direction:column;align-items:stretch}.pb{padding:var(--space-3)}.pw{padding:var(--space-4)}
+  .ph{flex-direction:column}.ps{padding:var(--space-3)}
+}

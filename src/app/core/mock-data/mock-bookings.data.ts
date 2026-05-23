@@ -1,0 +1,213 @@
+﻿import { Booking } from '../models';
+
+export interface MockBookingDates {
+  todayStr: string;
+  tomorrowStr: string;
+  yesterdayStr: string;
+  twoDaysAgoStr: string;
+  threeDaysAgoStr: string;
+  nextWeekStr: string;
+}
+
+// Booking seeds stay date-token based so MockDataService can keep generating relative demo dates.
+export function buildMockBookings(
+  makeBooking: (...args: any[]) => Booking,
+  dates: MockBookingDates
+): Booking[] {
+  const { todayStr, tomorrowStr, yesterdayStr, twoDaysAgoStr, threeDaysAgoStr, nextWeekStr } = dates;
+  return [
+      makeBooking(
+        'bk-001',
+        'pat-1',
+        'doc-1',
+        'svc-1',
+        todayStr,
+        '09:00',
+        'Confirmed',
+        'Paid',
+        1,
+        500,
+        false,
+        'Online',
+        500,
+        0
+      ),
+      makeBooking(
+        'bk-002',
+        'pat-2',
+        'doc-1',
+        'svc-4',
+        todayStr,
+        '09:30',
+        'Confirmed',
+        'Unpaid',
+        2,
+        1500,
+        true,
+        'PayAtClinic',
+        500,
+        1000
+      ),
+      makeBooking(
+        'bk-003',
+        'pat-3',
+        'doc-2',
+        'svc-2',
+        todayStr,
+        '10:00',
+        'ProofSubmitted',
+        'Unpaid',
+        1,
+        600,
+        false,
+        'Online',
+        600,
+        0
+      ),
+      makeBooking(
+        'bk-004',
+        'pat-4',
+        'doc-3',
+        'svc-3',
+        todayStr,
+        '09:00',
+        'Confirmed',
+        'Paid',
+        1,
+        700,
+        false,
+        'Online',
+        700,
+        0
+      ),
+      makeBooking(
+        'bk-005',
+        'pat-1',
+        'doc-1',
+        'svc-6',
+        tomorrowStr,
+        '08:00',
+        'Pending',
+        'Unpaid',
+        null,
+        850,
+        false,
+        'Online',
+        500,
+        350
+      ),
+      makeBooking(
+        'bk-006',
+        'pat-2',
+        'doc-2',
+        'svc-2',
+        yesterdayStr,
+        '10:00',
+        'Completed',
+        'Paid',
+        3,
+        600,
+        false,
+        'Online',
+        600,
+        0
+      ),
+      makeBooking(
+        'bk-007',
+        'pat-3',
+        'doc-1',
+        'svc-1',
+        yesterdayStr,
+        '09:00',
+        'Completed',
+        'Waived',
+        2,
+        500,
+        false,
+        'Online',
+        500,
+        0
+      ),
+      makeBooking(
+        'bk-008',
+        'pat-5',
+        'doc-3',
+        'svc-3',
+        yesterdayStr,
+        '11:00',
+        'NoShow',
+        'Unpaid',
+        null,
+        700,
+        false,
+        'Online',
+        700,
+        0
+      ),
+      makeBooking(
+        'bk-009',
+        'pat-4',
+        'doc-1',
+        'svc-9',
+        twoDaysAgoStr,
+        '14:00',
+        'Cancelled',
+        'Refunded',
+        null,
+        1000,
+        false,
+        'Online',
+        500,
+        500
+      ),
+      makeBooking(
+        'bk-010',
+        'pat-1',
+        'doc-2',
+        'svc-2',
+        threeDaysAgoStr,
+        '09:00',
+        'Completed',
+        'Paid',
+        1,
+        600,
+        false,
+        'Online',
+        600,
+        0
+      ),
+      makeBooking(
+        'bk-011',
+        'pat-5',
+        'doc-1',
+        'svc-4',
+        nextWeekStr,
+        '10:00',
+        'Confirmed',
+        'Paid',
+        3,
+        1500,
+        false,
+        'Online',
+        500,
+        1000
+      ),
+      makeBooking(
+        'bk-012',
+        'pat-2',
+        'doc-3',
+        'svc-3',
+        nextWeekStr,
+        '09:00',
+        'Confirmed',
+        'Paid',
+        2,
+        700,
+        false,
+        'Online',
+        700,
+        0
+      )
+    ];
+}
+

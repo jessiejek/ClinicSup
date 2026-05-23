@@ -1,0 +1,131 @@
+.page-wrap {
+  padding-bottom: var(--space-16);
+}
+
+.page-loading {
+  min-height: 240px;
+  display: grid;
+  place-items: center;
+}
+
+.page-header {
+  margin-bottom: var(--space-8);
+}
+
+.page-title {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  color: var(--clinic-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.page-subtitle {
+  font-size: var(--text-base);
+  color: var(--clinic-text-muted);
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-10);
+}
+
+.filter-pill {
+  border: 1px solid var(--clinic-border);
+  background: white;
+  color: var(--clinic-text-secondary);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filter-pill:hover {
+  border-color: var(--ion-color-primary);
+  color: var(--ion-color-primary);
+}
+
+.filter-pill--active {
+  background: var(--gradient-card-green);
+  border-color: transparent;
+  color: white;
+}
+
+.category-block {
+  margin-bottom: var(--space-10);
+}
+
+.category-block app-service-category-card {
+  margin-bottom: var(--space-4);
+  display: block;
+}
+
+.service-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.service-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin-bottom: var(--space-2);
+}
+
+.service-item__name {
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  margin: 0;
+}
+
+.service-item__desc {
+  font-size: var(--text-sm);
+  color: var(--clinic-text-secondary);
+  line-height: var(--leading-relaxed);
+  margin-bottom: var(--space-3);
+}
+
+.service-item__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--clinic-text-secondary);
+}
+
+.service-item__fee {
+  font-weight: var(--font-bold);
+  font-family: var(--font-mono);
+  color: var(--ion-color-primary);
+}
+
+.badge--consultation.badge--category {
+  background: rgba(26, 107, 74, 0.12);
+  color: var(--ion-color-primary);
+}
+
+.badge--procedure.badge--category {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.badge--laboratory.badge--category {
+  background: rgba(217, 119, 6, 0.15);
+  color: #b45309;
+}
+
+.badge--diagnostic.badge--category {
+  background: rgba(220, 38, 38, 0.12);
+  color: #be123c;
+}
+
+.page-empty {
+  padding: var(--space-12) 0;
+}

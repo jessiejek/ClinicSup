@@ -1,0 +1,269 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Design System Gallery</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding gallery-content">
+  <div class="content-container page-enter-active">
+    <app-page-header
+      title="Design System Gallery"
+      subtitle="Phase 1 — Visual verification only"
+    >
+      <ion-button fill="clear" (click)="confirmOpen = true">Open confirm modal</ion-button>
+    </app-page-header>
+
+    <!-- 1. Color palette -->
+    <div class="clinic-card" style="margin-bottom: var(--space-8)">
+      <div class="section-heading">Color palette</div>
+      <div class="swatch-grid">
+        <div class="swatch" *ngFor="let token of colorTokens">
+          <div
+            class="swatch__chip"
+            [style.background]="'var(' + token + ')'"
+            [title]="token"
+          ></div>
+          <div class="swatch__meta">
+            <div class="swatch__name">{{ token }}</div>
+            <div class="swatch__value data-mono">var({{ token }})</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Typography -->
+    <div class="clinic-card" style="margin-bottom: var(--space-8)">
+      <div class="section-heading">Typography</div>
+      <div class="type-grid">
+        <div class="type-row" *ngFor="let t of typographyTokens">
+          <div class="type-row__label data-mono">{{ t }}</div>
+          <div class="type-row__sample" [style.fontSize]="'var(' + t + ')'">
+            The quick brown fox
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Buttons -->
+    <div class="clinic-card" style="margin-bottom: var(--space-8)">
+      <div class="section-heading">Buttons</div>
+      <div class="row">
+        <button class="btn-primary" type="button">Primary</button>
+        <button class="btn-outline" type="button">Outline</button>
+        <button class="btn-ghost" type="button">Ghost</button>
+        <button class="btn-danger" type="button">Danger</button>
+        <button class="btn-icon" type="button" aria-label="Icon">
+          <ion-icon name="pulse-outline"></ion-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- 4. Badges -->
+    <div class="clinic-card" style="margin-bottom: var(--space-8)">
+      <div class="section-heading">Badges</div>
+      <p style="font-size: var(--text-sm); color: var(--clinic-text-muted); margin-bottom: var(--space-3)">
+        Booking status
+      </p>
+      <div class="row">
+        <app-status-badge *ngFor="let s of bookingStatuses" [status]="s"></app-status-badge>
+      </div>
+      <p
+        style="font-size: var(--text-sm); color: var(--clinic-text-muted); margin: var(--space-6) 0 var(--space-3)"
+      >
+        Payment status
+      </p>
+      <div class="row">
+        <app-status-badge *ngFor="let s of paymentStatuses" [status]="s"></app-status-badge>
+      </div>
+      <p
+        style="font-size: var(--text-sm); color: var(--clinic-text-muted); margin: var(--space-6) 0 var(--space-3)"
+      >
+        Doctor status
+      </p>
+      <div class="row">
+        <app-status-badge *ngFor="let s of doctorStatuses" [status]="s"></app-status-badge>
+      </div>
+    </div>
+
+    <!-- 5. Cards -->
+    <div class="clinic-card" style="margin-bottom: var(--space-8)">
+      <div class="section-heading">Cards</div>
+      <div class="card-grid">
+        <div class="clinic-card">
+          <strong>Default</strong>
+          <p style="color: var(--clinic-text-secondary); margin: var(--space-2) 0 0">Base clinic card.</p>
+        </div>
+        <div class="clinic-card clinic-card--accent-green">
+          <strong>Accent green</strong>
+        </div>
+        <div class="clinic-card clinic-card--accent-blue">
+          <strong>Accent blue</strong>
+        </div>
+        <div class="clinic-card clinic-card--accent-amber">
+          <strong>Accent amber</strong>
+        </div>
+        <div class="clinic-card clinic-card--accent-red">
+          <strong>Accent red</strong>
+        </div>
+        <div class="clinic-card clinic-card--elevated">
+          <strong>Elevated</strong>
+        </div>
+      </div>
+      <div
+        style="
+          margin-top: var(--space-8);
+          padding: var(--space-8);
+          border-radius: var(--radius-xl);
+          background: var(--gradient-hero);
+        "
+      >
+        <div class="clinic-card clinic-card--glass">
+          <strong>Glass card</strong>
+          <p style="margin: var(--space-2) 0 0; opacity: 0.9">On a green hero background.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. Stat cards -->
+    <div class="clinic-card" style="margin-bottom: var(--space-8)">
+      <div class="section-heading">Stat cards</div>
+      <div class="stat-grid">
+        <div class="stat-card stat-card--green">
+          <div class="stat-card__icon"><ion-icon name="pulse-outline"></ion-icon></div>
+          <div class="stat-card__value">1,234</div>
+          <div class="stat-card__label">Sample metric</div>
+        </div>
+        <div class="stat-card stat-card--blue">
+          <div class="stat-card__icon"><ion-icon name="bar-chart-outline"></ion-icon></div>
+          <div class="stat-card__value">1,234</div>
+          <div class="stat-card__label">Sample metric</div>
+        </div>
+        <div class="stat-card stat-card--amber">
+          <div class="stat-card__icon"><ion-icon name="trending-up-outline"></ion-icon></div>
+          <div class="stat-card__value">1,234</div>
+          <div class="stat-card__label">Sample metric</div>
+        </div>
+        <div class="stat-card stat-card--red">
+          <div class="stat-card__icon"><ion-icon name="shield-checkmark-outline"></ion-icon></div>
+          <div class="stat-card__value">1,234</div>
+          <div class="stat-card__label">Sample metric</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. Skeletons -->
+    <div class="clinic-card" style="margin-bottom: var(--space-8)">
+      <div class="section-heading">Skeleton loaders</div>
+      <div class="row" style="flex-direction: column; align-items: stretch; gap: var(--space-4)">
+        <app-skeleton variant="text"></app-skeleton>
+        <app-skeleton variant="title"></app-skeleton>
+        <app-skeleton variant="card"></app-skeleton>
+        <app-skeleton variant="avatar"></app-skeleton>
+        <app-skeleton variant="stat"></app-skeleton>
+        <app-skeleton variant="row"></app-skeleton>
+      </div>
+    </div>
+
+    <!-- 8. Empty state -->
+    <div class="clinic-card" style="margin-bottom: var(--space-8)">
+      <div class="section-heading">Empty state</div>
+      <app-empty-state
+        icon="folder-open-outline"
+        title="No items yet"
+        description="This is a sample empty state using global tokens."
+      ></app-empty-state>
+    </div>
+
+    <!-- 9. Banners -->
+    <div class="clinic-card" style="margin-bottom: var(--space-8)">
+      <div class="section-heading">Banners</div>
+      <app-banner variant="warning" message="Please review the holiday schedule."></app-banner>
+      <app-banner variant="danger" message="Action required: verify payment proof."></app-banner>
+      <app-banner variant="info" message="New booking system is live."></app-banner>
+      <app-banner variant="success" message="All systems operational."></app-banner>
+    </div>
+
+    <!-- 10. Avatars -->
+    <div class="clinic-card" style="margin-bottom: var(--space-8)">
+      <div class="section-heading">Avatars</div>
+      <div class="row" style="align-items: flex-end">
+        <app-avatar *ngFor="let sz of avatarSizes" name="John Doe" [size]="sz"></app-avatar>
+      </div>
+    </div>
+
+    <!-- 11. Form fields -->
+    <div class="clinic-card" style="margin-bottom: var(--space-8)">
+      <div class="section-heading">Form fields</div>
+      <ion-item class="clinic-input" lines="none">
+        <ion-label position="stacked">Full name</ion-label>
+        <ion-input placeholder="Jane Doe"></ion-input>
+      </ion-item>
+      <ion-item class="clinic-input" lines="none">
+        <ion-label position="stacked">Email</ion-label>
+        <ion-input type="email" placeholder="you@clinic.ph"></ion-input>
+      </ion-item>
+    </div>
+
+    <!-- 12. Table -->
+    <div class="clinic-card" style="margin-bottom: var(--space-8)">
+      <div class="section-heading">Table</div>
+      <table class="clinic-table">
+        <thead>
+          <tr>
+            <th>Patient code</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Amount</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="data-mono">PT-2025-00001</span></td>
+            <td>Juan dela Cruz</td>
+            <td><app-status-badge status="Confirmed"></app-status-badge></td>
+            <td>{{ 500 | peso }}</td>
+            <td>{{ '09:00' | timeSlot }}</td>
+          </tr>
+          <tr>
+            <td><span class="data-mono">PT-2025-00002</span></td>
+            <td>Maria Santos</td>
+            <td><app-status-badge status="Pending"></app-status-badge></td>
+            <td>{{ 1500 | peso }}</td>
+            <td>{{ '13:30' | timeSlot }}</td>
+          </tr>
+          <tr>
+            <td><span class="data-mono">PT-2025-00003</span></td>
+            <td>Pedro Reyes</td>
+            <td><app-status-badge status="Paid"></app-status-badge></td>
+            <td>{{ 600 | peso }}</td>
+            <td>{{ '10:15' | timeSlot }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 13. Slot grid -->
+    <div class="clinic-card" style="margin-bottom: var(--space-8)">
+      <div class="section-heading">Slot grid</div>
+      <div class="slot-grid">
+        <div class="slot-cell slot-cell--available">9:00</div>
+        <div class="slot-cell slot-cell--available">9:30</div>
+        <div class="slot-cell slot-cell--available">10:00</div>
+        <div class="slot-cell slot-cell--available">10:30</div>
+        <div class="slot-cell slot-cell--full">11:00</div>
+        <div class="slot-cell slot-cell--full">11:30</div>
+        <div class="slot-cell slot-cell--pending">12:00</div>
+        <div class="slot-cell slot-cell--selected">12:30</div>
+      </div>
+    </div>
+
+    <app-confirm-modal
+      [isOpen]="confirmOpen"
+      title="Example confirm modal"
+      message="This modal uses Phase 1 styling only."
+      (confirmed)="onConfirmDismiss()"
+      (cancelled)="onConfirmDismiss()"
+    ></app-confirm-modal>
+  </div>
+</ion-content>

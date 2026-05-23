@@ -1,0 +1,144 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.doctor-status-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.doctor-status-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.section-label {
+  margin: 0 0 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--clinic-text-muted);
+}
+
+.doctor-status-panel__head h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.doctor-status-panel__summary {
+  margin: 0;
+  border: 1px solid var(--clinic-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-neutral-50);
+  color: var(--clinic-text-secondary);
+}
+
+.doctor-status-panel__summary--available {
+  background: var(--color-success-50);
+  border-color: var(--color-success-100);
+  color: #14532d;
+}
+
+.doctor-status-panel__summary--running-late {
+  background: var(--color-warning-50);
+  border-color: var(--color-warning-100);
+  color: #92400e;
+}
+
+.doctor-status-panel__summary--unavailable {
+  background: var(--color-danger-50);
+  border-color: var(--color-danger-100);
+  color: #7f1d1d;
+}
+
+.doctor-status-panel__actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.doctor-status-panel__action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 54px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--clinic-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--clinic-bg-elevated);
+  color: var(--clinic-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+}
+
+.doctor-status-panel__action-button:hover {
+  border-color: var(--ion-color-primary);
+  color: var(--ion-color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.doctor-status-panel__action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: var(--clinic-border);
+  color: var(--clinic-text-muted);
+  box-shadow: none;
+}
+
+.running-late-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.running-late-box label {
+  font-size: 12px;
+  color: var(--clinic-text-muted);
+}
+
+:host ::ng-deep .doctor-status-panel .badge--available {
+  background: var(--color-success-100);
+  color: #14532d;
+}
+
+:host ::ng-deep .doctor-status-panel .badge--running-late {
+  background: var(--color-warning-100);
+  color: #92400e;
+}
+
+:host ::ng-deep .doctor-status-panel .badge--unavailable-today {
+  background: var(--color-danger-100);
+  color: #7f1d1d;
+}
+
+@media (max-width: 900px) {
+  .doctor-status-panel__actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 580px) {
+  .doctor-status-panel {
+    padding: var(--space-4);
+  }
+
+  .doctor-status-panel__head {
+    flex-direction: column;
+  }
+
+  .doctor-status-panel__action-button {
+    width: 100%;
+  }
+}

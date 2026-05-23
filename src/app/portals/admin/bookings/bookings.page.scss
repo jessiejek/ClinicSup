@@ -1,0 +1,278 @@
+.page-shell {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.page-shell__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.page-title {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+}
+
+.page-subtitle {
+  margin: var(--space-1) 0 0;
+  color: var(--clinic-text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* =============================================
+   FILTER BAR
+   ============================================= */
+.filter-bar {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 0.8fr 1.5fr auto;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.filter-input {
+  height: 40px;
+  border: 1px solid var(--clinic-border);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-3);
+  background: white;
+  font-size: var(--text-sm);
+  color: var(--clinic-text-primary);
+  min-width: 0;
+}
+
+/* =============================================
+   TABLE COLUMN WIDTHS
+   ============================================= */
+.col-check {
+  width: 48px;
+  min-width: 48px;
+}
+
+.col-queue {
+  width: 56px;
+  min-width: 56px;
+  text-align: center;
+}
+
+.col-patient {
+  min-width: 200px;
+}
+
+.col-doctor {
+  min-width: 220px;
+}
+
+.col-status {
+  min-width: 110px;
+}
+
+.col-payment {
+  min-width: 100px;
+}
+
+.col-actions {
+  width: 80px;
+  min-width: 80px;
+}
+
+/* =============================================
+   CELL CONTENT
+   ============================================= */
+.cell-patient {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cell-patient__name {
+  font-weight: var(--font-semibold);
+  color: var(--clinic-text-primary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+.cell-patient__code {
+  font-size: var(--text-xs);
+  color: var(--clinic-text-muted);
+  font-family: var(--font-mono);
+}
+
+.cell-patient__time {
+  font-size: var(--text-xs);
+  color: var(--clinic-text-muted);
+  margin-top: 2px;
+}
+
+.cell-doctor {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cell-doctor__name {
+  font-weight: var(--font-medium);
+  color: var(--clinic-text-primary);
+  font-size: var(--text-sm);
+}
+
+.cell-doctor__spec {
+  font-size: var(--text-xs);
+  color: var(--clinic-text-muted);
+}
+
+.cell-doctor__service {
+  font-size: var(--text-xs);
+  color: var(--color-primary-700);
+  margin-top: 2px;
+}
+
+/* =============================================
+   PAGINATION
+   ============================================= */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--clinic-border);
+}
+
+.pagination__info {
+  font-size: var(--text-sm);
+  color: var(--clinic-text-muted);
+}
+
+.pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pagination__pages {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pagination__pages .btn-sm {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* =============================================
+   BUTTON SMALL
+   ============================================= */
+.btn-sm {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  font-weight: var(--font-medium);
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.btn-sm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-sm.btn-primary {
+  background: var(--ion-color-primary);
+  color: white;
+}
+
+.btn-sm.btn-ghost {
+  background: transparent;
+  color: var(--clinic-text-secondary);
+}
+
+.btn-sm.btn-ghost:hover:not(:disabled) {
+  background: var(--color-neutral-100);
+  color: var(--clinic-text-primary);
+}
+
+/* =============================================
+   MOBILE CARD
+   ============================================= */
+.mobile-card__meta {
+  margin-top: 4px;
+  font-size: var(--text-xs);
+  color: var(--clinic-text-muted);
+}
+
+.mobile-card__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--clinic-border);
+}
+
+/* =============================================
+   RESPONSIVE
+   ============================================= */
+@media (max-width: 768px) {
+  .filter-bar {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-bar {
+    grid-template-columns: 1fr;
+  }
+}
+
+.table-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .table-desktop {
+    display: none;
+  }
+
+  .table-mobile {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .pagination {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+    text-align: center;
+  }
+
+  .pagination__controls {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-shell__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+
+  .page-shell__header .btn-primary {
+    align-self: stretch;
+    justify-content: center;
+  }
+}

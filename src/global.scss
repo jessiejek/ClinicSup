@@ -1,0 +1,7 @@
+/* Legacy shim — design tokens live in styles.scss (Phase 1). */
+
+.content-container {
+  box-sizing: border-box;
+  padding-left: max(var(--space-4), env(safe-area-inset-left));
+  padding-right: max(var(--space-4), env(safe-area-inset-right));
+}

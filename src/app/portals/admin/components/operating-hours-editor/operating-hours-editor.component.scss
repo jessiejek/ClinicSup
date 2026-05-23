@@ -1,0 +1,54 @@
+.hours-editor {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.hours-editor__row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr 1fr;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--clinic-border);
+  border-radius: var(--radius-lg);
+  background: white;
+}
+
+.hours-editor__header {
+  background: transparent;
+  border: none;
+  padding-bottom: 0;
+  color: var(--clinic-text-secondary);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.hours-editor__row.is-closed {
+  opacity: 0.74;
+}
+
+.toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.time-input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--clinic-border);
+}
+
+.hours-editor__error {
+  grid-column: 1 / -1;
+  color: var(--ion-color-danger);
+}
+
+@media (max-width: 768px) {
+  .hours-editor__row,
+  .hours-editor__header {
+    grid-template-columns: 1fr;
+  }
+}

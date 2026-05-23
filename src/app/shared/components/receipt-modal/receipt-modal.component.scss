@@ -1,0 +1,11 @@
+@media print {
+  ion-header,
+  .no-print {
+    display: none !important;
+  }
+
+  ion-modal,
+  ion-content {
+    --background: white;
+  }
+}

@@ -1,0 +1,11 @@
+.helper-text {
+  margin-top: 0;
+  color: var(--clinic-text-secondary);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}

@@ -1,0 +1,84 @@
+:host {
+  display: block;
+  height: 100vh;
+}
+
+.portal-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--clinic-bg);
+}
+
+.portal-layout__sidebar {
+  flex: 0 0 260px;
+  width: 260px;
+  display: block;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.page-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-8);
+  min-height: 0;
+}
+
+.page-content > * {
+  animation: fadeSlideUp 250ms ease-out both;
+}
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.48);
+  z-index: 199;
+  opacity: 0;
+  transition: opacity 280ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 1024px) {
+  .portal-layout__sidebar {
+    position: fixed;
+    left: -260px;
+    top: 0;
+    width: 260px;
+    height: 100vh;
+    z-index: 200;
+    transition: left 200ms ease;
+    flex: 0 0 0px;
+  }
+
+  .portal-layout__sidebar.is-open {
+    left: 0;
+  }
+
+  .main-content {
+    width: 100%;
+    flex: 1;
+  }
+
+  .page-content {
+    padding: var(--space-4);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .sidebar-overlay {
+    display: block;
+    pointer-events: none;
+  }
+
+  .sidebar-overlay.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}

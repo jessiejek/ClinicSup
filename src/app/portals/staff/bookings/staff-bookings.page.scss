@@ -1,0 +1,462 @@
+/* ───────────────────────────────────────────
+   Staff Bookings Page — Responsive Layout
+   ─────────────────────────────────────────── */
+
+/* Layout wrapper */
+:host {
+  display: grid;
+  gap: var(--space-5);
+  width: 100%;
+  min-width: 0;
+}
+
+/* ── Filter Bar ──────────────────────────── */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: var(--space-4);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.filter-input {
+  height: 38px;
+  padding: 0 12px;
+  font-size: 0.875rem;
+  color: #334155;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+  min-width: 160px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.filter-input:focus-visible {
+  border-color: var(--ion-color-primary, #5d3e8e);
+  box-shadow: 0 0 0 2px rgba(93, 62, 142, 0.12);
+}
+
+.filter-date {
+  min-width: 150px;
+  cursor: text;
+  font-family: inherit;
+}
+
+/* Refresh button */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #4a5568;
+  background: #f7fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.btn-icon:hover {
+  background: #edf2f7;
+  border-color: #a0aec0;
+}
+
+.btn-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-icon__text {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+/* ── Loading Card ────────────────────────── */
+.loading-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-lg);
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+/* ── Table Card ──────────────────────────── */
+.table-card {
+  padding: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+/* Scrollable table wrapper for laptop/desktop */
+.table-scroll {
+  overflow-x: auto;
+  width: 100%;
+}
+
+/* ── Bookings Table ──────────────────────── */
+.bookings-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+.bookings-table th {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  padding: 10px 8px;
+  border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.bookings-table th:last-child {
+  text-align: right;
+}
+
+.bookings-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  font-size: 0.875rem;
+}
+
+.bookings-table tr {
+  cursor: pointer;
+}
+
+.bookings-table tr:hover {
+  background: #f8fafc;
+}
+
+.bookings-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Patient link button */
+.booking-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+}
+
+.booking-link:hover {
+  color: var(--ion-color-primary, #5d3e8e);
+  text-decoration: underline;
+}
+
+/* Doctor / Services */
+.doctor-name {
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.doctor-services {
+  font-size: 0.75rem;
+  color: #6b21a8;
+  margin-top: 2px;
+}
+
+/* Time column */
+.time-range {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-family: var(--font-mono, monospace);
+}
+
+/* Queue number */
+.col-queue {
+  white-space: nowrap;
+  text-align: center;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+}
+
+/* Centered columns */
+.col-center {
+  white-space: nowrap;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Action column */
+.col-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ── Buttons ─────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  border: none;
+  background: var(--ion-color-primary, #5d3e8e);
+  color: #fff;
+  white-space: nowrap;
+  min-width: fit-content;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.btn-primary:hover {
+  background: var(--ion-color-primary-shade, #4a2e72);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--ion-color-primary, #5d3e8e);
+  border: 1px solid var(--ion-color-primary, #5d3e8e);
+  white-space: nowrap;
+  min-width: fit-content;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.btn-outline:hover {
+  background: rgba(93, 62, 142, 0.06);
+}
+
+.btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+  color: #4a5568;
+  border: 1px solid #cbd5e1;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-ghost:hover {
+  background: #f7fafc;
+  border-color: #a0aec0;
+}
+
+.btn-ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-full {
+  width: 100%;
+}
+
+/* ── Pagination ──────────────────────────── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-top: 1px solid #f1f5f9;
+}
+
+.pagination span {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.pagination__button {
+  min-width: 90px;
+}
+
+/* ── Mobile Card Layout ──────────────────── */
+.mobile-layout {
+  display: none; /* hidden by default, visible on smaller screens */
+  gap: var(--space-3);
+}
+
+.mobile-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+.mobile-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.mobile-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.mobile-card__info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mobile-card__info strong {
+  font-weight: 600;
+  word-break: break-word;
+  font-size: 0.95rem;
+}
+
+.mobile-card__doctor {
+  font-size: 0.8rem;
+  color: var(--ion-color-primary, #5d3e8e);
+}
+
+.mobile-card__services {
+  font-size: 0.8rem;
+  color: #6b21a8;
+}
+
+.mobile-card__queue {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  font-family: var(--font-mono, monospace);
+}
+
+.mobile-card__badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.mobile-card__details {
+  display: grid;
+  gap: 6px;
+}
+
+.mobile-card__details > div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.mobile-card__details dt {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  min-width: 64px;
+}
+
+.mobile-card__details dd {
+  text-align: right;
+  font-size: 0.85rem;
+  word-break: break-word;
+  margin: 0;
+}
+
+.mobile-card__actions {
+  display: flex;
+  padding-top: var(--space-2);
+}
+
+.mobile-card__actions .btn-full {
+  height: 38px;
+  justify-content: center;
+}
+
+/* ── Responsive Breakpoints ──────────────── */
+
+/* Up to 1200px laptop: use card layout, hide table */
+@media (max-width: 1200px) {
+  .table-card {
+    display: none;
+  }
+
+  .mobile-layout {
+    display: grid;
+  }
+}
+
+/* 640px and below: stack filters vertically */
+@media (max-width: 640px) {
+  :host {
+    gap: var(--space-3);
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-bar .filter-input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .btn-icon {
+    width: 100%;
+    justify-content: center;
+  }
+}

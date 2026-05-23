@@ -1,0 +1,159 @@
+<app-auth-layout>
+  <div class="register-page">
+    <h2 class="page-heading">Create account</h2>
+    <p class="page-sub">Sign up as a patient</p>
+
+    <app-banner
+      *ngIf="error$ | async as err"
+      variant="danger"
+      [message]="err"
+      style="display: block; margin-bottom: var(--space-4)"
+    ></app-banner>
+
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" novalidate>
+      <ion-item class="clinic-input" lines="full">
+        <ion-label position="floating">First Name *</ion-label>
+        <ion-input formControlName="firstName" type="text" autocomplete="given-name"></ion-input>
+      </ion-item>
+      <div
+        class="form-error-message"
+        *ngIf="registerForm.get('firstName')?.touched && registerForm.get('firstName')?.invalid"
+      >
+        <ion-note color="danger">First name is required.</ion-note>
+      </div>
+
+      <ion-item class="clinic-input" lines="full">
+        <ion-label position="floating">Middle Name</ion-label>
+        <ion-input formControlName="middleName" type="text" autocomplete="additional-name"></ion-input>
+      </ion-item>
+
+      <ion-item class="clinic-input" lines="full">
+        <ion-label position="floating">Last Name *</ion-label>
+        <ion-input formControlName="lastName" type="text" autocomplete="family-name"></ion-input>
+      </ion-item>
+      <div
+        class="form-error-message"
+        *ngIf="registerForm.get('lastName')?.touched && registerForm.get('lastName')?.invalid"
+      >
+        <ion-note color="danger">Last name is required.</ion-note>
+      </div>
+
+      <ion-item class="clinic-input" lines="full">
+        <ion-label position="floating">Email</ion-label>
+        <ion-input type="email" formControlName="email" autocomplete="email"></ion-input>
+      </ion-item>
+      <div
+        class="form-error-message"
+        *ngIf="registerForm.get('email')?.touched && registerForm.get('email')?.invalid"
+      >
+        <span *ngIf="registerForm.get('email')?.errors?.['required']">Email is required</span>
+        <span *ngIf="registerForm.get('email')?.errors?.['email']">Invalid email</span>
+      </div>
+
+      <ion-item class="clinic-input" lines="full">
+        <ion-label position="floating">Password</ion-label>
+        <ion-input type="password" formControlName="password" autocomplete="new-password"></ion-input>
+      </ion-item>
+      <div class="strength-bar">
+        <div
+          *ngFor="let i of strengthIndexes"
+          class="strength-segment"
+          [class.filled]="passwordStrength > i"
+          [class.strength-weak]="passwordStrength === 1"
+          [class.strength-fair]="passwordStrength === 2"
+          [class.strength-good]="passwordStrength === 3"
+          [class.strength-strong]="passwordStrength === 4"
+        ></div>
+      </div>
+      <span class="strength-label">{{ strengthLabel }}</span>
+      <div
+        class="form-error-message"
+        *ngIf="registerForm.get('password')?.touched && registerForm.get('password')?.invalid"
+      >
+        Use 8+ chars, uppercase, number, and a special character (!&#64;#$%^&*).
+      </div>
+
+      <ion-item class="clinic-input" lines="full">
+        <ion-label position="floating">Confirm password</ion-label>
+        <ion-input type="password" formControlName="confirmPassword" autocomplete="new-password"></ion-input>
+      </ion-item>
+      <div
+        class="form-error-message"
+        *ngIf="registerForm.touched && registerForm.hasError('passwordMismatch')"
+      >
+        Passwords do not match
+      </div>
+
+      <ion-item lines="none" class="consent-item">
+        <ion-checkbox slot="start" formControlName="consentAccepted" color="primary"></ion-checkbox>
+        <ion-label class="ion-text-wrap consent-label">
+          I agree to the
+          <a href="#" (click)="$event.preventDefault()">Privacy Policy</a>
+          and
+          <a href="#" (click)="$event.preventDefault()">Terms of Service</a>
+        </ion-label>
+      </ion-item>
+      <div
+        class="form-error-message"
+        *ngIf="registerForm.get('consentAccepted')?.touched && !registerForm.get('consentAccepted')?.value"
+      >
+        You must accept the privacy policy to continue
+      </div>
+
+      <button class="btn-primary login-submit" type="submit" [disabled]="(isLoading$ | async) === true">
+        <ion-spinner
+          *ngIf="(isLoading$ | async) === true"
+          name="crescent"
+          style="width: 16px; height: 16px; margin-right: 8px"
+        ></ion-spinner>
+        {{ (isLoading$ | async) ? 'Creating account...' : 'Create account' }}
+      </button>
+    </form>
+
+    <div class="auth-divider">
+      <hr />
+      <span>OR</span>
+      <hr />
+    </div>
+
+    <div class="google-signin">
+      <div #googleButton class="google-signin__button" *ngIf="canUseGoogleLogin && !googleSdkError"></div>
+      <button
+        *ngIf="!canUseGoogleLogin || googleSdkError"
+        type="button"
+        class="btn-social"
+        (click)="onGoogleFallbackClick()"
+        [disabled]="googleLoading || (isLoading$ | async) === true"
+      >
+        {{ googleSdkError ? 'Retry Google Sign-In' : 'Continue with Google' }}
+      </button>
+      <div class="google-status" *ngIf="googleLoading">
+        <ion-spinner name="crescent" style="width: 16px; height: 16px"></ion-spinner>
+        <span>Finishing Google sign-in...</span>
+      </div>
+      <p class="google-status google-status--error" *ngIf="googleSdkError">
+        {{ googleSdkError }}
+      </p>
+    </div>
+
+    <div class="facebook-signin">
+      <button
+        type="button"
+        class="btn-social btn-social--facebook"
+        (click)="onFacebookLoginClick()"
+        [disabled]="facebookLoading || (isLoading$ | async) === true"
+      >
+        <span class="btn-social__icon" aria-hidden="true">f</span>
+        {{ facebookLoading ? 'Finishing Facebook sign-in...' : 'Continue with Facebook' }}
+      </button>
+      <p class="google-status google-status--error" *ngIf="facebookSdkError">
+        {{ facebookSdkError }}
+      </p>
+    </div>
+
+    <p class="register-hint">
+      Already have an account?
+      <a routerLink="/auth/login">Sign in</a>
+    </p>
+  </div>
+</app-auth-layout>

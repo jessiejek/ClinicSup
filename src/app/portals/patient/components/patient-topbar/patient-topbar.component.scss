@@ -1,0 +1,191 @@
+.patient-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 220;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--clinic-border);
+  box-shadow: var(--shadow-xs);
+}
+
+.patient-topbar__inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  position: relative;
+}
+
+.patient-topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.patient-topbar__logo {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gradient-card-green);
+  color: white;
+  font-weight: var(--font-bold);
+  flex-shrink: 0;
+}
+
+.patient-topbar__clinic {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--clinic-text-primary);
+  line-height: 1.2;
+}
+
+.patient-topbar__label {
+  font-size: var(--text-xs);
+  color: var(--clinic-text-muted);
+}
+
+.patient-topbar__nav {
+  margin-left: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.patient-topbar__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  color: var(--clinic-text-secondary);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+}
+
+.patient-topbar__link:hover,
+.patient-topbar__link.active {
+  color: var(--ion-color-primary);
+  background: var(--color-primary-50);
+}
+
+.patient-topbar__actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.patient-topbar__menu-btn {
+  display: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--clinic-border);
+  background: white;
+  color: var(--clinic-text-primary);
+  align-items: center;
+  justify-content: center;
+}
+
+.patient-topbar__user {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  border: 1px solid var(--clinic-border);
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.patient-topbar__user-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.patient-topbar__user-name {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--clinic-text-primary);
+  line-height: 1.2;
+}
+
+.patient-topbar__user-role {
+  font-size: var(--text-xs);
+  color: var(--clinic-text-muted);
+}
+
+.patient-topbar__logout {
+  border: none;
+  background: transparent;
+  color: var(--clinic-text-secondary);
+}
+
+.patient-topbar__logout--desktop {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-weight: var(--font-medium);
+}
+
+.patient-topbar__logout--mobile {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .patient-topbar__menu-btn {
+    display: inline-flex;
+  }
+
+  .patient-topbar__nav {
+    display: none;
+    position: absolute;
+    top: calc(100% + 1px);
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: var(--space-3);
+    flex-direction: column;
+    align-items: stretch;
+    background: white;
+    border-bottom: 1px solid var(--clinic-border);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .patient-topbar__nav.is-open {
+    display: flex;
+  }
+
+  .patient-topbar__link {
+    justify-content: flex-start;
+  }
+
+  .patient-topbar__logout--mobile {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    font-weight: var(--font-medium);
+  }
+
+  .patient-topbar__user {
+    display: none;
+  }
+
+  .patient-topbar__logout--desktop {
+    display: none;
+  }
+}

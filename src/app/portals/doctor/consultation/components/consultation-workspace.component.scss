@@ -1,0 +1,45 @@
+.consultation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.consultation-main,
+.consultation-side {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.record-list,
+.side-card {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.record-list h3,
+.side-card h3 {
+  margin: 0;
+}
+
+.record-item {
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--clinic-border);
+  background: var(--color-neutral-50);
+}
+
+.record-item strong {
+  display: block;
+}
+
+.record-item p {
+  margin: 4px 0 0;
+  color: var(--clinic-text-secondary);
+}
+
+@media (max-width: 1100px) {
+  .consultation-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,127 @@
+.page-shell {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.page-shell__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
+}
+
+.page-title {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+}
+
+.page-subtitle {
+  margin-top: var(--space-2);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: var(--space-4);
+}
+
+.detail-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.profile-card {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.profile-card h3 {
+  margin: 0 0 var(--space-1);
+}
+
+.profile-card p {
+  margin: 0;
+  color: var(--clinic-text-secondary);
+}
+
+.profile-card > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.action-stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.service-list {
+  margin: var(--space-2) 0 0;
+  padding-left: 1.1rem;
+}
+
+.service-list li + li {
+  margin-top: var(--space-1);
+}
+
+.action-sidebar {
+  position: sticky;
+  top: var(--space-4);
+}
+
+.wizard-actions {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+
+.wizard-actions--split {
+  justify-content: space-between;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  :host {
+    background: #ffffff !important;
+  }
+
+  .page-shell {
+    display: block;
+  }
+
+  app-booking-print-document {
+    display: block !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  .detail-grid,
+  .detail-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .action-sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .profile-card {
+    align-items: flex-start;
+  }
+
+  .wizard-actions,
+  .wizard-actions--split {
+    flex-direction: column-reverse;
+  }
+
+  .wizard-actions button {
+    width: 100%;
+  }
+}

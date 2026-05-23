@@ -1,0 +1,124 @@
+.page-shell {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.page-shell__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: var(--space-8);
+}
+
+.page-title {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.stepper {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.stepper__step {
+  border: 1px solid var(--clinic-border);
+  background: white;
+  border-radius: var(--radius-full);
+  padding: var(--space-2) var(--space-4);
+}
+
+.stepper__step.is-active {
+  background: var(--ion-color-primary);
+  color: white;
+  border-color: var(--ion-color-primary);
+}
+
+.filter-input {
+  height: 44px;
+  border: 1px solid var(--clinic-border);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-3);
+  background: white;
+}
+
+.result-list {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.result-list__item {
+  display: grid;
+  grid-template-columns: 160px 1fr 1fr;
+  gap: var(--space-3);
+  text-align: left;
+  background: var(--color-neutral-50);
+  border: 1px solid var(--clinic-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.quick-register,
+.slot-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.radio-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.summary-box {
+  background: var(--color-neutral-50);
+  border: 1px solid var(--clinic-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.step-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 768px) {
+  .quick-register,
+  .slot-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .page-shell__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+}
+
+@media (max-width: 480px) {
+  .quick-register,
+  .slot-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .result-list__item {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+
+  .step-actions {
+    flex-direction: column;
+  }
+
+  .step-actions .btn-primary,
+  .step-actions .btn-outline {
+    width: 100%;
+    justify-content: center;
+  }
+}
