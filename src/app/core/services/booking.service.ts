@@ -1360,12 +1360,9 @@ export class BookingService {
   }
 
   private requestBookings(filters?: BookingFilters, replaceCache = false): Observable<Booking[]> {
-    const params = buildBookingParams(filters);
-
     return defer(() => {
       this.beginLoading();
-      return this.apiService.get<unknown>('/bookings', params ? { params } : undefined).pipe(
-        map((payload) => this.normalizeBookingList(payload)),
+      return from(this.fetchSupabaseBookings(filters)).pipe(
         tap((bookings) => {
           if (replaceCache) {
             this.replaceBookings(bookings);
@@ -1380,6 +1377,47 @@ export class BookingService {
         finalize(() => this.endLoading())
       );
     });
+  }
+
+  private async fetchSupabaseBookings(filters?: BookingFilters): Promise<Booking[]> {
+    let query = this.supabase
+      .from('patient_bookings_view')
+      .select('*')
+      .order('appointment_date', { ascending: false })
+      .order('slot_start_time', { ascending: false })
+      .limit(500);
+
+    if (filters?.doctorId) {
+      query = query.eq('doctor_id', filters.doctorId);
+    }
+    if (filters?.patientId) {
+      query = query.eq('patient_id', filters.patientId);
+    }
+    if (filters?.appointmentDate) {
+      query = query.eq('appointment_date', filters.appointmentDate);
+    }
+    if (filters?.status) {
+      query = query.eq('booking_status', filters.status);
+    }
+    if (filters?.paymentStatus) {
+      query = query.eq('payment_status', filters.paymentStatus);
+    }
+    if (filters?.paymentMode) {
+      query = query.eq('payment_mode', filters.paymentMode);
+    }
+    if (filters?.search) {
+      query = query.or(`patient_name.ilike.%${filters.search}%,doctor_name.ilike.%${filters.search}%`);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    return ((data ?? []) as Record<string, unknown>[])
+      .map((row) => this.normalizeBooking(row))
+      .filter((b): b is Booking => Boolean(b));
   }
 
   private requestBookingById(id: string, trackLoading = true): Observable<Booking | undefined> {

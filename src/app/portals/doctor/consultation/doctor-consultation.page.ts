@@ -958,14 +958,8 @@ export class DoctorConsultationPage {
   }
 
   private resolvePatient$(booking: Booking): Observable<Patient | undefined> {
-    return this.apiService.get<PatientDto>(`/patients/${encodeURIComponent(booking.patientId)}`).pipe(
-      map((patient) => mapPatientDetail(patient)),
-      catchError(() =>
-        this.patientState.getPatientById(booking.patientId).pipe(
-          take(1),
-          map((patient) => patient ?? buildFallbackPatient(booking))
-        )
-      )
+    return this.patientState.getPatientById(booking.patientId).pipe(
+      map((patient) => patient ?? buildFallbackPatient(booking))
     );
   }
 

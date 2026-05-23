@@ -85,7 +85,7 @@ export class DoctorStatusPage implements OnInit {
   loadDoctors(): void {
     this.error = false;
     this.isLoading = true;
-    this.doctorState.loadDoctorsFromApi();
+    this.doctorState.loadDoctorsFromSupabase();
     this.doctorState.doctors$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((doctors) => {

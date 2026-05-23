@@ -103,7 +103,7 @@ export interface CreateDoctorDto {
   tempPassword: string;
 }
 
-export type UpdateDoctorDto = Partial<CreateDoctorDto>;
+export type UpdateDoctorDto = Partial<CreateDoctorDto> & { status?: DoctorStatus };
 
 export interface UpsertSchedulesDto {
   schedules: Array<Pick<DoctorSchedule, 'dayOfWeek' | 'startTime' | 'endTime'>>;
@@ -130,8 +130,7 @@ export class AdminDoctorsService {
   }
 
   createDoctor(dto: CreateDoctorDto): Observable<DoctorDetail> {
-    // Doctor auth-user creation is intentionally deferred. It needs a secure admin/server process.
-    return this.apiService.post<DoctorDto>('/doctors', dto).pipe(map((doctor) => mapDoctorDto(doctor)));
+    return from(this.createDoctorAsync(dto));
   }
 
   addDoctor(doctor: CreateDoctorDto): Observable<DoctorDetail> {
@@ -139,11 +138,11 @@ export class AdminDoctorsService {
   }
 
   updateDoctor(id: string, dto: UpdateDoctorDto): Observable<DoctorDetail> {
-    return this.apiService.put<DoctorDto>(`/doctors/${id}`, dto).pipe(map((doctor) => mapDoctorDto(doctor)));
+    return from(this.updateDoctorAsync(id, dto));
   }
 
   updateDoctorLegacy(doctor: Doctor): Observable<DoctorDetail> {
-    return this.updateDoctor(doctor.id, doctor);
+    return from(this.updateDoctorAsync(doctor.id, doctor as unknown as UpdateDoctorDto));
   }
 
   deactivateDoctor(id: string): Observable<void> {
@@ -155,9 +154,7 @@ export class AdminDoctorsService {
   }
 
   updateSchedule(id: string, dto: UpsertSchedulesDto): Observable<DoctorSchedule[]> {
-    return this.apiService.put<DoctorScheduleDto[]>(`/doctors/${id}/schedule`, dto).pipe(
-      map((schedules) => schedules.map((schedule) => mapDoctorScheduleDto(schedule)))
-    );
+    return from(this.upsertScheduleAsync(id, dto));
   }
 
   getBlockedDates(id: string): Observable<BlockedDate[]> {
@@ -165,13 +162,11 @@ export class AdminDoctorsService {
   }
 
   addBlockedDate(id: string, dto: BlockDateDto): Observable<BlockedDate> {
-    return this.apiService.post<BlockedDateDto>(`/doctors/${id}/blocked-dates`, dto).pipe(
-      map((date) => mapBlockedDateDto(date))
-    );
+    return from(this.addBlockedDateAsync(id, dto));
   }
 
   deleteBlockedDate(doctorId: string, bdId: string): Observable<void> {
-    return this.apiService.delete<void>(`/doctors/${doctorId}/blocked-dates/${bdId}`);
+    return from(this.removeBlockedDateAsync(bdId));
   }
 
   private async fetchAllDoctors(): Promise<DoctorSummary[]> {
@@ -227,6 +222,110 @@ export class AdminDoctorsService {
     if (error) {
       throw error;
     }
+  }
+
+  private async createDoctorAsync(dto: CreateDoctorDto): Promise<DoctorSummary> {
+    const { data, error } = await this.supabase
+      .from('doctors')
+      .insert({
+        full_name: dto.fullName,
+        specialization: dto.specialization,
+        bio: dto.bio ?? null,
+        license_number: dto.licenseNumber ?? null,
+        ptr_number: dto.ptrNumber ?? null,
+        s2_number: dto.s2Number ?? null,
+        consultation_fee: dto.consultationFee,
+        slot_duration_minutes: dto.slotDurationMinutes,
+        slot_capacity: dto.slotCapacity,
+        daily_patient_limit: dto.dailyPatientLimit,
+        status: 'Active' as DoctorStatus,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    // Note: Auth user creation is deferred — needs server-side admin process
+    return mapDoctorRow(data as DoctorRow);
+  }
+
+  private async updateDoctorAsync(id: string, dto: UpdateDoctorDto): Promise<DoctorDetail> {
+    const payload: Record<string, unknown> = {};
+    if (dto.fullName !== undefined) payload['full_name'] = dto.fullName;
+    if (dto.specialization !== undefined) payload['specialization'] = dto.specialization;
+    if (dto.bio !== undefined) payload['bio'] = dto.bio;
+    if (dto.licenseNumber !== undefined) payload['license_number'] = dto.licenseNumber;
+    if (dto.ptrNumber !== undefined) payload['ptr_number'] = dto.ptrNumber;
+    if (dto.s2Number !== undefined) payload['s2_number'] = dto.s2Number;
+    if (dto.consultationFee !== undefined) payload['consultation_fee'] = dto.consultationFee;
+    if (dto.slotDurationMinutes !== undefined) payload['slot_duration_minutes'] = dto.slotDurationMinutes;
+    if (dto.slotCapacity !== undefined) payload['slot_capacity'] = dto.slotCapacity;
+    if (dto.dailyPatientLimit !== undefined) payload['daily_patient_limit'] = dto.dailyPatientLimit;
+    if (dto.status !== undefined) payload['status'] = dto.status;
+
+    const { data, error } = await this.supabase
+      .from('doctors')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapDoctorRow(data as DoctorRow);
+  }
+
+  private async upsertScheduleAsync(id: string, dto: UpsertSchedulesDto): Promise<DoctorSchedule[]> {
+    const { error: deleteError } = await this.supabase
+      .from('doctor_schedules')
+      .delete()
+      .eq('doctor_id', id);
+
+    if (deleteError) throw deleteError;
+    if (dto.schedules.length === 0) return [];
+
+    const rows = dto.schedules.map((s) => ({
+      doctor_id: id,
+      day_of_week: s.dayOfWeek,
+      start_time: s.startTime,
+      end_time: s.endTime,
+    }));
+
+    const { data, error } = await this.supabase
+      .from('doctor_schedules')
+      .insert(rows)
+      .select()
+      .order('day_of_week', { ascending: true })
+      .order('start_time', { ascending: true });
+
+    if (error) throw error;
+    return ((data ?? []) as DoctorScheduleRow[]).map((row) => mapDoctorScheduleRow(row));
+  }
+
+  private async addBlockedDateAsync(id: string, dto: BlockDateDto): Promise<BlockedDate> {
+    const { data, error } = await this.supabase
+      .from('doctor_blocked_dates')
+      .insert({
+        doctor_id: id,
+        blocked_date: dto.blockedDate,
+        reason: dto.reason ?? null,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapBlockedDateRow(data as BlockedDateRow);
+  }
+
+  private normalizeDoctorFromRow(row: DoctorRow): DoctorSummary {
+    return mapDoctorRow(row);
+  }
+
+  private async removeBlockedDateAsync(bdId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('doctor_blocked_dates')
+      .delete()
+      .eq('id', bdId);
+
+    if (error) throw error;
   }
 }
 

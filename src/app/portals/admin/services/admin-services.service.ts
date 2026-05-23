@@ -50,8 +50,7 @@ export class AdminServicesService {
   }
 
   createService(service: ServiceWriteDto): Observable<ManagedService> {
-    // Service writes are still routed through the legacy API until Supabase admin write RPCs are finalized.
-    return this.apiService.post<ServiceDto>('/services', service).pipe(map((dto) => mapManagedServiceDto(dto)));
+    return from(this.createServiceAsync(service));
   }
 
   addService(service: ServiceWriteDto): Observable<ManagedService> {
@@ -59,11 +58,11 @@ export class AdminServicesService {
   }
 
   updateService(id: string, service: ServiceWriteDto): Observable<ManagedService> {
-    return this.apiService.put<ServiceDto>(`/services/${id}`, service).pipe(map((dto) => mapManagedServiceDto(dto)));
+    return from(this.updateServiceAsync(id, service));
   }
 
   deleteService(id: string): Observable<void> {
-    return this.apiService.delete<void>(`/services/${id}`);
+    return from(this.deleteServiceAsync(id));
   }
 
   toggleServiceStatus(service: ManagedService, isActive: boolean): Observable<ManagedService> {
@@ -117,6 +116,48 @@ export class AdminServicesService {
     }
 
     return mapServiceRow(data as ServiceRow, service.doctorIds);
+  }
+
+  private async createServiceAsync(service: ServiceWriteDto): Promise<ManagedService> {
+    const { data, error } = await this.supabase
+      .from('services')
+      .insert({
+        name: service.name,
+        description: service.description ?? null,
+        estimated_duration_minutes: service.estimatedDurationMinutes ?? null,
+        price: service.price ?? 0,
+        category: service.category ?? 'Consultation',
+        is_active: service.isActive ?? true,
+      })
+      .select('id, name, description, estimated_duration_minutes, price, category, is_active')
+      .single();
+
+    if (error) throw error;
+    return mapServiceRow(data as ServiceRow, []);
+  }
+
+  private async updateServiceAsync(id: string, service: ServiceWriteDto): Promise<ManagedService> {
+    const { data, error } = await this.supabase
+      .from('services')
+      .update({
+        name: service.name,
+        description: service.description ?? null,
+        estimated_duration_minutes: service.estimatedDurationMinutes ?? null,
+        price: service.price ?? 0,
+        category: service.category ?? 'Consultation',
+        is_active: service.isActive ?? true,
+      })
+      .eq('id', id)
+      .select('id, name, description, estimated_duration_minutes, price, category, is_active')
+      .single();
+
+    if (error) throw error;
+    return mapServiceRow(data as ServiceRow, []);
+  }
+
+  private async deleteServiceAsync(id: string): Promise<void> {
+    const { error } = await this.supabase.from('services').delete().eq('id', id);
+    if (error) throw error;
   }
 }
 

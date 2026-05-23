@@ -1,9 +1,7 @@
-import { HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { map, Observable } from 'rxjs';
-import { ApiService } from '../../../core/services/api.service';
+import { Observable, from, map } from 'rxjs';
+import { SupabaseService } from '../../../core/services/supabase.service';
 import {
-  AuthSessionDto,
   CreatePatientPortalAccountRequest,
   CreatePatientRequest,
   PagedResult,
@@ -14,43 +12,31 @@ import {
 
 type NullableString = string | null | undefined;
 
-interface PatientDto {
+interface PatientRow {
   id: string;
-  patientCode?: NullableString;
-  firstName?: NullableString;
-  middleName?: NullableString;
-  lastName?: NullableString;
-  fullName?: NullableString;
-  dateOfBirth?: NullableString;
+  patient_code?: NullableString;
+  first_name?: NullableString;
+  middle_name?: NullableString;
+  last_name?: NullableString;
+  date_of_birth?: NullableString;
   sex?: NullableString;
-  civilStatus?: NullableString;
+  civil_status?: NullableString;
   address?: NullableString;
   city?: NullableString;
-  zipCode?: NullableString;
-  contactNumber?: NullableString;
-  email?: NullableString;
-  emergencyContactName?: NullableString;
-  emergencyContactNumber?: NullableString;
-  emergencyContactRelationship?: NullableString;
-  bloodType?: NullableString;
-  philHealthNumber?: NullableString;
-  hmoProvider?: NullableString;
-  hmoCardNumber?: NullableString;
-  userId?: NullableString;
-  hasAccount?: boolean | null;
-  isEmailVerified?: boolean | null;
-  isGuest?: boolean | null;
-  consentedAt?: NullableString;
-  consentVersion?: NullableString;
-}
-
-interface PagedResultDto<T> {
-  items: T[];
-  totalCount?: number;
-  total?: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
+  zip_code?: NullableString;
+  contact_number?: NullableString;
+  contact_email?: NullableString;
+  emergency_contact_name?: NullableString;
+  emergency_contact_number?: NullableString;
+  emergency_contact_relationship?: NullableString;
+  blood_type?: NullableString;
+  phil_health_number?: NullableString;
+  hmo_provider?: NullableString;
+  hmo_card_number?: NullableString;
+  user_id?: NullableString;
+  is_guest?: boolean | null;
+  consented_at?: NullableString;
+  consent_version?: NullableString;
 }
 
 export interface PatientAccountRegistrationRequest {
@@ -64,168 +50,203 @@ export interface PatientAccountRegistrationRequest {
 
 @Injectable({ providedIn: 'root' })
 export class AdminPatientsService {
-  private readonly apiService = inject(ApiService);
+  private readonly supabase = inject(SupabaseService).client;
 
   getPatients(page = 1, pageSize = 20, search?: string): Observable<PagedResult<PatientSummary>> {
-    const params = buildPatientsParams(page, pageSize, search);
-    return this.apiService
-      .get<PagedResultDto<PatientDto>>('/patients', { params })
-      .pipe(map((result) => mapPagedPatientSummaries(result)));
+    return from(this.fetchPatients(page, pageSize, search));
   }
 
   createPatient(dto: CreatePatientRequest): Observable<PatientDetail> {
-    return this.apiService.post<PatientDto>('/patients', dto).pipe(map((patient) => mapPatientDetail(patient)));
+    return from(this.createPatientAsync(dto));
   }
 
   registerPatientAccount(dto: PatientAccountRegistrationRequest): Observable<string> {
-    return this.apiService
-      .post<AuthSessionDto>('/auth/register', {
-        firstName: dto.firstName.trim(),
-        middleName: dto.middleName?.trim() || undefined,
-        lastName: dto.lastName.trim(),
-        email: dto.email.trim(),
-        password: dto.password,
-        avatarUrl: dto.avatarUrl?.trim() || undefined
-      })
-      .pipe(
-        map((response) => {
-          const userId = response.user.id?.trim();
-          if (!userId) {
-            throw new Error('Register response did not include a user id.');
-          }
-
-          return userId;
-        })
-      );
+    // Deferred: Supabase admin auth user creation needs a secure Edge Function.
+    // For now, return a placeholder error to prevent silent failures.
+    throw new Error('Patient account registration is not yet available via Supabase direct. Use Supabase Auth admin API.');
   }
 
   getPatientById(id: string): Observable<PatientDetail> {
-    return this.apiService
-      .get<PatientDto>(`/patients/${encodeURIComponent(id)}`)
-      .pipe(map((patient) => mapPatientDetail(patient)));
+    return from(this.fetchPatientById(id));
   }
 
   updatePatient(id: string, dto: UpdatePatientRequest): Observable<PatientDetail> {
-    return this.apiService
-      .put<PatientDto>(`/patients/${encodeURIComponent(id)}`, dto)
-      .pipe(map((patient) => mapPatientDetail(patient)));
+    return from(this.updatePatientAsync(id, dto));
   }
 
   createPatientPortalAccount(id: string, dto: CreatePatientPortalAccountRequest): Observable<PatientDetail> {
-    return this.apiService
-      .post<PatientDto>(`/patients/${encodeURIComponent(id)}/portal-account`, {
-        email: dto.email.trim(),
-        temporaryPassword: dto.temporaryPassword
-      })
-      .pipe(map((patient) => mapPatientDetail(patient)));
+    // Deferred: requires Supabase admin auth user creation via Edge Function.
+    // For now, just update the patient record with email reference.
+    return from(this.updatePatientContactEmail(id, dto.email));
   }
 
   addPatient(dto: CreatePatientRequest): Observable<PatientDetail> {
     return this.createPatient(dto);
   }
-}
 
-function mapPagedPatientSummaries(result: PagedResultDto<PatientDto>): PagedResult<PatientSummary> {
-  const totalCount = normalizeNumber(result.totalCount ?? result.total);
+  private async fetchPatients(page: number, pageSize: number, search?: string): Promise<PagedResult<PatientSummary>> {
+    let query = this.supabase
+      .from('patients')
+      .select('id, patient_code, first_name, middle_name, last_name, date_of_birth, sex, contact_number, contact_email, user_id, is_guest', { count: 'exact' })
+      .order('last_name', { ascending: true })
+      .order('first_name', { ascending: true })
+      .range((page - 1) * pageSize, page * pageSize - 1);
 
-  return {
-    items: result.items.map((item) => mapPatientSummary(item)),
-    totalCount,
-    total: totalCount,
-    page: normalizeNumber(result.page) || 1,
-    pageSize: normalizeNumber(result.pageSize) || result.items.length || 20,
-    totalPages: normalizeNumber(result.totalPages)
-  };
-}
+    if (search?.trim()) {
+      const term = search.trim();
+      query = query.or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,patient_code.ilike.%${term}%`);
+    }
 
-function mapPatientSummary(dto: PatientDto): PatientSummary {
-  const firstName = normalizeString(dto.firstName) || '';
-  const middleName = normalizeString(dto.middleName);
-  const lastName = normalizeString(dto.lastName) || '';
+    const { data, error, count } = await query;
 
-  return {
-    id: dto.id,
-    patientCode: normalizeString(dto.patientCode) || dto.id,
-    firstName,
-    middleName,
-    lastName,
-    fullName: resolvePatientFullName(dto),
-    dateOfBirth: normalizeString(dto.dateOfBirth) || '',
-    sex: normalizeString(dto.sex) || '',
-    contactNumber: normalizeString(dto.contactNumber),
-    email: normalizeString(dto.email),
-    userId: normalizeString(dto.userId),
-    hasAccount: normalizeBoolean(dto.hasAccount),
-    isGuest: Boolean(dto.isGuest)
-  };
-}
+    if (error) throw error;
 
-function mapPatientDetail(dto: PatientDto): PatientDetail {
-  return {
-    id: dto.id,
-    patientCode: normalizeString(dto.patientCode) || dto.id,
-    firstName: normalizeString(dto.firstName) || '',
-    middleName: normalizeString(dto.middleName),
-    lastName: normalizeString(dto.lastName) || '',
-    dateOfBirth: normalizeString(dto.dateOfBirth) || '',
-    sex: normalizeString(dto.sex) || '',
-    civilStatus: normalizeString(dto.civilStatus),
-    address: normalizeString(dto.address),
-    city: normalizeString(dto.city),
-    zipCode: normalizeString(dto.zipCode),
-    contactNumber: normalizeString(dto.contactNumber),
-    email: normalizeString(dto.email),
-    emergencyContactName: normalizeString(dto.emergencyContactName),
-    emergencyContactNumber: normalizeString(dto.emergencyContactNumber),
-    emergencyContactRelationship: normalizeString(dto.emergencyContactRelationship),
-    bloodType: normalizeString(dto.bloodType),
-    philHealthNumber: normalizeString(dto.philHealthNumber),
-    hmoProvider: normalizeString(dto.hmoProvider),
-    hmoCardNumber: normalizeString(dto.hmoCardNumber),
-    userId: normalizeString(dto.userId),
-    hasAccount: normalizeBoolean(dto.hasAccount),
-    isEmailVerified: dto.isEmailVerified ?? undefined,
-    isGuest: Boolean(dto.isGuest),
-    consentedAt: normalizeString(dto.consentedAt),
-    consentVersion: normalizeString(dto.consentVersion)
-  };
-}
+    const items = ((data ?? []) as PatientRow[]).map((row) => mapPatientSummaryFromRow(row));
+    const totalCount = count ?? items.length;
 
-function resolvePatientFullName(dto: PatientDto): string {
-  const explicitName = normalizeString(dto.fullName);
-  if (explicitName) {
-    return explicitName;
+    return {
+      items,
+      totalCount,
+      total: totalCount,
+      page,
+      pageSize,
+      totalPages: Math.ceil(totalCount / pageSize) || 1,
+    };
   }
 
-  const parts = [dto.firstName, dto.middleName, dto.lastName]
-    .map((value) => normalizeString(value))
-    .filter((value): value is string => Boolean(value));
+  private async fetchPatientById(id: string): Promise<PatientDetail> {
+    const { data, error } = await this.supabase
+      .from('patients')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
 
+    if (error) throw error;
+    if (!data) throw new Error('Patient not found.');
+
+    return mapPatientDetailFromRow(data as PatientRow);
+  }
+
+  private async createPatientAsync(dto: CreatePatientRequest): Promise<PatientDetail> {
+    const { data, error } = await this.supabase
+      .from('patients')
+      .insert({
+        first_name: dto.firstName,
+        middle_name: dto.middleName ?? null,
+        last_name: dto.lastName,
+        date_of_birth: dto.dateOfBirth ?? null,
+        sex: dto.sex ?? null,
+        contact_number: dto.contactNumber ?? null,
+        contact_email: dto.email ?? null,
+        address: dto.address ?? null,
+        is_guest: false,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapPatientDetailFromRow(data as PatientRow);
+  }
+
+  private async updatePatientAsync(id: string, dto: UpdatePatientRequest): Promise<PatientDetail> {
+    const payload: Record<string, unknown> = {};
+    const fieldMap: Record<string, string> = {
+      firstName: 'first_name', middleName: 'middle_name', lastName: 'last_name',
+      dateOfBirth: 'date_of_birth', sex: 'sex', civilStatus: 'civil_status',
+      address: 'address', city: 'city', zipCode: 'zip_code',
+      contactNumber: 'contact_number', email: 'contact_email',
+      emergencyContactName: 'emergency_contact_name',
+      emergencyContactNumber: 'emergency_contact_number',
+      emergencyContactRelationship: 'emergency_contact_relationship',
+      bloodType: 'blood_type', philHealthNumber: 'phil_health_number',
+      hmoProvider: 'hmo_provider', hmoCardNumber: 'hmo_card_number',
+    };
+
+    for (const [camel, snake] of Object.entries(fieldMap)) {
+      const val = (dto as Record<string, unknown>)[camel];
+      if (val !== undefined) payload[snake] = val;
+    }
+
+    const { data, error } = await this.supabase
+      .from('patients')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapPatientDetailFromRow(data as PatientRow);
+  }
+
+  private async updatePatientContactEmail(id: string, email: string): Promise<PatientDetail> {
+    const { data, error } = await this.supabase
+      .from('patients')
+      .update({ contact_email: email.trim() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapPatientDetailFromRow(data as PatientRow);
+  }
+}
+
+function mapPatientSummaryFromRow(row: PatientRow): PatientSummary {
+  return {
+    id: row.id,
+    patientCode: trimStr(row.patient_code) || row.id,
+    firstName: trimStr(row.first_name) || '',
+    middleName: trimStr(row.middle_name),
+    lastName: trimStr(row.last_name) || '',
+    fullName: composeName(row.first_name, row.middle_name, row.last_name),
+    dateOfBirth: trimStr(row.date_of_birth) || '',
+    sex: trimStr(row.sex) || '',
+    contactNumber: trimStr(row.contact_number),
+    email: trimStr(row.contact_email),
+    userId: trimStr(row.user_id),
+    hasAccount: Boolean(row.user_id),
+    isGuest: Boolean(row.is_guest),
+  };
+}
+
+function mapPatientDetailFromRow(row: PatientRow): PatientDetail {
+  return {
+    id: row.id,
+    patientCode: trimStr(row.patient_code) || row.id,
+    firstName: trimStr(row.first_name) || '',
+    middleName: trimStr(row.middle_name),
+    lastName: trimStr(row.last_name) || '',
+    dateOfBirth: trimStr(row.date_of_birth) || '',
+    sex: trimStr(row.sex) || '',
+    civilStatus: trimStr(row.civil_status),
+    address: trimStr(row.address),
+    city: trimStr(row.city),
+    zipCode: trimStr(row.zip_code),
+    contactNumber: trimStr(row.contact_number),
+    email: trimStr(row.contact_email),
+    emergencyContactName: trimStr(row.emergency_contact_name),
+    emergencyContactNumber: trimStr(row.emergency_contact_number),
+    emergencyContactRelationship: trimStr(row.emergency_contact_relationship),
+    bloodType: trimStr(row.blood_type),
+    philHealthNumber: trimStr(row.phil_health_number),
+    hmoProvider: trimStr(row.hmo_provider),
+    hmoCardNumber: trimStr(row.hmo_card_number),
+    userId: trimStr(row.user_id),
+    hasAccount: Boolean(row.user_id),
+    isEmailVerified: undefined,
+    isGuest: Boolean(row.is_guest),
+    consentedAt: trimStr(row.consented_at),
+    consentVersion: trimStr(row.consent_version),
+  };
+}
+
+function composeName(first: NullableString, middle: NullableString, last: NullableString): string {
+  const parts = [first, middle, last].map((v) => trimStr(v)).filter((v): v is string => Boolean(v));
   return parts.length ? parts.join(' ') : 'Patient';
 }
 
-function buildPatientsParams(page: number, pageSize: number, search?: string): HttpParams {
-  let params = new HttpParams()
-    .set('page', String(Math.max(1, page)))
-    .set('pageSize', String(Math.max(1, pageSize)));
-
-  const trimmedSearch = search?.trim();
-  if (trimmedSearch) {
-    params = params.set('search', trimmedSearch);
-  }
-
-  return params;
-}
-
-function normalizeString(value: NullableString): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function normalizeNumber(value: number | null | undefined): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
-}
-
-function normalizeBoolean(value: boolean | null | undefined): boolean | undefined {
-  return typeof value === 'boolean' ? value : undefined;
+function trimStr(value: NullableString): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const t = value.trim();
+  return t || undefined;
 }

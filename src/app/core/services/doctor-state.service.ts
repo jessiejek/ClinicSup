@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { BehaviorSubject, Observable, map, catchError, of, forkJoin } from 'rxjs';
+import { BehaviorSubject, Observable, map, catchError, of, forkJoin, from } from 'rxjs';
 import {
   AvailabilityStatus,
   Doctor,
@@ -9,8 +9,7 @@ import {
   DoctorSchedule,
   DoctorStatus
 } from '../models';
-import { ApiService } from './api.service';
-import { MockDataService } from './mock-data.service';
+import { SupabaseService } from './supabase.service';
 
 const toLocalIsoDate = (): string => {
   const date = new Date();
@@ -18,35 +17,12 @@ const toLocalIsoDate = (): string => {
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 };
 
-/** Map API DoctorSummaryDto to frontend Doctor model. */
-function mapDoctor(dto: any): Doctor {
-  return {
-    id: dto.id,
-    userId: dto.userId ?? '',
-    fullName: dto.fullName ?? 'Unnamed Doctor',
-    specialization: dto.specialization ?? '',
-    consultationFee: dto.consultationFee ?? 0,
-    slotDurationMinutes: 30,
-    slotCapacity: 1,
-    dailyPatientLimit: null,
-    status: dto.status ?? 'Active',
-    profilePhotoUrl: dto.profilePhotoUrl,
-    averageRating: dto.averageRating,
-    reviewCount: dto.reviewCount ?? 0
-  };
-}
-
 @Injectable({ providedIn: 'root' })
 export class DoctorStateService {
-  private readonly mockData = inject(MockDataService);
-  private readonly api = inject(ApiService);
-  private readonly doctorsSubject = new BehaviorSubject<Doctor[]>(this.mockData.getDoctors());
-  private readonly schedulesSubject = new BehaviorSubject<DoctorSchedule[]>(
-    this.mockData.getDoctorSchedules()
-  );
-  private readonly blockedDatesSubject = new BehaviorSubject<DoctorBlockedDate[]>(
-    this.mockData.getDoctorBlockedDates()
-  );
+  private readonly supabase = inject(SupabaseService).client;
+  private readonly doctorsSubject = new BehaviorSubject<Doctor[]>([]);
+  private readonly schedulesSubject = new BehaviorSubject<DoctorSchedule[]>([]);
+  private readonly blockedDatesSubject = new BehaviorSubject<DoctorBlockedDate[]>([]);
   private readonly dayStatusesSubject = new BehaviorSubject<Record<string, DoctorDayStatus>>({});
   private readonly loadingSubject = new BehaviorSubject(false);
 
@@ -56,13 +32,11 @@ export class DoctorStateService {
   readonly dayStatuses$ = this.dayStatusesSubject.asObservable();
   readonly isLoading$ = this.loadingSubject.asObservable();
 
-  readonly doctors = toSignal(this.doctors$, { initialValue: this.doctorsSubject.value });
+  readonly doctors = toSignal(this.doctors$, { initialValue: [] });
   readonly isLoading = toSignal(this.isLoading$, { initialValue: false });
 
   refresh(): void {
-    this.doctorsSubject.next(this.mockData.getDoctors());
-    this.schedulesSubject.next(this.mockData.getDoctorSchedules());
-    this.blockedDatesSubject.next(this.mockData.getDoctorBlockedDates());
+    this.loadDoctorsFromSupabase();
   }
 
   getDoctors(): Observable<Doctor[]> {
@@ -91,43 +65,28 @@ export class DoctorStateService {
     return toSignal(this.getDoctorDayStatus(doctorId), { initialValue: undefined });
   }
 
-  // ─── REAL API METHODS ──────────────────────────────
-
-  /** Load all doctors from real API (for staff pages). */
-  loadDoctorsFromApi(): void {
+  /** Load all doctors from Supabase (for staff pages). */
+  loadDoctorsFromSupabase(): void {
     this.loadingSubject.next(true);
-    this.api.get<any[]>('/api/doctors/admin').pipe(
-      map((items) => items.map(mapDoctor)),
-      catchError(() => {
-        this.loadingSubject.next(false);
-        return of([]);
-      })
+    from(this.fetchAllDoctors()).pipe(
+      catchError(() => of([] as Doctor[]))
     ).subscribe((doctors) => {
       this.doctorsSubject.next(doctors);
       this.loadingSubject.next(false);
-      // Load day statuses for each doctor
       if (doctors.length > 0) {
         forkJoin(doctors.map((d) => this.loadSingleDayStatus(d.id))).subscribe();
       }
     });
   }
 
-  /** Load today's day status for a single doctor from real API. */
+  /** Load today's day status for a single doctor from Supabase. */
   loadSingleDayStatus(doctorId: string): Observable<void> {
-    return this.api.get<any[]>(`/api/doctors/${doctorId}/day-status`).pipe(
-      map((statuses) => {
-        const today = toLocalIsoDate();
-        const todayStatus = statuses?.find((s: any) => s.date === today);
+    return from(this.fetchDayStatus(doctorId)).pipe(
+      map((todayStatus) => {
         if (todayStatus) {
           this.dayStatusesSubject.next({
             ...this.dayStatusesSubject.value,
-            [doctorId]: {
-              id: todayStatus.id ?? '',
-              doctorId,
-              date: today,
-              status: todayStatus.status as AvailabilityStatus,
-              runningLateMinutes: todayStatus.runningLateMinutes
-            }
+            [doctorId]: todayStatus,
           });
         }
       }),
@@ -135,17 +94,13 @@ export class DoctorStateService {
     );
   }
 
-  /** Update day status via real API, then refresh local state. */
+  /** Update day status via Supabase, then refresh local state. */
   updateDayStatusViaApi(doctorId: string, status: AvailabilityStatus, runningLateMinutes?: number): Observable<any> {
-    const body: Record<string, any> = { date: toLocalIsoDate(), status };
-    if (runningLateMinutes !== undefined) {
-      body['runningLateMinutes'] = runningLateMinutes;
-    }
-    return this.api.post(`/api/doctors/${doctorId}/day-status`, body).pipe(
+    return from(this.upsertDayStatus(doctorId, status, runningLateMinutes)).pipe(
       map(() => {
         this.dayStatusesSubject.next({
           ...this.dayStatusesSubject.value,
-          [doctorId]: { id: '', doctorId, date: toLocalIsoDate(), status, runningLateMinutes }
+          [doctorId]: { id: '', doctorId, date: toLocalIsoDate(), status, runningLateMinutes },
         });
       })
     );
@@ -155,11 +110,11 @@ export class DoctorStateService {
     const saved: Doctor = {
       ...doctor,
       id: `doc-${Date.now()}`,
-      userId: doctor.userId || `user-doctor-${Date.now()}`
+      userId: doctor.userId || `user-doctor-${Date.now()}`,
     };
     this.doctorsSubject.next([
       ...this.doctorsSubject.value.filter((item) => item.id !== saved.id),
-      saved
+      saved,
     ]);
     return saved;
   }
@@ -190,15 +145,15 @@ export class DoctorStateService {
         doctorId: event.doctorId,
         date: toLocalIsoDate(),
         status: event.status,
-        runningLateMinutes: event.runningLateMinutes
-      }
+        runningLateMinutes: event.runningLateMinutes,
+      },
     });
   }
 
   addBlockedDate(blockedDate: DoctorBlockedDate): void {
     this.blockedDatesSubject.next([
       ...this.blockedDatesSubject.value.filter((item) => item.id !== blockedDate.id),
-      blockedDate
+      blockedDate,
     ]);
   }
 
@@ -207,4 +162,85 @@ export class DoctorStateService {
       this.blockedDatesSubject.value.filter((blockedDate) => blockedDate.id !== id)
     );
   }
+
+  private async fetchAllDoctors(): Promise<Doctor[]> {
+    const { data, error } = await this.supabase
+      .from('doctors')
+      .select('id, user_id, full_name, specialization, bio, profile_photo_url, consultation_fee, status, average_rating, review_count')
+      .order('full_name', { ascending: true });
+
+    if (error) throw error;
+    return ((data ?? []) as Record<string, unknown>[]).map(mapDoctorRow);
+  }
+
+  private async fetchDayStatus(doctorId: string): Promise<DoctorDayStatus | null> {
+    const today = toLocalIsoDate();
+    const { data, error } = await this.supabase
+      .from('doctor_day_statuses')
+      .select('*')
+      .eq('doctor_id', doctorId)
+      .eq('date', today)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+    const row = data as Record<string, unknown>;
+    return {
+      id: trimStr(row['id']) ?? '',
+      doctorId: trimStr(row['doctor_id']) ?? '',
+      date: trimStr(row['date']) ?? '',
+      status: (trimStr(row['status']) as AvailabilityStatus) ?? 'Available',
+      runningLateMinutes: normalizeNumOrUndefined(row['running_late_minutes']),
+    };
+  }
+
+  private async upsertDayStatus(doctorId: string, status: AvailabilityStatus, runningLateMinutes?: number): Promise<void> {
+    const { error } = await this.supabase
+      .from('doctor_day_statuses')
+      .upsert(
+        {
+          doctor_id: doctorId,
+          date: toLocalIsoDate(),
+          status,
+          running_late_minutes: runningLateMinutes ?? null,
+        },
+        { onConflict: 'doctor_id,date' }
+      );
+
+    if (error) throw error;
+  }
+}
+
+function mapDoctorRow(row: Record<string, unknown>): Doctor {
+  return {
+    id: trimStr(row['id']) ?? '',
+    userId: trimStr(row['user_id']) ?? '',
+    fullName: trimStr(row['full_name']) ?? 'Unnamed Doctor',
+    specialization: trimStr(row['specialization']) ?? '',
+    consultationFee: normalizeNum(row['consultation_fee']),
+    slotDurationMinutes: 30,
+    slotCapacity: 1,
+    dailyPatientLimit: null,
+    status: (trimStr(row['status']) as DoctorStatus) ?? 'Active',
+    profilePhotoUrl: trimStr(row['profile_photo_url']),
+    averageRating: normalizeNum(row['average_rating']),
+    reviewCount: normalizeNum(row['review_count']),
+  };
+}
+
+function trimStr(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const t = value.trim();
+  return t || undefined;
+}
+
+function normalizeNum(value: unknown): number {
+  if (typeof value !== 'number') return 0;
+  return Number.isFinite(value) ? value : 0;
+}
+
+function normalizeNumOrUndefined(value: unknown): number | undefined {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value !== 'number') return undefined;
+  return Number.isFinite(value) ? value : undefined;
 }

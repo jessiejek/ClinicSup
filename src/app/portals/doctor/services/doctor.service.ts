@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError, map, of, switchMap } from 'rxjs';
-import { ApiService } from '../../../core/services/api.service';
+import { Observable, from, map } from 'rxjs';
+import { AuthStateService } from '../../../core/services/auth-state.service';
+import { SupabaseService } from '../../../core/services/supabase.service';
 import {
   AvailabilityStatus,
   DayOfWeek,
@@ -13,52 +14,6 @@ import {
 } from '../../../core/models';
 
 type NullableString = string | null | undefined;
-
-interface DoctorDto {
-  id: string;
-  userId?: NullableString;
-  fullName?: NullableString;
-  firstName?: NullableString;
-  middleName?: NullableString;
-  lastName?: NullableString;
-  specialization?: NullableString;
-  bio?: NullableString;
-  profilePhotoUrl?: NullableString;
-  avatarUrl?: NullableString;
-  licenseNumber?: NullableString;
-  ptrNumber?: NullableString;
-  s2Number?: NullableString;
-  consultationFee?: number | null;
-  slotDurationMinutes?: number | null;
-  slotCapacity?: number | null;
-  dailyPatientLimit?: number | null;
-  status?: DoctorStatus | string | null;
-  averageRating?: number | null;
-  reviewCount?: number | null;
-}
-
-interface DoctorScheduleDto {
-  id: string;
-  doctorId?: NullableString;
-  dayOfWeek?: DayOfWeek | string | null;
-  startTime?: NullableString;
-  endTime?: NullableString;
-}
-
-interface DoctorBlockedDateDto {
-  id: string;
-  doctorId?: NullableString;
-  blockedDate?: NullableString;
-  reason?: NullableString;
-}
-
-interface DoctorDayStatusDto {
-  id: string;
-  doctorId?: NullableString;
-  date?: NullableString;
-  status?: AvailabilityStatus | string | null;
-  runningLateMinutes?: number | null;
-}
 
 export type DoctorDetail = Doctor;
 
@@ -84,133 +39,287 @@ export interface SetDayStatusDto {
 
 @Injectable({ providedIn: 'root' })
 export class DoctorService {
-  private readonly apiService = inject(ApiService);
+  private readonly supabase = inject(SupabaseService).client;
+  private readonly authState = inject(AuthStateService);
 
   getMyProfile(): Observable<DoctorDetail> {
-    return this.apiService.get<DoctorDto>('/doctors/me').pipe(map((doctor) => mapDoctorDto(doctor)));
+    const userId = this.authState.snapshot?.id;
+    if (!userId) throw new Error('User not authenticated.');
+    return from(this.fetchDoctorByUserId(userId));
   }
 
   updateMyProfile(dto: UpdateDoctorDto): Observable<DoctorDetail> {
-    return this.apiService.put<DoctorDto>('/doctors/me', dto).pipe(map((doctor) => mapDoctorDto(doctor)));
+    const userId = this.authState.snapshot?.id;
+    if (!userId) throw new Error('User not authenticated.');
+    return from(this.updateDoctorByUserId(userId, dto));
   }
 
   getMySchedule(): Observable<DoctorSchedule[]> {
-    return this.getMyProfile().pipe(
-      switchMap((doctor) => (doctor ? this.getDoctorSchedules(doctor.id) : of([]))),
-      catchError(() => of([]))
-    );
+    const userId = this.authState.snapshot?.id;
+    if (!userId) return from(Promise.resolve([]));
+    return from(this.fetchScheduleByUserId(userId));
   }
 
   getDayStatus(id: string): Observable<DoctorDayStatus> {
-    return this.apiService.get<DoctorDayStatusDto>(`/doctors/${id}/day-status`).pipe(
-      map((status) => mapDoctorDayStatusDto(status))
-    );
+    return from(this.fetchDayStatus(id));
   }
 
   setDayStatus(id: string, dto: SetDayStatusDto): Observable<DoctorDayStatus> {
-    return this.apiService.post<DoctorDayStatusDto>(`/doctors/${id}/day-status`, dto).pipe(
-      map((status) => mapDoctorDayStatusDto(status))
-    );
+    return from(this.upsertDayStatus(id, dto));
   }
 
   getCurrentDoctor(userId: string): Observable<Doctor | undefined> {
-    return this.getMyProfile().pipe(map((doctor) => (doctor && doctor.userId === userId ? doctor : undefined)));
+    return from(this.fetchDoctorByUserId(userId)).pipe(
+      map((doctor) => doctor ?? undefined)
+    );
   }
 
   getDoctorSchedules(doctorId: string): Observable<DoctorSchedule[]> {
-    return this.apiService.get<DoctorScheduleDto[]>(`/doctors/${doctorId}/schedule`).pipe(
-      map((schedules) => schedules.map((schedule) => mapDoctorScheduleDto(schedule)))
-    );
+    return from(this.fetchSchedule(doctorId));
   }
 
   getDoctorBlockedDates(doctorId: string): Observable<DoctorBlockedDate[]> {
-    return this.apiService.get<DoctorBlockedDateDto[]>(`/doctors/${doctorId}/blocked-dates`).pipe(
-      map((dates) => dates.map((date) => mapDoctorBlockedDateDto(date)))
-    );
+    return from(this.fetchBlockedDates(doctorId));
   }
 
   updateSchedule(doctorId: string, schedules: DoctorScheduleInput[]): Observable<DoctorSchedule[]> {
-    return this.apiService.put<DoctorScheduleDto[]>(`/doctors/${doctorId}/schedule`, { schedules }).pipe(
-      map((dtos) => dtos.map((dto) => mapDoctorScheduleDto(dto)))
-    );
+    return from(this.upsertSchedule(doctorId, schedules));
   }
 
   createBlockedDate(doctorId: string, payload: { blockedDate: string; reason?: string | null }): Observable<DoctorBlockedDate> {
-    return this.apiService.post<DoctorBlockedDateDto>(`/doctors/${doctorId}/blocked-dates`, payload).pipe(
-      map((dto) => mapDoctorBlockedDateDto(dto))
-    );
+    return from(this.insertBlockedDate(doctorId, payload));
   }
 
   deleteBlockedDate(doctorId: string, blockedDateId: string): Observable<void> {
-    return this.apiService.delete<void>(`/doctors/${doctorId}/blocked-dates/${blockedDateId}`);
+    return from(this.removeBlockedDate(blockedDateId));
+  }
+
+  private async fetchDoctorByUserId(userId: string): Promise<DoctorDetail> {
+    const { data, error } = await this.supabase
+      .from('doctors')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) throw new Error('Doctor profile not found.');
+
+    return mapDoctorRow(data as Record<string, unknown>);
+  }
+
+  private async updateDoctorByUserId(userId: string, dto: UpdateDoctorDto): Promise<DoctorDetail> {
+    const { data, error } = await this.supabase
+      .from('doctors')
+      .update({
+        full_name: dto.fullName,
+        specialization: dto.specialization,
+        bio: dto.bio,
+        license_number: dto.licenseNumber,
+        ptr_number: dto.ptrNumber,
+        s2_number: dto.s2Number,
+        consultation_fee: dto.consultationFee,
+        slot_duration_minutes: dto.slotDurationMinutes,
+        slot_capacity: dto.slotCapacity,
+        daily_patient_limit: dto.dailyPatientLimit,
+        status: dto.status,
+      })
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapDoctorRow(data as Record<string, unknown>);
+  }
+
+  private async fetchScheduleByUserId(userId: string): Promise<DoctorSchedule[]> {
+    const doctor = await this.fetchDoctorByUserId(userId);
+    return this.fetchSchedule(doctor.id);
+  }
+
+  private async fetchSchedule(doctorId: string): Promise<DoctorSchedule[]> {
+    const { data, error } = await this.supabase
+      .from('doctor_schedules')
+      .select('*')
+      .eq('doctor_id', doctorId)
+      .order('day_of_week', { ascending: true })
+      .order('start_time', { ascending: true });
+
+    if (error) throw error;
+    return ((data ?? []) as Record<string, unknown>[]).map((row) => mapDoctorScheduleRow(row));
+  }
+
+  private async fetchDayStatus(doctorId: string): Promise<DoctorDayStatus> {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await this.supabase
+      .from('doctor_day_statuses')
+      .select('*')
+      .eq('doctor_id', doctorId)
+      .eq('date', today)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    return data
+      ? mapDoctorDayStatusRow(data as Record<string, unknown>)
+      : { id: '', doctorId, date: today, status: 'Available' as AvailabilityStatus };
+  }
+
+  private async upsertDayStatus(doctorId: string, dto: SetDayStatusDto): Promise<DoctorDayStatus> {
+    const { data, error } = await this.supabase
+      .from('doctor_day_statuses')
+      .upsert({
+        doctor_id: doctorId,
+        date: dto.date,
+        status: dto.status,
+        running_late_minutes: dto.runningLateMinutes,
+      }, { onConflict: 'doctor_id,date' })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapDoctorDayStatusRow(data as Record<string, unknown>);
+  }
+
+  private async fetchBlockedDates(doctorId: string): Promise<DoctorBlockedDate[]> {
+    const { data, error } = await this.supabase
+      .from('doctor_blocked_dates')
+      .select('*')
+      .eq('doctor_id', doctorId)
+      .order('blocked_date', { ascending: true });
+
+    if (error) throw error;
+    return ((data ?? []) as Record<string, unknown>[]).map((row) => mapDoctorBlockedDateRow(row));
+  }
+
+  private async upsertSchedule(doctorId: string, schedules: DoctorScheduleInput[]): Promise<DoctorSchedule[]> {
+    const { error: deleteError } = await this.supabase
+      .from('doctor_schedules')
+      .delete()
+      .eq('doctor_id', doctorId);
+
+    if (deleteError) throw deleteError;
+
+    if (schedules.length === 0) return [];
+
+    const rows = schedules.map((s) => ({
+      doctor_id: doctorId,
+      day_of_week: s.dayOfWeek,
+      start_time: s.startTime,
+      end_time: s.endTime,
+    }));
+
+    const { data, error } = await this.supabase
+      .from('doctor_schedules')
+      .insert(rows)
+      .select()
+      .order('day_of_week', { ascending: true })
+      .order('start_time', { ascending: true });
+
+    if (error) throw error;
+    return ((data ?? []) as Record<string, unknown>[]).map((row) => mapDoctorScheduleRow(row));
+  }
+
+  private async insertBlockedDate(doctorId: string, payload: { blockedDate: string; reason?: string | null }): Promise<DoctorBlockedDate> {
+    const { data, error } = await this.supabase
+      .from('doctor_blocked_dates')
+      .insert({
+        doctor_id: doctorId,
+        blocked_date: payload.blockedDate,
+        reason: payload.reason ?? null,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapDoctorBlockedDateRow(data as Record<string, unknown>);
+  }
+
+  private async removeBlockedDate(blockedDateId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('doctor_blocked_dates')
+      .delete()
+      .eq('id', blockedDateId);
+
+    if (error) throw error;
   }
 }
 
-function mapDoctorDto(dto: DoctorDto): Doctor {
-  const fullName = resolveDoctorName(dto);
+const DAYS: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function mapDoctorRow(row: Record<string, unknown>): Doctor {
   return {
-    id: dto.id,
-    userId: normalizeString(dto.userId) || dto.id,
-    fullName,
-    specialization: normalizeString(dto.specialization) || '',
-    bio: normalizeString(dto.bio),
-    profilePhotoUrl: normalizeString(dto.profilePhotoUrl ?? dto.avatarUrl),
-    licenseNumber: normalizeString(dto.licenseNumber),
-    ptrNumber: normalizeString(dto.ptrNumber),
-    s2Number: normalizeString(dto.s2Number),
-    consultationFee: dto.consultationFee ?? 0,
-    slotDurationMinutes: dto.slotDurationMinutes ?? 30,
-    slotCapacity: dto.slotCapacity ?? 1,
-    dailyPatientLimit: dto.dailyPatientLimit ?? null,
-    status: (dto.status as DoctorStatus) ?? 'Active',
-    averageRating: dto.averageRating ?? undefined,
-    reviewCount: dto.reviewCount ?? undefined
+    id: trimString(row['id']) ?? '',
+    userId: trimString(row['user_id']) ?? '',
+    fullName: trimString(row['full_name']) ?? 'Doctor',
+    specialization: trimString(row['specialization']) ?? '',
+    bio: trimString(row['bio']),
+    profilePhotoUrl: trimString(row['profile_photo_url']),
+    licenseNumber: trimString(row['license_number']),
+    ptrNumber: trimString(row['ptr_number']),
+    s2Number: trimString(row['s2_number']),
+    consultationFee: normalizeNum(row['consultation_fee']),
+    slotDurationMinutes: normalizeNum(row['slot_duration_minutes']) ?? 30,
+    slotCapacity: normalizeNum(row['slot_capacity']) ?? 1,
+    dailyPatientLimit: normalizeNumOrNull(row['daily_patient_limit']),
+    status: (trimString(row['status']) as DoctorStatus) ?? 'Active',
+    averageRating: normalizeNum(row['average_rating']),
+    reviewCount: normalizeNum(row['review_count']),
   };
 }
 
-function mapDoctorScheduleDto(dto: DoctorScheduleDto): DoctorSchedule {
+function mapDoctorScheduleRow(row: Record<string, unknown>): DoctorSchedule {
   return {
-    id: dto.id,
-    doctorId: normalizeString(dto.doctorId) || '',
-    dayOfWeek: (dto.dayOfWeek as DayOfWeek) ?? 'Monday',
-    startTime: normalizeString(dto.startTime) || '00:00',
-    endTime: normalizeString(dto.endTime) || '00:00'
+    id: trimString(row['id']) ?? '',
+    doctorId: trimString(row['doctor_id']) ?? '',
+    dayOfWeek: normalizeDayOfWeek(row['day_of_week']),
+    startTime: normalizeTime(row['start_time']),
+    endTime: normalizeTime(row['end_time']),
   };
 }
 
-function mapDoctorBlockedDateDto(dto: DoctorBlockedDateDto): DoctorBlockedDate {
+function mapDoctorBlockedDateRow(row: Record<string, unknown>): DoctorBlockedDate {
   return {
-    id: dto.id,
-    doctorId: normalizeString(dto.doctorId) || '',
-    blockedDate: normalizeString(dto.blockedDate) || '',
-    reason: normalizeString(dto.reason)
+    id: trimString(row['id']) ?? '',
+    doctorId: trimString(row['doctor_id']) ?? '',
+    blockedDate: trimString(row['blocked_date']) ?? '',
+    reason: trimString(row['reason']),
   };
 }
 
-function mapDoctorDayStatusDto(dto: DoctorDayStatusDto): DoctorDayStatus {
+function mapDoctorDayStatusRow(row: Record<string, unknown>): DoctorDayStatus {
   return {
-    id: dto.id,
-    doctorId: normalizeString(dto.doctorId) || '',
-    date: normalizeString(dto.date) || '',
-    status: (dto.status as AvailabilityStatus) ?? 'Available',
-    runningLateMinutes: dto.runningLateMinutes ?? undefined
+    id: trimString(row['id']) ?? '',
+    doctorId: trimString(row['doctor_id']) ?? '',
+    date: trimString(row['date']) ?? '',
+    status: (trimString(row['status']) as AvailabilityStatus) ?? 'Available',
+    runningLateMinutes: normalizeNumOrNull(row['running_late_minutes']) ?? undefined,
   };
 }
 
-function resolveDoctorName(dto: DoctorDto): string {
-  const explicitName = normalizeString(dto.fullName);
-  if (explicitName) {
-    return explicitName;
-  }
-
-  const parts = [dto.firstName, dto.middleName, dto.lastName]
-    .map((value) => normalizeString(value))
-    .filter((value): value is string => Boolean(value));
-
-  return parts.length ? parts.join(' ') : 'Doctor';
+function normalizeDayOfWeek(value: unknown): DayOfWeek {
+  if (typeof value !== 'string') return 'Monday';
+  const v = value.trim().toLowerCase();
+  return DAYS.find((d) => d.toLowerCase() === v) ?? 'Monday';
 }
 
-function normalizeString(value: NullableString): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
+function normalizeTime(value: unknown): string {
+  if (typeof value !== 'string') return '00:00';
+  return value.length >= 5 ? value.slice(0, 5) : value;
+}
+
+function trimString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const t = value.trim();
+  return t || undefined;
+}
+
+function normalizeNum(value: unknown): number {
+  if (typeof value !== 'number') return 0;
+  return Number.isFinite(value) ? value : 0;
+}
+
+function normalizeNumOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'number') return null;
+  return Number.isFinite(value) ? value : null;
 }

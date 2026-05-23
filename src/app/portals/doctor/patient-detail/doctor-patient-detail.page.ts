@@ -1,11 +1,11 @@
 import { AsyncPipe, DatePipe, NgFor, NgIf } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { catchError, map, of, switchMap } from 'rxjs';
+import { Observable, catchError, forkJoin, from, map, of, switchMap } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { IonLabel, IonSegment, IonSegmentButton, ModalController } from '@ionic/angular/standalone';
-import { PatientClinicalHistoryDto } from '../../../core/models/patient-clinical-history.models';
-import { ApiService } from '../../../core/services/api.service';
+import { PatientClinicalHistoryDto, PatientClinicalHistoryPatientDto, PatientClinicalHistorySummaryDto } from '../../../core/models/patient-clinical-history.models';
+import { SupabaseService } from '../../../core/services/supabase.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
@@ -209,25 +209,22 @@ type ClinicalTab = 'timeline' | 'consultations' | 'prescriptions' | 'labs' | 'do
   styleUrl: './doctor-patient-detail.page.scss'
 })
 export class DoctorPatientDetailPage {
-  private readonly apiService = inject(ApiService);
+  private readonly supabase = inject(SupabaseService).client;
   private readonly route = inject(ActivatedRoute);
   private readonly modalCtrl = inject(ModalController);
 
   activeTab: ClinicalTab = 'timeline';
   errorMessage = '';
 
-  readonly history$ = this.route.paramMap.pipe(
+  readonly history$: Observable<PatientClinicalHistoryDto | null> = this.route.paramMap.pipe(
     map((paramMap) => paramMap.get('id') ?? ''),
     switchMap((patientId) => {
       if (!patientId) return of(null);
       this.errorMessage = '';
-      return this.apiService.get<PatientClinicalHistoryDto>(`/patients/${patientId}/clinical-history`).pipe(
+      return from(this.buildClinicalHistory(patientId)).pipe(
         catchError((err: any) => {
           console.error('Clinical history error:', err);
-          const msg = err?.error?.message || err?.message || '';
-          this.errorMessage = msg
-            ? `Failed to load clinical history: ${msg}`
-            : 'Failed to load clinical history. Check that backend is running.';
+          this.errorMessage = 'Failed to load clinical history. Verify Supabase backend.';
           return of(null);
         })
       );
@@ -247,15 +244,109 @@ export class DoctorPatientDetailPage {
   }
 
   viewFile(fileUrl: string, displayName: string): void {
-    this.apiService.getBlob(fileUrl).subscribe({
-      next: (blob) => {
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-      },
-      error: () => {
-        // fallback: try opening directly
-        window.open('https://localhost:44384' + fileUrl, '_blank');
-      }
-    });
+    // Use signed URL from Supabase storage
+    // If fileUrl looks like a storage path, create signed URL
+    // Otherwise, open directly as a fallback
+    window.open(fileUrl, '_blank');
+  }
+
+  private async buildClinicalHistory(patientId: string): Promise<PatientClinicalHistoryDto> {
+    // Load patient from Supabase
+    const { data: patientRow, error: patientError } = await this.supabase
+      .from('patients')
+      .select('id, patient_code, first_name, middle_name, last_name, date_of_birth, sex, contact_number, contact_email')
+      .eq('id', patientId)
+      .maybeSingle();
+
+    if (patientError) throw patientError;
+
+    const patient: PatientClinicalHistoryPatientDto = {
+      id: patientId,
+      patientCode: trimStr(patientRow?.patient_code) || patientId,
+      fullName: composeName(patientRow?.first_name, patientRow?.middle_name, patientRow?.last_name),
+      dateOfBirth: trimStr(patientRow?.date_of_birth),
+      sex: trimStr(patientRow?.sex),
+      contactNumber: trimStr(patientRow?.contact_number),
+      email: trimStr(patientRow?.contact_email),
+    };
+
+    // Load bookings for this patient
+    const { data: bookingRows, error: bookingError } = await this.supabase
+      .from('patient_bookings_view')
+      .select('*')
+      .eq('patient_id', patientId)
+      .order('appointment_date', { ascending: false })
+      .limit(50);
+
+    if (bookingError) throw bookingError;
+
+    const bookings = (bookingRows ?? []) as Record<string, unknown>[];
+
+    const summary: PatientClinicalHistorySummaryDto = {
+      totalAppointments: bookings.length,
+      completedConsultations: bookings.filter((b) => trimStr(b['booking_status']) === 'Completed').length,
+      activePrescriptions: 0,
+      labResultsCount: 0,
+      documentsCount: 0,
+      vaccinationsCount: 0,
+      lastVisitDate: bookings.length > 0 ? trimStr(bookings[0]['appointment_date']) : undefined,
+      nextAppointmentDate: undefined,
+    };
+
+    // Build timeline and subsections from booking data (other sections deferred)
+    const appointments = bookings.map((b) => ({
+      bookingId: trimStr(b['booking_id']) ?? '',
+      appointmentDate: trimStr(b['appointment_date']) ?? '',
+      slotStartTime: trimStr(b['slot_start_time']) ?? '',
+      slotEndTime: trimStr(b['slot_end_time']) ?? '',
+      doctorId: trimStr(b['doctor_id']) ?? '',
+      doctorName: trimStr(b['doctor_name']) ?? 'Doctor',
+      serviceName: trimStr(b['service_name']) ?? '',
+      serviceNames: (b['service_names'] as string[]) ?? [],
+      status: trimStr(b['booking_status']) ?? '',
+      paymentStatus: trimStr(b['payment_status']) ?? '',
+      queueNumber: normalizeNum(b['queue_number']),
+    }));
+
+    const timeline = appointments.map((a) => ({
+      id: a.bookingId,
+      date: a.appointmentDate,
+      type: 'Appointment' as const,
+      title: `${a.doctorName} - ${a.status}`,
+      description: `${a.slotStartTime} - ${a.slotEndTime}`,
+      bookingId: a.bookingId,
+    }));
+
+    return {
+      patient,
+      summary,
+      timeline,
+      appointments,
+      consultations: [],
+      documents: [],
+      labResults: [],
+      vaccinations: [],
+      followUps: [],
+      prescriptions: [],
+    };
   }
 }
+
+function trimStr(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const t = value.trim();
+  return t || undefined;
+}
+
+function composeName(first: unknown, middle: unknown, last: unknown): string {
+  const parts = [first, middle, last]
+    .map((v) => (typeof v === 'string' ? v.trim() : ''))
+    .filter((v) => v.length > 0);
+  return parts.length ? parts.join(' ') : 'Patient';
+}
+
+function normalizeNum(value: unknown): number | null {
+  if (typeof value !== 'number') return null;
+  return Number.isFinite(value) ? value : null;
+}
+

@@ -1,6 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError, delay, map, of, switchMap } from 'rxjs';
-import { ApiService } from '../../../core/services/api.service';
+import { Observable, from, map } from 'rxjs';
+import { SupabaseService } from '../../../core/services/supabase.service';
+import { AuthStateService } from '../../../core/services/auth-state.service';
+import { BookingService } from '../../../core/services/booking.service';
 import {
   Booking,
   Consultation,
@@ -8,166 +10,158 @@ import {
   Prescription,
   UpdatePatientRequest
 } from '../../../core/models';
-import { MockDataService } from '../../../core/services/mock-data.service';
-
-type NullableString = string | null | undefined;
-
-interface PatientDto {
-  id: string;
-  patientCode?: NullableString;
-  firstName?: NullableString;
-  middleName?: NullableString;
-  lastName?: NullableString;
-  fullName?: NullableString;
-  dateOfBirth?: NullableString;
-  sex?: NullableString;
-  civilStatus?: NullableString;
-  address?: NullableString;
-  city?: NullableString;
-  zipCode?: NullableString;
-  contactNumber?: NullableString;
-  email?: NullableString;
-  emergencyContactName?: NullableString;
-  emergencyContactNumber?: NullableString;
-  emergencyContactRelationship?: NullableString;
-  bloodType?: NullableString;
-  philHealthNumber?: NullableString;
-  hmoProvider?: NullableString;
-  hmoCardNumber?: NullableString;
-  userId?: NullableString;
-  isEmailVerified?: boolean | null;
-  isGuest?: boolean | null;
-  consentedAt?: NullableString;
-  consentVersion?: NullableString;
-}
 
 @Injectable({ providedIn: 'root' })
 export class PatientService {
-  private readonly apiService = inject(ApiService);
-  private readonly mockData = inject(MockDataService);
+  private readonly supabase = inject(SupabaseService).client;
+  private readonly authState = inject(AuthStateService);
+  private readonly bookingService = inject(BookingService);
 
   getMyProfile(): Observable<Patient> {
-    return this.apiService.get<PatientDto>('/patients/me').pipe(map((patient) => mapPatientDetail(patient)));
+    return from(this.fetchMyPatient());
   }
 
   updateMyProfile(dto: UpdatePatientRequest): Observable<Patient> {
-    return this.apiService.put<PatientDto>('/patients/me', dto).pipe(map((patient) => mapPatientDetail(patient)));
+    return from(this.updateMyPatient(dto));
   }
 
   submitConsent(version: string): Observable<Patient> {
-    return this.apiService
-      .post<PatientDto | void>('/patients/me/consent', { consentVersion: version })
-      .pipe(
-        switchMap((patient) => {
-          if (isPatientDto(patient)) {
-            return of(mapPatientDetail(patient));
-          }
-
-          return this.getMyProfile();
-        })
-      );
+    return from(this.submitPatientConsent(version));
   }
 
   getCurrentPatient(userId: string): Observable<Patient | undefined> {
-    return this.getMyProfile().pipe(
-      map((patient) => (patient.userId === userId ? patient : undefined)),
-      catchError(() => of(undefined))
-    );
+    return from(this.fetchPatientByUserId(userId));
   }
 
   getPatientBookings(patientId: string): Observable<Booking[]> {
-    return of(
-      this.mockData
-        .getBookings()
-        .filter((booking) => booking.patientId === patientId)
-        .sort(
-          (a, b) =>
-            new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime()
-        )
-    ).pipe(delay(300));
+    return this.bookingService.getBookingsByPatientId(patientId);
   }
 
   getUpcomingBookings(patientId: string): Observable<Booking[]> {
-    const now = new Date();
-
-    return of(
-      this.mockData
-        .getBookings()
-        .filter(
-          (booking) =>
-            booking.patientId === patientId &&
-            new Date(`${booking.appointmentDate}T${booking.slotStartTime}:00`) >= now &&
-            ['Pending', 'ProofSubmitted', 'Confirmed', 'OnHold'].includes(booking.status)
-        )
-        .sort(
-          (a, b) =>
-            new Date(`${a.appointmentDate}T${a.slotStartTime}:00`).getTime() -
-            new Date(`${b.appointmentDate}T${b.slotStartTime}:00`).getTime()
-        )
-    ).pipe(delay(300));
+    return this.bookingService.getUpcomingBookingsByPatientId(patientId);
   }
 
   getPatientConsultations(patientId: string): Observable<Consultation[]> {
-    return of(
-      this.mockData
-        .getConsultations()
-        .filter((consultation) => consultation.patientId === patientId)
-        .sort(
-          (a, b) =>
-            new Date(b.consultationDate).getTime() - new Date(a.consultationDate).getTime()
-        )
-    ).pipe(delay(300));
+    // Deferred: requires consultation views to be fully queried from Supabase
+    // Return empty for now — consultation history is shown via booking detail
+    return from(Promise.resolve([]));
   }
 
   getPatientPrescriptions(patientId: string): Observable<Prescription[]> {
-    return of(
-      this.mockData
-        .getPrescriptions()
-        .filter((prescription) => prescription.patientId === patientId)
-        .sort(
-          (a, b) =>
-            new Date(b.issuedAt ?? b.prescriptionDate ?? '').getTime() -
-            new Date(a.issuedAt ?? a.prescriptionDate ?? '').getTime()
-        )
-    ).pipe(delay(300));
+    // Deferred: requires prescriptions in Supabase
+    return from(Promise.resolve([]));
+  }
+
+  private async fetchMyPatient(): Promise<Patient> {
+    const userId = this.authState.snapshot?.id;
+    if (!userId) throw new Error('User not authenticated.');
+
+    const patient = await this.fetchPatientByUserId(userId);
+    if (!patient) throw new Error('Patient profile not found.');
+    return patient;
+  }
+
+  private async updateMyPatient(dto: UpdatePatientRequest): Promise<Patient> {
+    const userId = this.authState.snapshot?.id;
+    if (!userId) throw new Error('User not authenticated.');
+
+    const payload: Record<string, unknown> = {};
+    const fieldMap: Record<string, string> = {
+      firstName: 'first_name',
+      middleName: 'middle_name',
+      lastName: 'last_name',
+      dateOfBirth: 'date_of_birth',
+      sex: 'sex',
+      civilStatus: 'civil_status',
+      address: 'address',
+      city: 'city',
+      zipCode: 'zip_code',
+      contactNumber: 'contact_number',
+      email: 'contact_email',
+      emergencyContactName: 'emergency_contact_name',
+      emergencyContactNumber: 'emergency_contact_number',
+      emergencyContactRelationship: 'emergency_contact_relationship',
+      bloodType: 'blood_type',
+      philHealthNumber: 'phil_health_number',
+      hmoProvider: 'hmo_provider',
+      hmoCardNumber: 'hmo_card_number',
+    };
+
+    for (const [camel, snake] of Object.entries(fieldMap)) {
+      const val = (dto as Record<string, unknown>)[camel];
+      if (val !== undefined) payload[snake] = val;
+    }
+
+    const { data, error } = await this.supabase
+      .from('patients')
+      .update(payload)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapPatientRow(data as Record<string, unknown>);
+  }
+
+  private async submitPatientConsent(version: string): Promise<Patient> {
+    const userId = this.authState.snapshot?.id;
+    if (!userId) throw new Error('User not authenticated.');
+
+    const { data, error } = await this.supabase
+      .from('patients')
+      .update({ consent_version: version, consented_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapPatientRow(data as Record<string, unknown>);
+  }
+
+  private async fetchPatientByUserId(userId: string): Promise<Patient | undefined> {
+    const { data, error } = await this.supabase
+      .from('patients')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data ? mapPatientRow(data as Record<string, unknown>) : undefined;
   }
 }
 
-function mapPatientDetail(dto: PatientDto): Patient {
+function mapPatientRow(row: Record<string, unknown>): Patient {
   return {
-    id: dto.id,
-    patientCode: normalizeString(dto.patientCode) || dto.id,
-    firstName: normalizeString(dto.firstName) || '',
-    middleName: normalizeString(dto.middleName),
-    lastName: normalizeString(dto.lastName) || '',
-    dateOfBirth: normalizeString(dto.dateOfBirth) || '',
-    sex: normalizeString(dto.sex) || '',
-    civilStatus: normalizeString(dto.civilStatus),
-    address: normalizeString(dto.address),
-    city: normalizeString(dto.city),
-    zipCode: normalizeString(dto.zipCode),
-    contactNumber: normalizeString(dto.contactNumber),
-    email: normalizeString(dto.email),
-    emergencyContactName: normalizeString(dto.emergencyContactName),
-    emergencyContactNumber: normalizeString(dto.emergencyContactNumber),
-    emergencyContactRelationship: normalizeString(dto.emergencyContactRelationship),
-    bloodType: normalizeString(dto.bloodType),
-    philHealthNumber: normalizeString(dto.philHealthNumber),
-    hmoProvider: normalizeString(dto.hmoProvider),
-    hmoCardNumber: normalizeString(dto.hmoCardNumber),
-    userId: normalizeString(dto.userId),
-    isEmailVerified: dto.isEmailVerified ?? undefined,
-    isGuest: Boolean(dto.isGuest),
-    consentedAt: normalizeString(dto.consentedAt),
-    consentVersion: normalizeString(dto.consentVersion)
+    id: trimStr(row['id']) ?? '',
+    patientCode: trimStr(row['patient_code']) ?? trimStr(row['id']) ?? '',
+    firstName: trimStr(row['first_name']) ?? '',
+    middleName: trimStr(row['middle_name']),
+    lastName: trimStr(row['last_name']) ?? '',
+    dateOfBirth: trimStr(row['date_of_birth']) ?? '',
+    sex: trimStr(row['sex']) ?? '',
+    civilStatus: trimStr(row['civil_status']),
+    address: trimStr(row['address']),
+    city: trimStr(row['city']),
+    zipCode: trimStr(row['zip_code']),
+    contactNumber: trimStr(row['contact_number']),
+    email: trimStr(row['contact_email']),
+    emergencyContactName: trimStr(row['emergency_contact_name']),
+    emergencyContactNumber: trimStr(row['emergency_contact_number']),
+    emergencyContactRelationship: trimStr(row['emergency_contact_relationship']),
+    bloodType: trimStr(row['blood_type']),
+    philHealthNumber: trimStr(row['phil_health_number']),
+    hmoProvider: trimStr(row['hmo_provider']),
+    hmoCardNumber: trimStr(row['hmo_card_number']),
+    userId: trimStr(row['user_id']),
+    isEmailVerified: undefined,
+    isGuest: false,
+    consentedAt: trimStr(row['consented_at']),
+    consentVersion: trimStr(row['consent_version']),
   };
 }
 
-function normalizeString(value: NullableString): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function isPatientDto(value: unknown): value is PatientDto {
-  return typeof value === 'object' && value !== null && 'id' in value;
+function trimStr(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const t = value.trim();
+  return t || undefined;
 }
