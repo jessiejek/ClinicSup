@@ -722,8 +722,7 @@ export class BookingService {
   getReceipt(paymentId: string): Observable<ReceiptData> {
     return defer(() => {
       this.beginLoading();
-      return this.apiService.get<unknown>(`/payments/${encodeURIComponent(paymentId)}/receipt`).pipe(
-        map((payload) => this.normalizeReceipt(payload)),
+      return from(this.fetchSupabaseReceipt(paymentId)).pipe(
         catchError((error: unknown) =>
           throwError(() => new Error(extractApiErrorMessage(error, 'Failed to load receipt.')))
         ),
@@ -1174,6 +1173,85 @@ export class BookingService {
     }
 
     return data ? this.normalizePayment(mapSupabasePaymentRow(data as Record<string, unknown>)) : undefined;
+  }
+
+  private async fetchSupabaseReceipt(paymentId: string): Promise<ReceiptData> {
+    const payment = await this.fetchSupabasePaymentById(paymentId);
+
+    if (!payment) {
+      return this.buildEmptyReceipt();
+    }
+
+    let booking: Booking | undefined;
+    if (payment.bookingId) {
+      booking = await this.fetchSupabaseBookingById(payment.bookingId);
+    }
+
+    return this.buildReceiptFromPaymentAndBooking(payment, booking);
+  }
+
+  private async fetchSupabasePaymentById(paymentId: string): Promise<Payment | undefined> {
+    const { data, error } = await this.supabase
+      .from('payments')
+      .select('*')
+      .eq('id', paymentId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data ? this.normalizePayment(mapSupabasePaymentRow(data as Record<string, unknown>)) : undefined;
+  }
+
+  private buildEmptyReceipt(): ReceiptData {
+    return {
+      bookingId: '',
+      paymentId: '',
+      orNumber: '-',
+      patientName: 'Patient',
+      doctorName: 'Doctor',
+      appointmentDate: '',
+      paymentMethod: '',
+    };
+  }
+
+  private buildReceiptFromPaymentAndBooking(
+    payment: Payment,
+    booking: Booking | undefined
+  ): ReceiptData {
+    const services = booking?.serviceNames?.length
+      ? booking.serviceNames
+      : booking?.serviceName
+        ? [booking.serviceName]
+        : [];
+
+    return {
+      bookingId: booking?.id ?? payment.bookingId ?? '',
+      paymentId: payment.id ?? '',
+      orNumber: payment.orNumber ?? '-',
+      patientName: booking?.patientName ?? 'Patient',
+      doctorName: booking?.doctorName ?? 'Doctor',
+      services,
+      appointmentDate: booking?.appointmentDate ?? '',
+      slotStartTime: booking?.slotStartTime,
+      doctorCompletedAt: booking?.doctorCompletedAt,
+      paidAt: payment.paidAt,
+      amountPaid: payment.amount,
+      paymentMethod: payment.paymentMethod ?? 'Cash',
+      referenceNumber: payment.referenceNumber,
+      cashierName: payment.cashierName,
+      verifiedByName: payment.verifiedByName,
+      isWaived: payment.status === 'Waived',
+      waivedReason: payment.waivedReason,
+      waivedByName: payment.waivedByName,
+      waivedAt: payment.waivedAt,
+      totalFee: booking?.totalFee,
+      consultationFee: booking?.consultationFeeSnapshot,
+      serviceFee: booking?.serviceFeeSnapshot,
+      queueNumber: booking?.queueNumber,
+      paymentStatus: payment.status,
+    };
   }
 
   private async createSupabaseBooking(dto: CreateBookingRequest): Promise<Booking> {

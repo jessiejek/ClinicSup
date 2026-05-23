@@ -1,8 +1,9 @@
 export const environment = {
   production: true,
 
-  // Legacy .NET API target. Keep temporarily until all pages are migrated.
-  apiBaseUrl: 'https://api.yourclinicdomain.com/api/v1',
+  // Legacy .NET API target — emptied after full Supabase migration.
+  // Keep the property for TypeScript shape compatibility, but do not use it.
+  apiBaseUrl: '',
 
   // Supabase backend.
   // Use the publishable/anon key only. Never use service_role in Ionic/Angular.
