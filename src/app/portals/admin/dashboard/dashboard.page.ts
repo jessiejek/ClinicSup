@@ -1,9 +1,7 @@
 import { AsyncPipe, CurrencyPipe, DatePipe, NgFor, NgIf } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { ToastController } from '@ionic/angular/standalone';
-import { ApiService } from '../../../core/services/api.service';
-import { MockDataService } from '../../../core/services/mock-data.service';
+import { SupabaseService } from '../../../core/services/supabase.service';
 import { TodayAppointmentsTableComponent } from '../components/today-appointments-table/today-appointments-table.component';
 import { StatCardComponent } from '../components/stat-card/stat-card.component';
 
@@ -11,13 +9,8 @@ import { StatCardComponent } from '../components/stat-card/stat-card.component';
   selector: 'app-admin-dashboard-page',
   standalone: true,
   imports: [
-    AsyncPipe,
-    CurrencyPipe,
-    DatePipe,
-    NgFor,
-    NgIf,
-    StatCardComponent,
-    TodayAppointmentsTableComponent
+    AsyncPipe, CurrencyPipe, DatePipe, NgFor, NgIf,
+    StatCardComponent, TodayAppointmentsTableComponent,
   ],
   template: `
     <section class="page-shell">
@@ -90,9 +83,7 @@ import { StatCardComponent } from '../components/stat-card/stat-card.component';
   styleUrl: './dashboard.page.scss'
 })
 export class DashboardPage implements OnInit {
-  private readonly apiService = inject(ApiService);
-  private readonly mockData = inject(MockDataService);
-  private readonly toastCtrl = inject(ToastController);
+  private readonly supabase = inject(SupabaseService);
   private readonly router = inject(Router);
 
   bookings: any[] = [];
@@ -111,7 +102,7 @@ export class DashboardPage implements OnInit {
   noShowCount = 0;
   followUpsCount = 0;
   topDoctorStats: Array<{ label: string; value: number; max: number }> = [];
-  revenueLegend: string[] = [];
+  revenueLegend: string[] = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
   primaryColor = '#5D3E8E';
   areaLinePath = '';
   areaFillPath = '';
@@ -121,105 +112,86 @@ export class DashboardPage implements OnInit {
     this.loadDashboard();
   }
 
-  private loadDashboard(): void {
+  private async loadDashboard(): Promise<void> {
     this.isLoading = true;
-    this.apiService.get<any>('/admin/dashboard/summary').subscribe({
-      next: (data) => {
-        this.isLoading = false;
-        if (!data) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const monthStart = today.slice(0, 7) + '-01';
 
-        this.todayAppointmentsCount = data.totalAppointmentsToday ?? 0;
-        this.monthlyAppointmentsCount = (data.todaysAppointments ?? []).length;
-        this.revenueToday = data.revenueThisMonth ?? 0;
-        this.pendingVerificationCount = data.pendingAppointments ?? 0;
-        this.onHoldCount = 0;
-        this.unpaidCompletedCount = data.unpaidCount ?? 0;
-        this.noShowCount = 0;
-        this.followUpsCount = 0;
+    try {
+      const [
+        { data: staffToday },
+        { data: monthBookings },
+        { data: doctorsList },
+        { data: patientsList },
+        { data: servicesList },
+      ] = await Promise.all([
+        this.supabase.client.from('staff_today_queue_view').select('*'),
+        this.supabase.client.from('patient_bookings_view').select('*').gte('appointment_date', monthStart).lte('appointment_date', today),
+        this.supabase.client.from('doctors').select('id, full_name').eq('status', 'Active'),
+        this.supabase.client.from('patients').select('id, first_name, last_name'),
+        this.supabase.client.from('services').select('id, name').eq('is_active', true),
+      ]);
 
-        if (data.revenueTrend?.length) {
-          this.revenueData = data.revenueTrend.map((r: any) => r.amount);
-          this.revenueLegend = data.revenueTrend.map((r: any) => r.label);
-        }
-        this.buildChartPaths();
+      const todayRows = staffToday || [];
+      const monthRows = monthBookings || [];
 
-        if (data.mostBookedDoctors?.length) {
-          const max = Math.max(...data.mostBookedDoctors.map((d: any) => d.bookingCount), 1);
-          this.topDoctorStats = data.mostBookedDoctors.map((d: any) => ({
-            label: d.doctorName,
-            value: d.bookingCount,
-            max
-          }));
-        }
+      this.doctors = (doctorsList || []).map((d: any) => ({ id: d.id, fullName: d.full_name }));
+      this.patients = (patientsList || []).map((p: any) => ({ id: p.id, firstName: p.first_name, lastName: p.last_name }));
+      this.services = (servicesList || []).map((s: any) => ({ id: s.id, name: s.name }));
 
-        if (data.todaysAppointments?.length) {
-          const patientMap = new Map<string, string>();
-          const doctorMap = new Map<string, string>();
-          const serviceMap = new Map<string, string>();
+      this.todayAppointmentsCount = todayRows.length;
+      this.monthlyAppointmentsCount = monthRows.length;
 
-          this.todaysBookings = data.todaysAppointments.map((a: any) => {
-            if (a.patientName) patientMap.set(a.patientId, a.patientName);
-            if (a.doctorName) doctorMap.set(a.doctorId, a.doctorName);
-            if (a.serviceName) serviceMap.set(a.serviceId || 'svc-' + a.serviceName, a.serviceName);
-            return {
-              id: a.bookingId,
-              patientId: a.patientId,
-              doctorId: a.doctorId,
-              serviceId: a.serviceId || ('svc-' + a.serviceName),
-              patientName: a.patientName,
-              doctorName: a.doctorName,
-              serviceName: a.serviceName,
-              serviceNames: a.serviceNames || [],
-              appointmentDate: '',
-              slotStartTime: a.slotStartTime || '',
-              slotEndTime: a.slotEndTime || '',
-              status: a.status,
-              paymentStatus: a.paymentStatus,
-              paymentMode: a.paymentMode || '',
-              queueNumber: a.queueNumber,
-              totalFee: a.totalFee ?? 0
-            };
-          });
+      const todayStr = new Date().toISOString().slice(0, 10);
+      this.todaysBookings = todayRows.map((r: any) => ({
+        id: r.booking_id || r.id,
+        patientId: r.patient_id,
+        doctorId: r.doctor_id,
+        serviceId: r.service_id,
+        patientName: r.patient_name,
+        doctorName: r.doctor_name,
+        serviceName: r.service_name,
+        serviceNames: r.service_names || [],
+        appointmentDate: r.appointment_date || todayStr,
+        slotStartTime: r.slot_start_time || '',
+        slotEndTime: r.slot_end_time || '',
+        status: r.booking_status || r.status,
+        paymentStatus: r.payment_status || 'Unpaid',
+        paymentMode: r.payment_mode || 'PayAtClinic',
+        queueNumber: r.queue_number,
+        totalFee: r.total_fee || 0,
+      }));
 
-          this.patients = Array.from(patientMap.entries()).map(([id, name]) => {
-            const parts = name.split(' ');
-            return { id, firstName: parts[0] || name, lastName: parts.slice(1).join(' ') || '' };
-          });
-          this.doctors = Array.from(doctorMap.entries()).map(([id, fn]) => ({ id, fullName: fn }));
-          this.services = Array.from(serviceMap.entries()).map(([id, n]) => ({ id, name: n }));
-        }
-      },
-      error: () => {
-        this.isLoading = false;
-        this.showToast('Could not load dashboard from server. Using local data.', 'warning');
-        this.useMockFallback();
+      this.pendingVerificationCount = todayRows.filter((r: any) => r.booking_status === 'ProofSubmitted').length;
+      this.onHoldCount = monthRows.filter((r: any) => r.booking_status === 'OnHold').length;
+      this.unpaidCompletedCount = monthRows.filter((r: any) => r.booking_status === 'Completed' && r.payment_status === 'Unpaid').length;
+      this.noShowCount = todayRows.filter((r: any) => r.booking_status === 'NoShow').length;
+
+      // Revenue from today's completed bookings
+      this.revenueToday = todayRows
+        .filter((r: any) => r.booking_status === 'Completed')
+        .reduce((sum: number, r: any) => sum + (r.total_fee || 0), 0);
+
+      // Most booked doctors from monthly data
+      const docCounts = new Map<string, { name: string; count: number }>();
+      for (const r of monthRows) {
+        const id = r.doctor_id;
+        if (!id) continue;
+        const entry = docCounts.get(id) || { name: r.doctor_name || 'Unknown', count: 0 };
+        entry.count++;
+        docCounts.set(id, entry);
       }
-    });
-  }
+      const sortedDocs = [...docCounts.values()].sort((a, b) => b.count - a.count).slice(0, 5);
+      const maxCount = sortedDocs.length ? Math.max(...sortedDocs.map((d) => d.count), 1) : 1;
+      this.topDoctorStats = sortedDocs.map((d) => ({ label: d.name, value: d.count, max: maxCount }));
 
-  private useMockFallback(): void {
-    const m = this.mockData;
-    this.doctors = m.getDoctors();
-    this.patients = m.getPatients();
-    this.services = m.getServices();
-    this.todaysBookings = [];
-    this.todayAppointmentsCount = 0;
-    this.monthlyAppointmentsCount = 0;
-    this.revenueToday = 0;
-    this.pendingVerificationCount = 0;
-    this.onHoldCount = 0;
-    this.unpaidCompletedCount = 0;
-    this.noShowCount = 0;
-    this.followUpsCount = 0;
-    this.topDoctorStats = [];
-    this.revenueData = [500, 800, 1200, 900, 1500, 1100, 1800];
-    this.revenueLegend = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    } catch {
+      // Empty state on error — no mock fallback
+      this.todaysBookings = [];
+    }
+
     this.buildChartPaths();
-  }
-
-  private async showToast(message: string, color: string): Promise<void> {
-    const t = await this.toastCtrl.create({ message, duration: 3000, color, position: 'top' });
-    await t.present();
+    this.isLoading = false;
   }
 
   handleTableAction(event: { action: string; id: string }): void {
@@ -229,9 +201,7 @@ export class DashboardPage implements OnInit {
   }
 
   openBooking(id: string): void {
-    if (!id) {
-      return;
-    }
+    if (!id) return;
     void this.router.navigate(['/admin/bookings', id]);
   }
 
