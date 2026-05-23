@@ -1,0 +1,122 @@
+.page-wrap {
+  padding-bottom: var(--space-16);
+}
+
+.page-header {
+  margin-bottom: var(--space-10);
+  padding-top: var(--space-8);
+}
+
+.back-link {
+  display: inline-block;
+  color: var(--clinic-primary);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-4);
+  font-weight: var(--font-medium);
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.page-title {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  color: var(--clinic-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.page-subtitle {
+  font-size: var(--text-base);
+  color: var(--clinic-text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.page-updated {
+  font-size: var(--text-sm);
+  color: var(--clinic-text-muted);
+  font-style: italic;
+}
+
+.policy-section {
+  margin-bottom: var(--space-10);
+}
+
+.policy-section__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.policy-section__index {
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  color: var(--clinic-primary);
+  background: var(--clinic-primary-bg, rgba(93, 62, 142, 0.08));
+  border-radius: var(--radius-full, 9999px);
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.policy-section__title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--clinic-text-primary);
+  margin: 0;
+  padding-top: 0.1rem;
+}
+
+.policy-section__body {
+  padding-left: calc(2rem + var(--space-3));
+}
+
+.policy-line {
+  font-size: var(--text-base);
+  color: var(--clinic-text-secondary, #475569);
+  line-height: 1.75;
+  margin-bottom: var(--space-3);
+}
+
+.policy-footer {
+  margin-top: var(--space-12);
+  text-align: center;
+}
+
+.policy-hr {
+  border: none;
+  border-top: 1px solid var(--clinic-border, #e2e8f0);
+  margin-bottom: var(--space-6);
+}
+
+.policy-footer p {
+  font-size: var(--text-sm);
+  color: var(--clinic-text-muted);
+  margin-bottom: var(--space-3);
+}
+
+.policy-note {
+  font-size: var(--text-xs);
+  color: var(--clinic-text-muted);
+  opacity: 0.75;
+  margin-top: var(--space-6);
+}
+
+@media (max-width: 640px) {
+  .page-title {
+    font-size: var(--text-2xl);
+  }
+
+  .policy-section__body {
+    padding-left: 0;
+  }
+
+  .policy-section__header {
+    gap: var(--space-2);
+  }
+}

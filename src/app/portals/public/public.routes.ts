@@ -7,6 +7,7 @@ import { ServicesPage } from './services/services.page';
 import { AnnouncementsPage } from './announcements/announcements.page';
 import { BookingPage } from './booking/booking.page';
 import { BookingConfirmationPage } from './booking-confirmation/booking-confirmation.page';
+import { PrivacyPolicyPage } from './privacy-policy/privacy-policy.page';
 
 export const PUBLIC_ROUTES: Routes = [
   {
@@ -20,6 +21,7 @@ export const PUBLIC_ROUTES: Routes = [
       { path: 'announcements', component: AnnouncementsPage },
       { path: 'booking', component: BookingPage },
       { path: 'booking-confirmation/:bookingId', component: BookingConfirmationPage },
+      { path: 'privacy-policy', component: PrivacyPolicyPage },
       {
         path: '**',
         loadComponent: () => import('../../shared/pages/not-found/not-found.page').then((m) => m.NotFoundPage)

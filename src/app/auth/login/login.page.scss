@@ -198,3 +198,19 @@
   border-color: var(--ion-color-primary);
   color: var(--ion-color-primary);
 }
+
+.policy-link {
+  text-align: center;
+  margin-top: var(--space-4);
+  font-size: var(--text-xs);
+}
+
+.policy-link a {
+  color: var(--clinic-text-muted);
+  text-decoration: none;
+}
+
+.policy-link a:hover {
+  text-decoration: underline;
+  color: var(--clinic-primary);
+}
