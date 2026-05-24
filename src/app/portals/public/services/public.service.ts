@@ -1,6 +1,5 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, from, map, of, shareReplay, throwError } from 'rxjs';
-import { delay } from 'rxjs/operators';
 import {
   Announcement,
   ClinicSettings,
@@ -13,7 +12,6 @@ import {
   ServiceCategory
 } from '../../../core/models';
 import { ClinicSettingsService } from '../../../core/services/clinic-settings.service';
-import { MockDataService } from '../../../core/services/mock-data.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 
 type NullableString = string | null | undefined;
@@ -89,7 +87,6 @@ export interface AvailableSlot {
 export class PublicService {
   private readonly supabase = inject(SupabaseService).client;
   private readonly clinicSettingsService = inject(ClinicSettingsService);
-  private readonly mockData = inject(MockDataService);
 
   private doctorsCache$?: Observable<DoctorSummary[]>;
   private servicesCache$?: Observable<Service[]>;
@@ -149,7 +146,7 @@ export class PublicService {
   }
 
   getAnnouncements(): Observable<Announcement[]> {
-    return of(this.mockData.announcements.filter((a) => a.isActive)).pipe(delay(300));
+    return from(this.fetchActiveAnnouncements());
   }
 
   getClinicSettings(): Observable<ClinicSettings> {
@@ -157,7 +154,7 @@ export class PublicService {
   }
 
   getDoctorReviews(doctorId: string): Observable<Review[]> {
-    return of(this.mockData.reviews.filter((r) => r.doctorId === doctorId)).pipe(delay(200));
+    return from(this.fetchDoctorReviews(doctorId));
   }
 
   getDoctorServices(doctorId: string): Observable<Service[]> {
@@ -266,6 +263,36 @@ export class PublicService {
     }
 
     return ((data ?? []) as AvailableSlotRpcRow[]).map((row) => mapAvailableSlotRow(row));
+  }
+
+  private async fetchActiveAnnouncements(): Promise<Announcement[]> {
+    const { data, error } = await this.supabase
+      .from('announcements')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('[PublicService] announcements table not available yet:', error.message);
+      return [];
+    }
+
+    return ((data ?? []) as Record<string, unknown>[]).map(mapAnnouncementRow);
+  }
+
+  private async fetchDoctorReviews(doctorId: string): Promise<Review[]> {
+    const { data, error } = await this.supabase
+      .from('reviews')
+      .select('*')
+      .eq('doctor_id', doctorId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('[PublicService] reviews table not available yet:', error.message);
+      return [];
+    }
+
+    return ((data ?? []) as Record<string, unknown>[]).map(mapReviewRow);
   }
 }
 
@@ -413,6 +440,30 @@ function normalizeDayOfWeek(value: unknown): DayOfWeek {
 function normalizeTime(value: NullableString): string {
   const trimmed = normalizeString(value) || '00:00';
   return trimmed.length >= 5 ? trimmed.slice(0, 5) : trimmed;
+}
+
+function mapAnnouncementRow(row: Record<string, unknown>): Announcement {
+  return {
+    id: String(row['id'] ?? ''),
+    title: String(row['title'] ?? ''),
+    body: String(row['body'] ?? ''),
+    imageUrl: row['image_url'] ? String(row['image_url']) : undefined,
+    isActive: Boolean(row['is_active'] ?? true),
+    createdAt: String(row['created_at'] ?? new Date().toISOString())
+  };
+}
+
+function mapReviewRow(row: Record<string, unknown>): Review {
+  return {
+    id: String(row['id'] ?? ''),
+    bookingId: String(row['booking_id'] ?? ''),
+    doctorId: String(row['doctor_id'] ?? ''),
+    patientId: String(row['patient_id'] ?? ''),
+    rating: Number(row['rating']) || 0,
+    comment: row['comment'] ? String(row['comment']) : undefined,
+    patientName: String(row['patient_name'] ?? ''),
+    createdAt: String(row['created_at'] ?? new Date().toISOString())
+  };
 }
 
 function normalizeSupabaseError(error: unknown, fallback: string): Error {

@@ -2,10 +2,10 @@ import { Component, inject } from '@angular/core';
 import { AsyncPipe, DatePipe, NgIf } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { IonContent } from '@ionic/angular/standalone';
-import { combineLatest, map } from 'rxjs';
+import { combineLatest, map, of, switchMap } from 'rxjs';
 import { AuthStateService } from '../../../core/services/auth-state.service';
-import { MockDataService } from '../../../core/services/mock-data.service';
 import { BookingWizardService } from '../../../core/services/booking-wizard.service';
+import { PublicService } from '../services/public.service';
 import { PesoPipe } from '../../../shared/pipes/peso.pipe';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { TimeSlotPipe } from '../../../shared/pipes/time-slot.pipe';
@@ -92,32 +92,45 @@ export class BookingConfirmationPage {
   private readonly route = inject(ActivatedRoute);
   private readonly authState = inject(AuthStateService);
   private readonly wizardService = inject(BookingWizardService);
-  private readonly mockData = inject(MockDataService);
+  private readonly publicService = inject(PublicService);
 
-  vm$ = combineLatest([this.route.paramMap, this.wizardService.state$, this.authState.isAuthenticated$]).pipe(
-    map(([params, wizard, isAuthenticated]) => {
+  vm$ = combineLatest([
+    this.route.paramMap,
+    this.wizardService.state$,
+    this.authState.isAuthenticated$
+  ]).pipe(
+    switchMap(([params, wizard, isAuthenticated]) => {
       const bookingId = params.get('bookingId') ?? wizard.bookingId ?? '-';
-      const doctor = wizard.selectedDoctorId
-        ? this.mockData.getDoctors().find((item) => item.id === wizard.selectedDoctorId)
-        : null;
-      const service = wizard.selectedServiceId
-        ? this.mockData.getServices().find((item) => item.id === wizard.selectedServiceId)
-        : null;
-      const consultationFee = doctor?.consultationFee ?? 0;
-      const serviceFee = service?.price ?? 0;
+      const doctor$ = wizard.selectedDoctorId
+        ? this.publicService.getDoctors().pipe(
+            map((doctors) => doctors.find((d) => d.id === wizard.selectedDoctorId) ?? null)
+          )
+        : of(null);
+      const service$ = wizard.selectedServiceId
+        ? this.publicService.getServices().pipe(
+            map((services) => services.find((s) => s.id === wizard.selectedServiceId) ?? null)
+          )
+        : of(null);
 
-      return {
-        bookingId,
-        queueNumber: wizard.queueNumber,
-        doctorName: doctor?.fullName ?? '-',
-        selectedDate: wizard.selectedDate,
-        selectedSlot: wizard.selectedSlot,
-        selectedSlotEnd: wizard.selectedSlotEnd,
-        serviceName: service?.name ?? '-',
-        totalFee: consultationFee + serviceFee,
-        paymentMode: wizard.paymentMode,
-        isAuthenticated
-      };
+      return combineLatest([doctor$, service$]).pipe(
+        map(([doctor, service]) => {
+          const consultationFee = doctor?.consultationFee ?? 0;
+          const serviceFee = service?.price ?? 0;
+
+          return {
+            bookingId,
+            queueNumber: wizard.queueNumber,
+            doctorName: doctor?.fullName ?? '-',
+            selectedDate: wizard.selectedDate,
+            selectedSlot: wizard.selectedSlot,
+            selectedSlotEnd: wizard.selectedSlotEnd,
+            serviceName: service?.name ?? '-',
+            totalFee: consultationFee + serviceFee,
+            paymentMode: wizard.paymentMode,
+            isAuthenticated
+          };
+        })
+      );
     })
   );
 }
