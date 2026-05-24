@@ -1,6 +1,5 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, from, map } from 'rxjs';
-import { ApiService } from '../../../core/services/api.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { Service, ServiceCategory } from '../../../core/models';
 
@@ -42,7 +41,6 @@ export interface ServiceWriteDto extends Omit<Service, 'id'> {
 
 @Injectable({ providedIn: 'root' })
 export class AdminServicesService {
-  private readonly apiService = inject(ApiService);
   private readonly supabase = inject(SupabaseService).client;
 
   getServices(): Observable<ManagedService[]> {

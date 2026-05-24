@@ -1,6 +1,5 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, from, map } from 'rxjs';
-import { ApiService } from '../../../core/services/api.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import {
   DayOfWeek,
@@ -118,7 +117,6 @@ export type BlockedDate = DoctorBlockedDate;
 
 @Injectable({ providedIn: 'root' })
 export class AdminDoctorsService {
-  private readonly apiService = inject(ApiService);
   private readonly supabase = inject(SupabaseService).client;
 
   getAllDoctors(): Observable<DoctorSummary[]> {
@@ -225,27 +223,16 @@ export class AdminDoctorsService {
   }
 
   private async createDoctorAsync(dto: CreateDoctorDto): Promise<DoctorSummary> {
-    const { data, error } = await this.supabase
-      .from('doctors')
-      .insert({
-        full_name: dto.fullName,
-        specialization: dto.specialization,
-        bio: dto.bio ?? null,
-        license_number: dto.licenseNumber ?? null,
-        ptr_number: dto.ptrNumber ?? null,
-        s2_number: dto.s2Number ?? null,
-        consultation_fee: dto.consultationFee,
-        slot_duration_minutes: dto.slotDurationMinutes,
-        slot_capacity: dto.slotCapacity,
-        daily_patient_limit: dto.dailyPatientLimit,
-        status: 'Active' as DoctorStatus,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    // Note: Auth user creation is deferred — needs server-side admin process
-    return mapDoctorRow(data as DoctorRow);
+    // Doctor creation requires a linked Supabase Auth user.
+    // The user_id must be provided before inserting into the doctors table
+    // because doctors.user_id has a NOT NULL constraint.
+    throw new Error(
+      'Doctor account creation requires a linked Supabase Auth user account. ' +
+      'This must be done via a secure server-side Edge Function using service_role. ' +
+      'The admin UI cannot create Auth users directly with the anon key. ' +
+      'For now, create the Auth user first via Supabase Dashboard > Authentication > Users, ' +
+      'then link the doctor profile here.'
+    );
   }
 
   private async updateDoctorAsync(id: string, dto: UpdateDoctorDto): Promise<DoctorDetail> {
