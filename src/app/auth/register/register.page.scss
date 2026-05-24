@@ -90,7 +90,23 @@
   font-weight: var(--font-semibold);
 }
 
-/* Social auth — matches login page */
+.policy-link {
+  text-align: center;
+  margin-top: var(--space-4);
+  font-size: var(--text-xs);
+}
+
+.policy-link a {
+  color: var(--clinic-text-muted);
+  text-decoration: none;
+}
+
+.policy-link a:hover {
+  text-decoration: underline;
+  color: var(--clinic-primary);
+}
+
+/* Social auth — matches login page approach (no SDK, direct signInWithOAuth) */
 .auth-divider {
   display: flex;
   align-items: center;
@@ -109,6 +125,11 @@
 
 .auth-divider span {
   flex-shrink: 0;
+}
+
+.social-buttons {
+  display: flex;
+  flex-direction: column;
 }
 
 .btn-social {
@@ -137,46 +158,21 @@
   display: flex;
 }
 
-.google-signin {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--space-3);
-}
-
-.google-signin__button {
-  display: flex;
-  width: 100%;
-  justify-content: center;
-  min-height: 44px;
-}
-
-.google-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  margin: 0;
-  color: var(--clinic-text-secondary);
-  font-size: var(--text-sm);
-}
-
-.google-status--error {
-  color: var(--ion-color-danger);
-  text-align: center;
-  line-height: 1.45;
-}
-
-.facebook-signin {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-}
-
 .btn-social--facebook {
   margin-bottom: 0;
+  background: #1877F2;
+  color: #ffffff;
+  border: none;
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.01em;
+}
+
+.btn-social--facebook:hover {
+  background: #166FE5;
+}
+
+.btn-social--facebook:active {
+  background: #135CBE;
 }
 
 .btn-social--facebook .btn-social__icon {
@@ -186,8 +182,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: var(--font-bold);
-  background: #1877f2;
-  color: white;
+  font-weight: 700;
+  font-size: 13px;
+  background: #ffffff;
+  color: #1877F2;
   line-height: 1;
 }
