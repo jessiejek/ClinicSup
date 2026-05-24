@@ -89,6 +89,23 @@ Both walk-in pages updated to use `availabilityService.getManilaTodayIso()` inst
 
 ### Root Cause #4: No shared availability utility
 
+### Root Cause #5: Ambiguous `slot_start_time` column in `get_available_slots` RPC (code 42702)
+
+**Evidence:** The `get_available_slots` RPC declares `RETURNS TABLE (slot_start_time TIME, slot_end_time TIME, ...)`. The `existing_bookings` CTE selects `slot_start_time, slot_end_time` without table qualification. When the `LEFT JOIN existing_bookings eb` references `eb.slot_start_time`, PostgreSQL cannot determine whether this refers to the output parameter or the CTE column, producing error 42702.
+
+**Impact:** When `get_available_slots` is called (e.g., patient booking Step 3), it fails with:
+```json
+{"code": "42702", "message": "column reference \"slot_start_time\" is ambiguous"}
+```
+Steps 1 and 2 work (doctor selection, date selection), but Step 3 (slot selection) never loads available slots.
+
+**Fix applied:**
+- `existing_bookings` CTE now aliases columns: `b.slot_start_time AS booking_slot_start_time`
+- All booking columns qualified with `b.` prefix
+- `LEFT JOIN` uses aliased names: `eb.booking_slot_start_time < ts.slot_end_time`
+- Applied in both `SUPABASE_RUN_BOOKING_AVAILABILITY_FIX.sql` and `SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md` (Section B)
+- New standalone SQL file created: `SUPABASE_RUN_GET_AVAILABLE_SLOTS_FIX.sql` — contains ONLY the fixed `get_available_slots` function (no GRANTs, no `create_booking`)
+
 **Evidence:** Patient Booking (Step 2), Staff Walk-in, and Admin Walk-in each had their own date/slot logic. The date picker queried `doctor_schedules` directly via `PublicService.getDoctorSchedules()`. The walk-in pages had their own slot loading (shared via `PublicService.getAvailableSlots()` but with different error handling).
 
 **Fix applied:** Created `BookingAvailabilityService` (`src/app/portals/public/services/booking-availability.service.ts`) with:
@@ -107,30 +124,59 @@ Both walk-in pages updated to use `availabilityService.getManilaTodayIso()` inst
 | File | Purpose |
 |---|---|
 | `SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md` | SQL handoff: GRANTs + RPC fixes |
-| `src/app/portals/public/services/booking-availability.service.ts` | Shared availability helper (Manilla-timezone-aware) |
+| `SUPABASE_RUN_BOOKING_AVAILABILITY_FIX.sql` | Clean runnable SQL: GRANTs + both RPCs (includes all fixes) |
+| `SUPABASE_RUN_GET_AVAILABLE_SLOTS_FIX.sql` | Clean runnable SQL: ONLY fixed `get_available_slots` (ambiguous column fix) |
+| `SUPABASE_REQUIRED_PUBLIC_DOCTOR_SCHEDULE_RLS_FIX.sql` | Clean runnable SQL: GRANTs + active-doctor-only RLS policies |
+| `src/app/portals/public/services/booking-availability.service.ts` | Shared availability helper (Manila-timezone-aware) |
 | `docs/production-readiness/12_BOOKING_AVAILABILITY_AUDIT.md` | This audit document |
 
 ### Modified Files
 
 | File | Change |
 |---|---|
-| `src/app/portals/public/components/step-date-picker/step-date-picker.component.ts` | Uses `BookingAvailabilityService` instead of direct `PublicService.getDoctorSchedules()`; Manila-timezone dates; better error logging |
+| `src/app/portals/public/components/step-date-picker/step-date-picker.component.ts` | Uses `BookingAvailabilityService`; auto-select today/default date on load |
 | `src/app/portals/admin/walk-in/walk-in.page.ts` | Uses `BookingAvailabilityService.getManilaTodayIso()` instead of `toLocalIsoDate()` |
 | `src/app/portals/staff/walk-in/staff-walk-in.page.ts` | Uses `BookingAvailabilityService.getManilaTodayIso()` instead of `toLocalIsoDate()` |
+| `src/app/portals/public/components/step-doctor-service/step-doctor-service.component.ts` | Added service-helper + btn-helper text |
+| `src/app/portals/public/components/step-doctor-service/step-doctor-service.component.scss` | Added CSS for .service-helper, .btn-helper, .wizard-actions__btn-group |
+| `SUPABASE_RUN_BOOKING_AVAILABILITY_FIX.sql` | Fixed ambiguous `slot_start_time` reference (b.slot_start_time AS booking_slot_start_time) |
+| `SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md` | Fixed ambiguous column reference in Section B |
 | `docs/production-readiness/00_EXECUTIVE_SUMMARY.md` | Updated |
 | `docs/production-readiness/09_NEXT_FIX_PROMPTS.md` | Updated |
+| `docs/production-readiness/12_BOOKING_AVAILABILITY_AUDIT.md` | Updated |
 
 ---
 
 ## SQL Deploy Needed
 
-Run ALL sections of **`SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md`** in Supabase SQL Editor:
+Run in this order:
 
-1. Section A: GRANT SELECT on `doctor_schedules`, `doctor_blocked_dates`, `doctor_day_statuses`
-2. Section B: Replace `get_available_slots` RPC (locale-independent day matching)
-3. Section C: Replace `create_booking` RPC (locale-independent day matching)
+**Step 1 (standalone — fixes 42702 immediately):** `SUPABASE_RUN_GET_AVAILABLE_SLOTS_FIX.sql`
+- Drops and recreates ONLY `get_available_slots` with aliased CTE columns
+- No GRANTs, no `create_booking` changes
+
+**Step 2 (full fix):** `SUPABASE_RUN_BOOKING_AVAILABILITY_FIX.sql`
+- GRANT SELECT + locale-independent `EXTRACT(DOW)` in both RPCs + aliased CTE columns
+
+**Step 3 (RLS hardening):** `SUPABASE_REQUIRED_PUBLIC_DOCTOR_SCHEDULE_RLS_FIX.sql`
+- Replaces `USING (true)` policies with active-doctor-only policies
 
 ---
+
+### Step 1 UX Improvement
+
+- Added helper text: "Please select at least one service to proceed." — appears below the services header when no service is selected.
+- Added button helper: "Select a service to continue" — appears below the Continue button when a doctor IS selected but no services are.
+- Helper text uses neutral styling (primary-50 background, secondary text color) — not alarmist.
+- Continue button already disabled when no service selected (existing `canContinue` getter).
+
+### Step 2 Auto-Select Default Date
+
+When Step 2 loads and working days are retrieved:
+1. **Today is preferred** — if today is a working day and not in the past, it is auto-selected.
+2. **Next valid date** — if today is not valid, it scans the next 60 days for the first working day and auto-selects it.
+3. Continue button enables automatically when a date is auto-selected.
+4. Uses Manila-timezone-safe date logic (`BookingAvailabilityService.getManilaTodayIso()`, `isManilaPast()`, `getManilaDateOffset()`).
 
 ## Choco Cheese Validation
 
@@ -156,11 +202,11 @@ Run ALL sections of **`SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md`** in S
 ## Build Result
 
 ```
-Build at: 2026-05-24T12:57:04.757Z
-Hash: 6a5d45b40f1422a2
-Time: 30858ms
+Build at: 2026-05-24T13:27:56.499Z
+Hash: 9d82e019a6b4559a
+Time: 23422ms
 Errors: 0
-Warnings: All pre-existing (SCSS budgets)
+Warnings: All pre-existing (SCSS budgets + NG8107/NG8102 in doctor-consultation.page.ts)
 ```
 
 ---
@@ -168,13 +214,18 @@ Warnings: All pre-existing (SCSS budgets)
 ## Git Status
 
 ```
-M  SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md
+ M SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md
+ M SUPABASE_RUN_BOOKING_AVAILABILITY_FIX.sql
+?? SUPABASE_RUN_GET_AVAILABLE_SLOTS_FIX.sql
+?? SUPABASE_REQUIRED_PUBLIC_DOCTOR_SCHEDULE_RLS_FIX.sql
  M docs/production-readiness/00_EXECUTIVE_SUMMARY.md
  M docs/production-readiness/09_NEXT_FIX_PROMPTS.md
  M docs/production-readiness/12_BOOKING_AVAILABILITY_AUDIT.md
  M src/app/core/version.ts
  M src/app/portals/admin/walk-in/walk-in.page.ts
  M src/app/portals/public/components/step-date-picker/step-date-picker.component.ts
+ M src/app/portals/public/components/step-doctor-service/step-doctor-service.component.ts
+ M src/app/portals/public/components/step-doctor-service/step-doctor-service.component.scss
  M src/app/portals/public/services/booking-availability.service.ts
  M src/app/portals/staff/walk-in/staff-walk-in.page.ts
 ```
@@ -186,16 +237,22 @@ M  SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md
 ## Deploy Commands
 
 ```bash
-# 1. Run SQL handoff
+# 1. Fix ambiguous column first (quick fix)
 # Open Supabase SQL Editor for project czswgpjjanllkmmwhmdh
-# Run all sections from SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md
+# Run SUPABASE_RUN_GET_AVAILABLE_SLOTS_FIX.sql
 
-# 2. Commit frontend (when user says go)
+# 2. Full availability fix (GRANTs + both RPCs)
+# Run SUPABASE_RUN_BOOKING_AVAILABILITY_FIX.sql
+
+# 3. RLS hardening (active-doctor policies)
+# Run SUPABASE_REQUIRED_PUBLIC_DOCTOR_SCHEDULE_RLS_FIX.sql
+
+# 4. Commit frontend (when user says go)
 cd "Z:\CLINIC\clinic_fe_supabase_phase2_booking_full"
 git add .
-git commit -m "fix: add shared booking availability service, fix GRANTs and timezone issues"
+git commit -m "fix: booking availability - GRANTs, RLS, ambiguous column, service UX, auto-select date"
 
-# 3. Push frontend
+# 5. Push frontend
 git push
 ```
 

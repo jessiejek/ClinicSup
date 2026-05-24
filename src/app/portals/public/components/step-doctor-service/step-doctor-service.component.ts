@@ -82,6 +82,9 @@ import { DoctorSummary, PublicService } from '../../services/public.service';
                   <div>
                     <h3>Select one or more services</h3>
                     <p class="wizard-subtitle">Payment will be settled at the clinic after consultation.</p>
+                    <p class="service-helper" *ngIf="hasNoServicesSelected">
+                      Please select at least one service to proceed.
+                    </p>
                   </div>
                 </div>
 
@@ -156,9 +159,12 @@ import { DoctorSummary, PublicService } from '../../services/public.service';
         </ng-template>
 
         <div class="wizard-actions">
-          <button type="button" class="btn-primary" [disabled]="!canContinue" (click)="goNext()">
-            Continue
-          </button>
+          <div class="wizard-actions__btn-group">
+            <button type="button" class="btn-primary" [disabled]="!canContinue" (click)="goNext()">
+              Continue
+            </button>
+            <p class="btn-helper" *ngIf="(selectedDoctorId$ | async) && hasNoServicesSelected">Select a service to continue</p>
+          </div>
         </div>
       </ng-container>
     </section>
@@ -189,6 +195,10 @@ export class StepDoctorServiceComponent implements OnInit {
 
   get canContinue(): boolean {
     return Boolean(this.latestSelectedDoctorId && this.latestSelectedServiceIds.length > 0);
+  }
+
+  get hasNoServicesSelected(): boolean {
+    return this.latestSelectedServiceIds.length === 0;
   }
 
   constructor() {

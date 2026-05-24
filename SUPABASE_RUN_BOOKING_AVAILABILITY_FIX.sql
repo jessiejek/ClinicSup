@@ -124,11 +124,13 @@ BEGIN
         FROM all_slots asl
     ),
     existing_bookings AS (
-        SELECT slot_start_time, slot_end_time
-        FROM public.bookings
-        WHERE doctor_id = p_doctor_id
-          AND appointment_date = p_appointment_date
-          AND status NOT IN ('Cancelled', 'NoShow', 'Expired')
+        SELECT
+            b.slot_start_time AS booking_slot_start_time,
+            b.slot_end_time AS booking_slot_end_time
+        FROM public.bookings b
+        WHERE b.doctor_id = p_doctor_id
+          AND b.appointment_date = p_appointment_date
+          AND b.status NOT IN ('Cancelled', 'NoShow', 'Expired')
     )
     SELECT
         ts.slot_start_time,
@@ -138,8 +140,8 @@ BEGIN
         v_slot_capacity::BIGINT AS capacity
     FROM time_slots ts
     LEFT JOIN existing_bookings eb
-        ON eb.slot_start_time < ts.slot_end_time
-        AND eb.slot_end_time > ts.slot_start_time
+        ON eb.booking_slot_start_time < ts.slot_end_time
+        AND eb.booking_slot_end_time > ts.slot_start_time
     WHERE (v_now_tstz IS NULL OR ts.slot_start_ts >= v_now_tstz)
     GROUP BY ts.slot_start_time, ts.slot_end_time, ts.slot_start_ts
     ORDER BY ts.slot_start_time;

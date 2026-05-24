@@ -4,8 +4,8 @@ Use this file as the source of truth for this area. Future agents should read th
 
 # Executive Summary — Production Readiness
 
-**Date:** 2026-05-24 12:57 PDT
-**Frontend hash (last build):** `6a5d45b40f1422a2`
+**Date:** 2026-05-24 06:24 PDT (updated)
+**Frontend hash (last build):** `9d82e019a6b4559a`
 **Branch:** `main` (uncommitted availability + schedule + services fixes)
 
 ---
@@ -69,6 +69,9 @@ The **Doctor Portal** has been fully scanned and root-cause fixed:
 | **Patient booking Step 2 calendar disabled** | **P0 #5** | **FIXED**. Root cause: Missing `GRANT SELECT` on `doctor_schedules` for `anon`/`authenticated`. Silent failure → empty schedules → all dates disabled. See `12_BOOKING_AVAILABILITY_AUDIT.md`. |
 | **Walk-in date timezone mismatch** | **P0 #6** | **FIXED**. Walk-in pages used browser timezone instead of Asia/Manila for `todayIso`. Created shared `BookingAvailabilityService` with Manila-aware date helpers. |
 | **RPC locale-dependent day matching** | **P0 #7** | **FIXED**. `to_char(date, 'Day')` depends on server locale. Replaced with `EXTRACT(DOW)` in both `get_available_slots` and `create_booking` RPCs. |
+| **Ambiguous `slot_start_time` column in RPC (code 42702)** | **P0 #8** | **FIXED**. `existing_bookings` CTE columns conflicted with `RETURNS TABLE` output params. Aliased as `booking_slot_start_time`. New standalone SQL file: `SUPABASE_RUN_GET_AVAILABLE_SLOTS_FIX.sql`. |
+| **Step 1 service selection not obvious** | **P0 #9** | **FIXED**. Added helper text "Please select at least one service to proceed" below services header + "Select a service to continue" near Change button. |
+| **Step 2 no default date selected** | **P0 #10** | **FIXED**. Auto-selects today (if valid) or next working day within 60 days. Uses Manila-timezone-safe logic. |
 
 ---
 
@@ -81,6 +84,7 @@ The **Doctor Portal** has been fully scanned and root-cause fixed:
 | Vaccination records | P2 | Frontend returns empty array + console.warn — no table deployed |
 | Medication master | P3 | Local static drug list works — table not deployed |
 | Notifications | P3 | Frontend wired — table not deployed |
+| Supabase realtime (SignalR replacement) | P3 | Not implemented — currently polling |
 | Patient portal account creation | P3 | Throws controlled error — needs Edge Function |
 | Reschedule booking | P2 | Throws console.warn — no RPC implemented |
 
@@ -89,11 +93,11 @@ The **Doctor Portal** has been fully scanned and root-cause fixed:
 ## Build Result
 
 ```
-Build: 2026-05-24 12:57 PDT
-Hash: 6a5d45b40f1422a2
-Time: 30858ms
+Build: 2026-05-24 13:27 PDT
+Hash: 9d82e019a6b4559a
+Time: 23422ms
 Errors: 0
-Warnings: All pre-existing (SCSS budgets)
+Warnings: All pre-existing (SCSS budgets + NG8107/NG8102 in doctor-consultation.page.ts)
 ```
 
 ---
@@ -144,10 +148,13 @@ Warnings: All pre-existing (SCSS budgets)
 
 ## Final Priority Rule
 
-- **P0 #1: Deploy all SQLs** — `SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md` + doctor invite SQLs
-- **P0 #2: Deploy `activate-doctor-invite` Edge Function**
-- **P0 #3: Commit and push all frontend changes**
-- **P0 #4: Live-test patient booking Step 2 date selection**
-- **P0 #5: Live-test Staff walk-in date selection**
-- **P0 #6: Live-test Admin walk-in date selection**
+- **P0 #1: Run `SUPABASE_RUN_GET_AVAILABLE_SLOTS_FIX.sql`** — fixes 42702 ambiguous column error
+- **P0 #2: Run `SUPABASE_RUN_BOOKING_AVAILABILITY_FIX.sql`** — GRANTs + locale-independent RPCs
+- **P0 #3: Run `SUPABASE_REQUIRED_PUBLIC_DOCTOR_SCHEDULE_RLS_FIX.sql`** — active-doctor-only policies
+- **P0 #4: Deploy remaining SQLs** — doctor invite table, schedule + service_ids columns
+- **P0 #5: Deploy `activate-doctor-invite` Edge Function**
+- **P0 #6: Commit and push all frontend changes**
+- **P0 #7: Live-test patient booking full flow**
+- **P0 #8: Live-test Staff walk-in date selection**
+- **P0 #9: Live-test Admin walk-in date selection**
 - **P1: Full Doctor Portal QA**

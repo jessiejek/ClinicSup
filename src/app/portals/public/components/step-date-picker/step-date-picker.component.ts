@@ -146,6 +146,8 @@ export class StepDatePickerComponent implements OnInit {
 
               if (workingDays.length === 0) {
                 console.warn('[StepDatePicker] Doctor has no working days defined.');
+              } else {
+                this.autoSelectDate(doctorId);
               }
             },
             error: (error: unknown) => {
@@ -235,6 +237,36 @@ export class StepDatePickerComponent implements OnInit {
 
   isSelectable(doctorId: string, date: Date): boolean {
     return !this.isPast(date) && this.isWorkingDay(doctorId, date);
+  }
+
+  /**
+   * Auto-select the first valid working date when Step 2 loads:
+   * 1. Prefer today if it is a working day and not in the past.
+   * 2. Otherwise, find the next working day within the next 60 days.
+   */
+  private autoSelectDate(doctorId: string): void {
+    const todayIso = this.availabilityService.getManilaTodayIso();
+
+    // Check if today is valid (working day, not past)
+    if (this.isSelectable(doctorId, this.parseIsoDate(todayIso))) {
+      this.wizardService.selectDate(todayIso);
+      return;
+    }
+
+    // Find the next valid working day within 60 days
+    const maxLookahead = 60;
+    for (let offset = 1; offset <= maxLookahead; offset++) {
+      const nextDate = this.availabilityService.getManilaDateOffset(offset);
+      if (this.isSelectable(doctorId, this.parseIsoDate(nextDate))) {
+        this.wizardService.selectDate(nextDate);
+        return;
+      }
+    }
+  }
+
+  private parseIsoDate(dateStr: string): Date {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
   }
 
   private startOfMonth(date: Date): Date {
