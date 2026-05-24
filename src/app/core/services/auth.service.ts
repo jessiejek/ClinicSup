@@ -146,6 +146,7 @@ export class AuthService {
 
   private async loginWithGoogleAsync(): Promise<void> {
     const redirectUrl = environment.siteUrl || window.location.origin;
+    console.log('[Auth] Google OAuth redirectTo:', redirectUrl);
     const { error } = await this.supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
