@@ -147,7 +147,7 @@ export class AuthService {
   }
 
   private async loginWithGoogleAsync(): Promise<void> {
-    const redirectUrl = environment.siteUrl || window.location.origin;
+    const redirectUrl = `${environment.siteUrl || window.location.origin}/auth/callback`;
     console.log('[Auth] Google OAuth redirectTo:', redirectUrl);
     const { error } = await this.supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -163,7 +163,7 @@ export class AuthService {
   }
 
   private async loginWithFacebookAsync(): Promise<void> {
-    const redirectUrl = environment.siteUrl || window.location.origin;
+    const redirectUrl = `${environment.siteUrl || window.location.origin}/auth/callback`;
     console.log('[Auth] Facebook OAuth redirectTo:', redirectUrl);
     const { error } = await this.supabase.auth.signInWithOAuth({
       provider: 'facebook',
@@ -254,7 +254,7 @@ export class AuthService {
     return this.loadAuthUser(data.user, sessionData.session);
   }
 
-  private async loadAuthUser(user: User, session: Session | null): Promise<AuthUser> {
+  async loadAuthUser(user: User, session: Session | null): Promise<AuthUser> {
     const profile = await this.loadProfile(user);
     const resolvedProfile = profile ?? await this.ensureProfileRow(user);
 
