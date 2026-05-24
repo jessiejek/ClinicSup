@@ -526,7 +526,16 @@ export class BookingService {
   }
 
   createWalkIn(dto: CreateWalkInRequest): Observable<Booking> {
-    return this.createBookingLike('/bookings/walk-in', dto, true);
+    return defer(() => {
+      this.beginLoading();
+      return from(this.createSupabaseWalkInBooking(dto)).pipe(
+        tap((booking) => this.upsertBooking(booking)),
+        catchError((error: unknown) =>
+          throwError(() => new Error(extractApiErrorMessage(error, 'Failed to create walk-in booking in Supabase.')))
+        ),
+        finalize(() => this.endLoading())
+      );
+    });
   }
 
   checkInBooking(id: string, dto: CheckInBookingRequest = {}): Observable<Booking> {
@@ -1314,6 +1323,27 @@ export class BookingService {
     }
 
     return fallback;
+  }
+
+  private async createSupabaseWalkInBooking(dto: CreateWalkInRequest): Promise<Booking> {
+    const booking = await this.createSupabaseBooking(dto);
+
+    // Update walk-in specific fields
+    const { error } = await this.supabase
+      .from('bookings')
+      .update({
+        payment_mode: dto.paymentMode ?? 'PayAtClinic',
+        is_walk_in: true,
+      })
+      .eq('id', booking.id);
+
+    if (error) {
+      console.error('Failed to mark booking as walk-in:', error);
+      // Non-fatal: booking was created, just walk-in flag may be missing
+    }
+
+    const refreshed = await this.fetchSupabaseBookingById(booking.id);
+    return refreshed ?? { ...booking, isWalkIn: true, paymentMode: dto.paymentMode ?? 'PayAtClinic' };
   }
 
   private async fetchSupabaseMyBookingsPage(page = 1, pageSize = 20): Promise<MyBookingsPageResult> {

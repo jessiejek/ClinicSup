@@ -25,7 +25,7 @@ interface PolicySection {
 
         <div class="policy-section" *ngFor="let section of sections; let i = index">
           <div class="policy-section__header">
-            <span class="policy-section__index">{{ i + 1 | number:'2.0-0' }}</span>
+            <span class="policy-section__index">{{ i + 1 }}</span>
             <h2 class="policy-section__title">{{ section.title }}</h2>
           </div>
           <div class="policy-section__body">
