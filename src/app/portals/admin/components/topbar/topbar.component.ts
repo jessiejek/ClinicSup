@@ -1,8 +1,9 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { closeOutline, menuOutline, searchOutline } from 'ionicons/icons';
-import { AuthUser } from '../../../../core/models';
+import { AuthUser, Role } from '../../../../core/models';
 import { AvatarComponent } from '../../../../shared/components/avatar/avatar.component';
 import { NotificationBellComponent } from '../notification-bell/notification-bell.component';
 
@@ -24,7 +25,7 @@ import { NotificationBellComponent } from '../notification-bell/notification-bel
 
       <div class="topbar__actions">
         <app-notification-bell [unreadCount]="unreadCount"></app-notification-bell>
-        <button type="button" class="topbar__user" aria-label="Account options" (click)="logout.emit()">
+        <button type="button" class="topbar__user" aria-label="Account options" (click)="goToProfile()">
           <app-avatar [name]="currentUser?.fullName || 'Admin'" size="sm"></app-avatar>
           <span class="topbar__user-meta">
             <span class="topbar__user-name">{{ currentUser?.fullName || 'Admin User' }}</span>
@@ -50,7 +51,23 @@ export class TopbarComponent {
   @Output() logout = new EventEmitter<void>();
   @Output() menuToggle = new EventEmitter<void>();
 
+  private readonly router = inject(Router);
+  private readonly profileRoutes: Record<Role, string> = {
+    Admin: '/admin/settings',
+    Staff: '/staff/profile',
+    Doctor: '/doctor/profile',
+    Patient: '/patient/profile'
+  };
+
   constructor() {
     addIcons({ menuOutline, closeOutline, searchOutline });
+  }
+
+  goToProfile(): void {
+    if (!this.currentUser) return;
+    const route = this.profileRoutes[this.currentUser.role];
+    if (route) {
+      void this.router.navigateByUrl(route);
+    }
   }
 }

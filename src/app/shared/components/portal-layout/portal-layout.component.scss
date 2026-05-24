@@ -1,11 +1,11 @@
 :host {
   display: block;
-  height: 100vh;
+  height: 100dvh;
 }
 
 .portal-layout {
   display: flex;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: var(--clinic-bg);
 }
@@ -29,6 +29,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--space-8);
+  padding-bottom: 0;
   min-height: 0;
   width: 100%;
   max-width: 100%;
@@ -38,6 +39,14 @@
 
 .main-content > * {
   animation: fadeSlideUp 250ms ease-out both;
+}
+
+/* Safari bottom bar spacer — visible scrollable space so content isn't hidden behind browser chrome */
+.main-content::after {
+  content: '';
+  display: block;
+  height: calc(var(--space-8) + env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
 }
 
 .sidebar-overlay {
@@ -57,7 +66,7 @@
     left: -260px;
     top: 0;
     width: 260px;
-    height: 100vh;
+    height: 100dvh;
     z-index: 200;
     transition: left 200ms ease;
     flex: none;
@@ -69,7 +78,11 @@
 
   .main-content {
     padding: var(--space-5);
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: 0;
+  }
+
+  .main-content::after {
+    height: calc(var(--space-5) + env(safe-area-inset-bottom, 16px));
   }
 
   .sidebar-overlay {
@@ -87,5 +100,10 @@
 @media (max-width: 768px) {
   .main-content {
     padding: var(--space-4);
+    padding-bottom: 0;
+  }
+
+  .main-content::after {
+    height: calc(var(--space-4) + env(safe-area-inset-bottom, 16px));
   }
 }

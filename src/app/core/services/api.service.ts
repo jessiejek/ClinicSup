@@ -4,6 +4,11 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
+/**
+ * @deprecated Supabase-first architecture — this service was for the old .NET backend.
+ * environment.apiBaseUrl is now empty string in production.
+ * If you still see callers, migrate them to use SupabaseService or appropriate RPC.
+ */
 export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = environment.apiBaseUrl.replace(/\/$/, '');

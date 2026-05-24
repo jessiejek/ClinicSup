@@ -49,6 +49,10 @@ const EVENT_NAMES: ClinicDashboardEventName[] = [
 ];
 
 @Injectable({ providedIn: 'root' })
+/**
+ * @deprecated Supabase-first architecture — this SignalR-like service was for the old .NET backend.
+ * Real-time features are deferred. environment.apiBaseUrl is empty string in production.
+ */
 export class ClinicDashboardRealtimeService {
   private readonly authState = inject(AuthStateService);
   private readonly tokenService = inject(TokenService);
