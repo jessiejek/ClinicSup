@@ -19,7 +19,7 @@ import {
   ToastController
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { alertCircleOutline, eyeOffOutline, eyeOutline } from 'ionicons/icons';
+import { alertCircleOutline, closeOutline, eyeOffOutline, eyeOutline } from 'ionicons/icons';
 import { APP_VERSION } from '../../core/version';
 import { environment } from '../../../environments/environment';
 import { AuthLayoutComponent } from '../components/auth-layout/auth-layout.component';
@@ -68,7 +68,7 @@ export class LoginPage {
   });
 
   constructor() {
-    addIcons({ alertCircleOutline, eyeOutline, eyeOffOutline });
+    addIcons({ alertCircleOutline, closeOutline, eyeOutline, eyeOffOutline });
   }
 
   fillCreds(email: string, password: string): void {
@@ -96,9 +96,26 @@ export class LoginPage {
 
   onFacebookLogin(): void {
     this.authState.clearError();
+    this.presentFacebookRedirectToast();
     this.authService.loginWithFacebook().subscribe({
       error: () => { /* Redirect is happening */ }
     });
+  }
+
+  private async presentFacebookRedirectToast(): Promise<void> {
+    const toast = await this.toastController.create({
+      message: 'Redirecting to Facebook...',
+      duration: 0, // stays until page navigates away
+      position: 'top',
+      cssClass: 'facebook-redirect-toast',
+      buttons: [
+        {
+          icon: closeOutline,
+          role: 'cancel'
+        }
+      ]
+    });
+    await toast.present();
   }
 
   async presentToast(message: string): Promise<void> {
