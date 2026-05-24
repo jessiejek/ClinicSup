@@ -188,13 +188,14 @@ BEGIN
     END IF;
 
     -- Verify slot availability (no overlapping bookings)
+    -- NOTE: Use table alias 'b' to avoid ambiguity with RETURNS TABLE OUT params (status, queue_number)
     IF EXISTS (
-        SELECT 1 FROM public.bookings
-        WHERE doctor_id = p_doctor_id
-          AND appointment_date = p_appointment_date
-          AND slot_start_time < p_slot_end_time
-          AND slot_end_time > p_slot_start_time
-          AND status NOT IN ('Cancelled', 'NoShow', 'Expired')
+        SELECT 1 FROM public.bookings b
+        WHERE b.doctor_id = p_doctor_id
+          AND b.appointment_date = p_appointment_date
+          AND b.slot_start_time < p_slot_end_time
+          AND b.slot_end_time > p_slot_start_time
+          AND b.status NOT IN ('Cancelled', 'NoShow', 'Expired')
     ) THEN
         RAISE EXCEPTION 'Time slot is already booked.';
     END IF;
@@ -211,9 +212,10 @@ BEGIN
     v_total_amount := v_total_amount + COALESCE(v_doctor_consultation_fee, 0);
 
     -- Assign queue number (next number for this doctor on this date)
-    SELECT COALESCE(MAX(queue_number), 0) + 1 INTO v_queue_number
-    FROM public.bookings
-    WHERE doctor_id = p_doctor_id AND appointment_date = p_appointment_date;
+    -- NOTE: Use table alias 'b' to avoid ambiguity with RETURNS TABLE OUT param queue_number
+    SELECT COALESCE(MAX(b.queue_number), 0) + 1 INTO v_queue_number
+    FROM public.bookings b
+    WHERE b.doctor_id = p_doctor_id AND b.appointment_date = p_appointment_date;
 
     -- Default status: 'Confirmed' for patient-initiated, 'Pending' for walk-in
     v_booking_status := 'Confirmed';
