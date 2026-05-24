@@ -174,7 +174,8 @@ BEGIN
     END IF;
 
     -- Verify doctor exists and is active
-    IF NOT EXISTS (SELECT 1 FROM public.doctors WHERE id = p_doctor_id AND status = 'Active') THEN
+    -- NOTE: Use table alias 'd' to avoid ambiguity with RETURNS TABLE OUT param status
+    IF NOT EXISTS (SELECT 1 FROM public.doctors d WHERE d.id = p_doctor_id AND d.status = 'Active') THEN
         RAISE EXCEPTION 'Doctor not found or not active.';
     END IF;
 
