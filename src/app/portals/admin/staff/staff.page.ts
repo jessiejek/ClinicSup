@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
-import { IonModal, ToastController } from '@ionic/angular/standalone';
+import { ToastController } from '@ionic/angular/standalone';
 import { SupabaseService } from '../../../core/services/supabase.service';
 
 interface StaffRow {
@@ -31,7 +31,7 @@ interface UpdateStatusResponse {
 @Component({
   selector: 'app-admin-staff-page',
   standalone: true,
-  imports: [FormsModule, NgFor, NgIf, EmptyStateComponent, SkeletonComponent, StatusBadgeComponent, IonModal],
+  imports: [FormsModule, NgFor, NgIf, EmptyStateComponent, SkeletonComponent, StatusBadgeComponent],
   template: `
     <section class="page-shell">
       <div class="page-shell__header">
@@ -39,7 +39,7 @@ interface UpdateStatusResponse {
           <h2 class="page-title">Staff Accounts</h2>
           <p class="page-subtitle">Manage front desk accounts.</p>
         </div>
-        <button class="btn-primary" type="button" (click)="openModal()">Add Staff</button>
+        <button class="btn-primary" type="button" (click)="openAddStaffForm()">Add Staff</button>
       </div>
 
       <!-- Loading state -->
@@ -74,28 +74,25 @@ interface UpdateStatusResponse {
       </div>
 
       <!-- Empty state -->
-      <app-empty-state *ngIf="!loading && !error && staff.length === 0" icon="person-add-outline" title="No staff accounts" description="Create the first front desk account to continue." ctaLabel="Add Staff" (ctaClick)="openModal()"></app-empty-state>
-    </section>
+      <app-empty-state *ngIf="!loading && !error && staff.length === 0" icon="person-add-outline" title="No staff accounts" description="Create the first front desk account to continue." ctaLabel="Add Staff" (ctaClick)="openAddStaffForm()"></app-empty-state>
 
-    <ion-modal [isOpen]="modalOpen" (didDismiss)="modalOpen = false">
-      <ng-template>
-        <div class="modal-shell">
-          <h3 *ngIf="!addError">Add Staff</h3>
-          <form class="modal-form" (ngSubmit)="save()">
-            <input class="filter-input" name="fullName" [(ngModel)]="draft.fullName" placeholder="Full Name" required />
-            <input class="filter-input" name="email" type="email" [(ngModel)]="draft.email" placeholder="Email" required />
-            <input class="filter-input" name="password" [(ngModel)]="draft.password" placeholder="Temporary Password (optional)" />
-            <p class="text-sm text-muted" *ngIf="addError">{{ addError }}</p>
-            <div class="modal-actions">
-              <button type="button" class="btn-ghost" (click)="modalOpen = false">Cancel</button>
-              <button type="submit" class="btn-primary" [disabled]="addSubmitting">
-                {{ addSubmitting ? 'Creating\u2026' : 'Save' }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </ng-template>
-    </ion-modal>
+      <!-- Inline Add Staff form -->
+      <section *ngIf="showAddStaffForm" class="add-staff-panel">
+        <h3>Add Staff</h3>
+        <form class="add-staff-form" (ngSubmit)="save()">
+          <input class="filter-input" name="fullName" [(ngModel)]="draft.fullName" placeholder="Full Name" required />
+          <input class="filter-input" name="email" type="email" [(ngModel)]="draft.email" placeholder="Email" required />
+          <input class="filter-input" name="password" [(ngModel)]="draft.password" placeholder="Temporary Password (optional)" />
+          <p class="text-sm text-muted" *ngIf="addError">{{ addError }}</p>
+          <div class="add-staff-actions">
+            <button type="button" class="btn-ghost" (click)="closeAddStaffForm()">Cancel</button>
+            <button type="submit" class="btn-primary" [disabled]="addSubmitting">
+              {{ addSubmitting ? 'Creating\u2026' : 'Create Staff' }}
+            </button>
+          </div>
+        </form>
+      </section>
+    </section>
   `,
   styleUrl: './staff.page.scss'
 })
@@ -107,7 +104,7 @@ export class StaffPage implements OnInit {
   loading = true;
   error: string | null = null;
 
-  modalOpen = false;
+  showAddStaffForm = false;
   draft = { fullName: '', email: '', password: '' };
   addError: string | null = null;
   addSubmitting = false;
@@ -179,11 +176,19 @@ export class StaffPage implements OnInit {
     }
   }
 
-  openModal(): void {
+  openAddStaffForm(): void {
     this.draft = { fullName: '', email: '', password: '' };
     this.addError = null;
     this.addSubmitting = false;
-    this.modalOpen = true;
+    this.showAddStaffForm = true;
+    console.log('[AdminStaff] Add Staff form opened');
+  }
+
+  closeAddStaffForm(): void {
+    this.showAddStaffForm = false;
+    this.draft = { fullName: '', email: '', password: '' };
+    this.addError = null;
+    this.addSubmitting = false;
   }
 
   async save(): Promise<void> {
@@ -210,8 +215,8 @@ export class StaffPage implements OnInit {
         throw new Error('No user ID returned from create-staff function.');
       }
 
-      // Success — close modal and reload
-      this.modalOpen = false;
+      // Success — hide inline form and reload
+      this.showAddStaffForm = false;
       await this.loadStaff();
 
       const toast = await this.toastCtrl.create({

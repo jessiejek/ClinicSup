@@ -1,1 +1,28 @@
-/* intentionally minimal */
+.add-staff-panel {
+  background: var(--clinic-bg-elevated);
+  border: 1px solid var(--clinic-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+
+  h3 {
+    margin: 0 0 var(--space-4) 0;
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--clinic-text-primary);
+  }
+}
+
+.add-staff-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 480px;
+}
+
+.add-staff-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}
