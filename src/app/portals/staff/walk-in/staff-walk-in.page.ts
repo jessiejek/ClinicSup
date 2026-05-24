@@ -26,6 +26,7 @@ import {
 import { BookingService, CreateWalkInRequest } from '../../../core/services/booking.service';
 import { AdminPatientsService } from '../../admin/services/admin-patients.service';
 import { AvailableSlot, PublicService } from '../../public/services/public.service';
+import { BookingAvailabilityService } from '../../public/services/booking-availability.service';
 import { StaffService } from '../services/staff.service';
 import { CreatePatientRequest, Doctor, PatientDetail, PatientSummary, Service, TimeSlot } from '../../../core/models';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
@@ -574,13 +575,16 @@ export class StaffWalkInPage implements OnInit {
   private readonly bookingService = inject(BookingService);
   private readonly staffService = inject(StaffService);
   private readonly publicService = inject(PublicService);
+  private readonly availabilityService = inject(BookingAvailabilityService);
   private readonly adminPatientsService = inject(AdminPatientsService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly toastCtrl = inject(ToastController);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly todayIso = toLocalIsoDate();
+  get todayIso(): string {
+    return this.availabilityService.getManilaTodayIso();
+  }
   readonly paymentMode: 'PayAtClinic' = 'PayAtClinic';
 
   currentWalkInStep: WalkInStep = 1;

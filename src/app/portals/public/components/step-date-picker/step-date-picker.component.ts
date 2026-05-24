@@ -5,8 +5,9 @@ import { addIcons } from 'ionicons';
 import { chevronBackOutline, chevronForwardOutline } from 'ionicons/icons';
 import { Subscription, distinctUntilChanged } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { DayOfWeek, DoctorSchedule } from '../../../../core/models';
+import { DoctorSchedule } from '../../../../core/models';
 import { BookingWizardService } from '../../../../core/services/booking-wizard.service';
+import { BookingAvailabilityService, WorkingDay } from '../../services/booking-availability.service';
 import { PublicService } from '../../services/public.service';
 import { EmptyStateComponent } from '../../../../shared/components/empty-state/empty-state.component';
 
@@ -92,7 +93,6 @@ import { EmptyStateComponent } from '../../../../shared/components/empty-state/e
 })
 export class StepDatePickerComponent implements OnInit {
   private readonly wizardService = inject(BookingWizardService);
-  private readonly publicService = inject(PublicService);
   private readonly toastCtrl = inject(ToastController);
   private readonly destroyRef = inject(DestroyRef);
   private readonly subscriptions = new Subscription();
@@ -106,6 +106,8 @@ export class StepDatePickerComponent implements OnInit {
   weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   isLoading = false;
   private schedules: DoctorSchedule[] = [];
+  private workingDays: WorkingDay[] = [];
+  private readonly availabilityService = inject(BookingAvailabilityService);
 
   constructor() {
     addIcons({ chevronBackOutline, chevronForwardOutline });
@@ -127,18 +129,30 @@ export class StepDatePickerComponent implements OnInit {
         }
 
         this.isLoading = true;
-        this.publicService
-          .getDoctorSchedules(doctorId)
+        this.availabilityService
+          .getDoctorWorkingDays(doctorId)
           .pipe(takeUntilDestroyed(this.destroyRef))
           .subscribe({
-            next: (schedules) => {
-              this.schedules = schedules;
+            next: (workingDays) => {
+              this.workingDays = workingDays;
+              this.schedules = workingDays.map((wd) => ({
+                id: '',
+                doctorId,
+                dayOfWeek: wd.dayOfWeek,
+                startTime: wd.startTime,
+                endTime: wd.endTime
+              }));
               this.isLoading = false;
+
+              if (workingDays.length === 0) {
+                console.warn('[StepDatePicker] Doctor has no working days defined.');
+              }
             },
             error: (error: unknown) => {
+              this.workingDays = [];
               this.schedules = [];
               this.isLoading = false;
-              void this.presentToast(extractApiErrorMessage(error, 'Failed to load available dates.'));
+              void this.presentToast(extractApiErrorMessage(error, 'Failed to load availability.'));
             }
           });
       })
@@ -203,16 +217,15 @@ export class StepDatePickerComponent implements OnInit {
   }
 
   isToday(date: Date): boolean {
-    const today = this.startOfDay(new Date());
-    return this.toIsoDate(date) === this.toIsoDate(today);
+    return this.availabilityService.isManilaToday(this.toIsoDate(date));
   }
 
   isPast(date: Date): boolean {
-    return this.startOfDay(date).getTime() < this.startOfDay(new Date()).getTime();
+    return this.availabilityService.isManilaPast(this.toIsoDate(date));
   }
 
   isWorkingDay(doctorId: string, date: Date): boolean {
-    const dayOfWeek = this.dayNames()[date.getDay()].toLowerCase();
+    const dayOfWeek = this.availabilityService.getManilaDayOfWeek(this.toIsoDate(date)).toLowerCase();
     return this.schedules.some((schedule) => schedule.dayOfWeek.toLowerCase() === dayOfWeek);
   }
 
@@ -224,18 +237,8 @@ export class StepDatePickerComponent implements OnInit {
     return !this.isPast(date) && this.isWorkingDay(doctorId, date);
   }
 
-  private startOfDay(date: Date): Date {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }
-
   private startOfMonth(date: Date): Date {
     return new Date(date.getFullYear(), date.getMonth(), 1);
-  }
-
-  private dayNames(): DayOfWeek[] {
-    return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   }
 
   private toIsoDate(date: Date): string {

@@ -4,9 +4,9 @@ Use this file as the source of truth for this area. Future agents should read th
 
 # Executive Summary — Production Readiness
 
-**Date:** 2026-05-24 12:34 PDT
-**Frontend hash (last commit):** `d6ffeb1` — `feat: add doctor social invite activation`
-**Branch:** `main` (uncommitted schedule + services fixes)
+**Date:** 2026-05-24 12:57 PDT
+**Frontend hash (last build):** `6a5d45b40f1422a2`
+**Branch:** `main` (uncommitted availability + schedule + services fixes)
 
 ---
 
@@ -16,12 +16,19 @@ The app is live on Vercel at **https://clinic-sup.vercel.app**. It is partially 
 
 The **Doctor Portal** has been fully scanned and root-cause fixed:
 - Profile page ✅ works — queries `doctors` by `user_id`
-- Schedule page ❌ **was empty** — **FIXED**: schedule saved in invite, created on activation.
-- Services/booking ❌ **showed "No services available"** — **FIXED**: `service_ids` JSONB saved in invite, `doctor_services` rows created on activation.
+- Schedule page ✅ **FIXED**: schedule saved in invite, created on activation.
+- Services/booking ✅ **FIXED**: `service_ids` JSONB saved in invite, `doctor_services` rows created on activation.
 - Appointments/queue ✅ RLS works — `current_doctor_id()` function linked to `auth.uid()`
 - Patients list ✅ RLS works — `patient_bookings_view` filters by `doctor_id`
 
-**Critical P0 bugs remain**, and several backend dependencies are still on local static data or missing SQL tables.
+**Booking availability (P0)** has been audited and fixed:
+- Root cause: Missing `GRANT SELECT` on `doctor_schedules` for `anon`/`authenticated` — caused patient booking Step 2 to silently return empty schedules, disabling all calendar dates
+- Timezone mismatch: Walk-in pages used browser local timezone instead of Asia/Manila
+- `to_char` locale dependency in RPCs replaced with `EXTRACT(DOW)`
+- Shared `BookingAvailabilityService` created for all 3 booking entry points
+- See `12_BOOKING_AVAILABILITY_AUDIT.md`
+
+**Critical P0 bugs remain** that need live verification and deployment.
 
 ---
 
@@ -58,7 +65,10 @@ The **Doctor Portal** has been fully scanned and root-cause fixed:
 | **Admin Add Staff still fails live** | **P0 #1** | Despite explicit JWT headers and improved Edge Function auth, live testing is needed. If it still fails, root cause is likely Edge Function `SERVICE_ROLE_KEY` secret not set, or the function doesn't have the `supabase_url` env variable. |
 | **Admin Walk-in booking** | **P0 #2** | Untested. The `create_booking` RPC needs RLS that allows staff/admin to book for any patient. If RLS blocks it, walk-in booking silently fails. |
 | **Doctor invite table not deployed** | **P0 #3** | `doctor_invites` SQL handoff file created. Table MUST be deployed before any admin can invite doctors. See `SUPABASE_REQUIRED_DOCTOR_INVITES_SQL.md`. |
-| **Doctor has no services (NEW)** | **P0 #4** | Root cause: `service_ids` was never saved during invite, Edge Function never created `doctor_services` rows. **FIXED**. Existing "Choco Cheese" needs manual INSERT. |
+| **Doctor has no services** | **P0 #4** | Root cause: `service_ids` was never saved during invite, Edge Function never created `doctor_services` rows. **FIXED**. Existing "Choco Cheese" needs manual INSERT. |
+| **Patient booking Step 2 calendar disabled** | **P0 #5** | **FIXED**. Root cause: Missing `GRANT SELECT` on `doctor_schedules` for `anon`/`authenticated`. Silent failure → empty schedules → all dates disabled. See `12_BOOKING_AVAILABILITY_AUDIT.md`. |
+| **Walk-in date timezone mismatch** | **P0 #6** | **FIXED**. Walk-in pages used browser timezone instead of Asia/Manila for `todayIso`. Created shared `BookingAvailabilityService` with Manila-aware date helpers. |
+| **RPC locale-dependent day matching** | **P0 #7** | **FIXED**. `to_char(date, 'Day')` depends on server locale. Replaced with `EXTRACT(DOW)` in both `get_available_slots` and `create_booking` RPCs. |
 
 ---
 
@@ -79,38 +89,41 @@ The **Doctor Portal** has been fully scanned and root-cause fixed:
 ## Build Result
 
 ```
-Build: 2026-05-24 12:34 PDT
-Hash: 5ec26e21fdd42a06
-Time: 23675ms
+Build: 2026-05-24 12:57 PDT
+Hash: 6a5d45b40f1422a2
+Time: 30858ms
 Errors: 0
-Warnings: All pre-existing (SCSS budgets, Ionic pseudo-class selectors)
+Warnings: All pre-existing (SCSS budgets)
 ```
 
 ---
 
 ## Exact Next Actions
 
-1. **Run ALTER TABLE SQLs**: `schedule` column + `service_ids` column — see `SUPABASE_REQUIRED_DOCTOR_PORTAL_SCHEDULE_FIX_SQL.md` and `SUPABASE_REQUIRED_DOCTOR_INVITE_SERVICES_FIX_SQL.md`
-2. **Link existing "Choco Cheese" doctor** to General Consultation — SQL in `SUPABASE_REQUIRED_DOCTOR_INVITE_SERVICES_FIX_SQL.md`
-3. **Deploy `doctor_invites` SQL** (with both `schedule` + `service_ids`) — see `SUPABASE_REQUIRED_DOCTOR_INVITES_SQL.md`
-4. **Deploy updated `activate-doctor-invite` Edge Function**:
+1. **Run ALL SQLs in order**:
+   - `SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md` (GRANTs + RPC fixes) — **NEW P0**
+   - `SUPABASE_REQUIRED_DOCTOR_PORTAL_SCHEDULE_FIX_SQL.md` (schedule column)
+   - `SUPABASE_REQUIRED_DOCTOR_INVITE_SERVICES_FIX_SQL.md` (service_ids column + Choco Cheese manual link)
+   - `SUPABASE_REQUIRED_DOCTOR_INVITES_SQL.md` (doctor_invites table with schedule + service_ids)
+2. **Deploy updated `activate-doctor-invite` Edge Function**:
    ```bash
    cd "Z:\CLINIC\clinicbooking-be"
    supabase functions deploy activate-doctor-invite
    ```
-5. **Commit and push frontend changes**:
+3. **Commit and push all frontend changes**:
    ```bash
    cd "Z:\CLINIC\clinic_fe_supabase_phase2_booking_full"
    git add .
-   git commit -m "fix: persist schedule + service_ids during doctor invite creation and activation"
+   git commit -m "fix: booking availability GRANTs, shared service, schedule+services invite, timezone fixes"
    git push
    ```
-6. **Live-test full Doctor Portal**:
-   - Go to `/admin/doctors` → Add Doctor → fill all fields including schedule and services → Submit
-   - Sign out → sign in with Google using the invited email
-   - Verify redirect to `/doctor/dashboard`
-   - Verify schedule shows admin-set working days ✅
-   - Book as patient → select this doctor → verify services show ✅
+4. **Live-test full flow**:
+   - Verify patient booking Step 2 now shows selectable dates ✅
+   - Verify selectable dates match doctor's schedule ✅
+   - Verify advance booking (next month date) is selectable ✅
+   - Verify Staff walk-in allows future dates ✅
+   - Verify Admin walk-in is same-day only ✅
+   - Verify Doctor Portal invite flow still works
 
 ## Doctor Portal Scan Result
 
@@ -131,8 +144,10 @@ Warnings: All pre-existing (SCSS budgets, Ionic pseudo-class selectors)
 
 ## Final Priority Rule
 
-- **P0 #1: Add Staff bug still needs live verification**
-- **P0 #2: Walk-in booking RLS audit**
-- **P0 #3: Doctor invite table + schedule + service_ids JSONB columns + Edge Function deployment**
-- **P0 #4: Existing "Choco Cheese" doctor needs manual service link** (SQL in `SUPABASE_REQUIRED_DOCTOR_INVITE_SERVICES_FIX_SQL.md`)
+- **P0 #1: Deploy all SQLs** — `SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md` + doctor invite SQLs
+- **P0 #2: Deploy `activate-doctor-invite` Edge Function**
+- **P0 #3: Commit and push all frontend changes**
+- **P0 #4: Live-test patient booking Step 2 date selection**
+- **P0 #5: Live-test Staff walk-in date selection**
+- **P0 #6: Live-test Admin walk-in date selection**
 - **P1: Full Doctor Portal QA**

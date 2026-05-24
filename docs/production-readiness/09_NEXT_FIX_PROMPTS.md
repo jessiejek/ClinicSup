@@ -8,10 +8,13 @@ Use this file as the source of truth for this area. Future agents should read th
 
 ## Final Priority Rule
 
-- **P0 #1: Admin Add Staff — live verification still needed**
-- **P0 #2: Admin Walk-in — RLS audit**
-- **P0 #3: Doctor invite SQL + Edge Function deployment**
-- **P1: Doctor social login activation testing**
+- **P0 #1: Deploy all SQLs** — `SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md` + doctor invite SQLs
+- **P0 #2: Deploy `activate-doctor-invite` Edge Function**
+- **P0 #3: Commit and push all frontend changes**
+- **P0 #4: Live-test patient booking Step 2 date selection**
+- **P0 #5: Live-test Staff walk-in date selection**
+- **P0 #6: Live-test Admin walk-in date selection**
+- **P1: Full Doctor Portal QA**
 
 ---
 
@@ -185,7 +188,24 @@ cd "Z:\CLINIC\clinicbooking-be"
 supabase functions deploy activate-doctor-invite
 ```
 
-## Prompt 12: Manual SQL for Existing "Choco Cheese" Doctor
+## Prompt 12: Run Booking Availability SQL (P0 — MUST DO FIRST)
+
+**This comes BEFORE the Doctor Invite SQL:**
+
+```
+Open Supabase Dashboard SQL Editor for project czswgpjjanllkmmwhmdh.
+Copy ALL sections from SUPABASE_REQUIRED_BOOKING_AVAILABILITY_FIX_SQL.md.
+Run them in order:
+  Section A: GRANT SELECT on doctor_schedules, doctor_blocked_dates, doctor_day_statuses
+  Section B: Replace get_available_slots RPC (locale-independent EXTRACT(DOW))
+  Section C: Replace create_booking RPC (locale-independent EXTRACT(DOW))
+Verify:
+  SELECT grantee FROM information_schema.role_table_grants
+  WHERE table_name='doctor_schedules' AND grantee IN ('anon','authenticated');
+  -- Should return 2 rows
+```
+
+## Prompt 13: Manual SQL for Existing "Choco Cheese" Doctor
 
 **Prompt if Choco Cheese was created before the fix:**
 
