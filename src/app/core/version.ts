@@ -1,3 +1,3 @@
 // Auto-generated — DO NOT EDIT MANUALLY
 // Updated by prebuild script with the current git commit hash.
-export const APP_VERSION = '266e8d8';
+export const APP_VERSION = 'd7e0b9c';
