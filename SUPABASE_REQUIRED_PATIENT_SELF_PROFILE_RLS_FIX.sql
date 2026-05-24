@@ -124,6 +124,34 @@ ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
 -- ============================================================================
+-- SECTION E3: Change bookings.status from booking_status enum to TEXT
+-- The create_booking RPC passes TEXT values (v_booking_status TEXT) but the
+-- existing table has status as booking_status enum. No implicit cast exists.
+-- Error: column "status" is of type booking_status but expression is of type text
+-- ============================================================================
+
+ALTER TABLE public.bookings ALTER COLUMN status TYPE TEXT USING status::TEXT;
+ALTER TABLE public.bookings ALTER COLUMN status SET DEFAULT 'Pending';
+ALTER TABLE public.bookings ALTER COLUMN payment_mode TYPE TEXT USING payment_mode::TEXT;
+ALTER TABLE public.bookings ALTER COLUMN payment_mode SET DEFAULT 'PayAtClinic';
+ALTER TABLE public.bookings ALTER COLUMN payment_status TYPE TEXT USING payment_status::TEXT;
+ALTER TABLE public.bookings ALTER COLUMN payment_status SET DEFAULT 'Unpaid';
+
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS queue_number INT;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS payment_mode TEXT NOT NULL DEFAULT 'PayAtClinic';
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'Unpaid';
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS total_amount NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS final_amount NUMERIC(10,2);
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS created_by_user_id UUID REFERENCES auth.users(id);
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS is_walk_in BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS is_professional_fee_waived BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS checked_in_at TIMESTAMPTZ;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS doctor_completed_at TIMESTAMPTZ;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+-- ============================================================================
 -- SECTION F: Verify create_booking has self-booking support
 -- (showing the patient-resolve logic; the full RPC is in Phase 2 SQL)
 -- ============================================================================
