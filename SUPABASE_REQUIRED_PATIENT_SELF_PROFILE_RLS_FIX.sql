@@ -135,6 +135,10 @@ ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT 
 -- the TEXT values explicitly to their enum types.
 -- ============================================================================
 
+-- Drop the overloaded create_booking with BOOLEAN (p_is_walk_in) param
+-- Uses type-based signature: create_booking(UUID, UUID[], DATE, TIME, TIME, UUID, TEXT, BOOLEAN)
+DROP FUNCTION IF EXISTS public.create_booking(UUID, UUID[], DATE, TIME, TIME, UUID, TEXT, BOOLEAN);
+
 -- Recreate create_booking RPC with explicit enum casts
 CREATE OR REPLACE FUNCTION public.create_booking(
     p_doctor_id UUID,
