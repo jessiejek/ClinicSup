@@ -124,12 +124,35 @@ ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
 -- ============================================================================
--- SECTION E3: Change bookings.status from booking_status enum to TEXT
--- The create_booking RPC passes TEXT values (v_booking_status TEXT) but the
--- existing table has status as booking_status enum. No implicit cast exists.
+-- SECTION E3: Change bookings enum columns to TEXT
+-- The create_booking RPC passes TEXT values (v_booking_status TEXT, 'PayAtClinic'
+-- as TEXT, 'Unpaid' as TEXT) but if the existing table has these as enum types
+-- (booking_status, payment_mode, payment_status), PostgreSQL rejects the insert.
 -- Error: column "status" is of type booking_status but expression is of type text
+--
+-- PostgreSQL blocks ALTER COLUMN TYPE if any policy references the column,
+-- so we temporarily drop all policies on public.bookings (and any other table
+-- that might reference bookings.status via subquery or view), then recreate
+-- the standard ones.
 -- ============================================================================
 
+-- Drop all policies that might block the ALTER
+DO $$
+DECLARE
+    rec RECORD;
+BEGIN
+    FOR rec IN (
+        SELECT policyname, tablename FROM pg_policies
+        WHERE schemaname = 'public'
+        -- Include any table whose policies might reference bookings columns
+        AND tablename IN ('bookings', 'reviews')
+    ) LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', rec.policyname, rec.tablename);
+    END LOOP;
+END;
+$$;
+
+-- Now alter the column types (no policy dependencies to block)
 ALTER TABLE public.bookings ALTER COLUMN status TYPE TEXT USING status::TEXT;
 ALTER TABLE public.bookings ALTER COLUMN status SET DEFAULT 'Pending';
 ALTER TABLE public.bookings ALTER COLUMN payment_mode TYPE TEXT USING payment_mode::TEXT;
@@ -137,19 +160,69 @@ ALTER TABLE public.bookings ALTER COLUMN payment_mode SET DEFAULT 'PayAtClinic';
 ALTER TABLE public.bookings ALTER COLUMN payment_status TYPE TEXT USING payment_status::TEXT;
 ALTER TABLE public.bookings ALTER COLUMN payment_status SET DEFAULT 'Unpaid';
 
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS queue_number INT;
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS payment_mode TEXT NOT NULL DEFAULT 'PayAtClinic';
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'Unpaid';
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS total_amount NUMERIC(10,2) NOT NULL DEFAULT 0;
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS final_amount NUMERIC(10,2);
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS created_by_user_id UUID REFERENCES auth.users(id);
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS is_walk_in BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS is_professional_fee_waived BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS checked_in_at TIMESTAMPTZ;
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS doctor_completed_at TIMESTAMPTZ;
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
-ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+-- Recreate standard policies on bookings
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+
+-- Patients can see their own bookings
+DROP POLICY IF EXISTS "bookings_select_patient" ON public.bookings;
+CREATE POLICY "bookings_select_patient" ON public.bookings
+    FOR SELECT USING (
+        patient_id IN (SELECT id FROM public.patients WHERE user_id = auth.uid())
+    );
+
+-- Staff/admin can see all bookings
+DROP POLICY IF EXISTS "bookings_select_staff" ON public.bookings;
+CREATE POLICY "bookings_select_staff" ON public.bookings
+    FOR SELECT USING (
+        public.has_any_role(ARRAY['staff', 'admin', 'super_admin', 'doctor']::app_role[])
+    );
+
+-- Doctors can see bookings assigned to them
+DROP POLICY IF EXISTS "bookings_select_doctor" ON public.bookings;
+CREATE POLICY "bookings_select_doctor" ON public.bookings
+    FOR SELECT USING (
+        doctor_id IN (SELECT id FROM public.doctors WHERE user_id = auth.uid())
+    );
+
+-- Patients can insert their own bookings (via RPC, but policy still needed for direct inserts)
+DROP POLICY IF EXISTS "bookings_insert_patient" ON public.bookings;
+CREATE POLICY "bookings_insert_patient" ON public.bookings
+    FOR INSERT WITH CHECK (
+        patient_id IN (SELECT id FROM public.patients WHERE user_id = auth.uid())
+        OR public.has_any_role(ARRAY['staff', 'admin', 'super_admin']::app_role[])
+    );
+
+-- Staff/admin can update bookings
+DROP POLICY IF EXISTS "bookings_update_staff" ON public.bookings;
+CREATE POLICY "bookings_update_staff" ON public.bookings
+    FOR UPDATE USING (
+        public.has_any_role(ARRAY['staff', 'admin', 'super_admin', 'doctor']::app_role[])
+    );
+
+-- Recreate standard reviews policy (was dropped above to unblock ALTER)
+DROP POLICY IF EXISTS "reviews_select_authenticated" ON public.reviews;
+CREATE POLICY "reviews_select_authenticated"
+    ON public.reviews
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+DROP POLICY IF EXISTS "reviews_select_public" ON public.reviews;
+CREATE POLICY "reviews_select_public"
+    ON public.reviews
+    FOR SELECT
+    USING (true);
+
+DROP POLICY IF EXISTS "reviews_insert_own" ON public.reviews;
+CREATE POLICY "reviews_insert_own"
+    ON public.reviews
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (
+        patient_id IN (
+            SELECT p.id FROM public.patients p WHERE p.user_id = auth.uid()
+        )
+    );
 
 -- ============================================================================
 -- SECTION F: Verify create_booking has self-booking support
