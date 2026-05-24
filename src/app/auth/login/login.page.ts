@@ -20,7 +20,7 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { alertCircleOutline, eyeOffOutline, eyeOutline } from 'ionicons/icons';
-import { finalize } from 'rxjs';
+import { APP_VERSION } from '../../core/version';
 import { environment } from '../../../environments/environment';
 import { AuthLayoutComponent } from '../components/auth-layout/auth-layout.component';
 import { BannerComponent } from '../../shared/components/banner/banner.component';
@@ -48,6 +48,8 @@ import { AuthService } from '../../core/services/auth.service';
   styleUrl: './login.page.scss'
 })
 export class LoginPage {
+  readonly appVersion = APP_VERSION;
+
   private readonly fb = inject(FormBuilder);
   private readonly authState = inject(AuthStateService);
   private readonly authService = inject(AuthService);

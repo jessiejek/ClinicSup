@@ -214,3 +214,13 @@
   text-decoration: underline;
   color: var(--clinic-primary);
 }
+
+.version-badge {
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--clinic-text-muted);
+  opacity: 0.5;
+  margin-top: var(--space-2);
+  margin-bottom: 0;
+  font-family: monospace;
+}
