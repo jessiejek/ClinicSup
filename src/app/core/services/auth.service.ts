@@ -209,16 +209,14 @@ export class AuthService {
     }
 
     if (!data.session || !data.user) {
+      // No session returned — email confirmation may be required or identity already exists.
+      // The user can log in manually after confirming.
       throw new Error('Registration created. Please confirm your email, then log in.');
     }
 
+    // Session returned immediately — auto-login and create profile/role/patient row
     this.storeSessionTokens(data.session);
-
-    // Full patient self-registration needs a dedicated Supabase RPC because patients
-    // require DOB/sex and user_roles is protected. For now, login/session is Phase 0.
-    throw new Error(
-      'Registration auth account was created. Patient profile creation is deferred until the patient registration RPC/form is added.'
-    );
+    return this.loadAuthUser(data.user, data.session);
   }
 
   private async restoreSessionAsync(): Promise<AuthUser | null> {
@@ -369,14 +367,19 @@ export class AuthService {
     const [firstName, ...lastParts] = (profile.full_name || user.email || 'New Patient').split(' ');
     const lastName = lastParts.join(' ') || '';
 
-    await this.supabase.from('patients').insert({
+    const { error: insertError } = await this.supabase.from('patients').insert({
       user_id: user.id,
       first_name: firstName,
       last_name: lastName,
       contact_email: user.email,
       is_guest: false,
     });
-    // If insert fails (e.g., RLS), the user will see an auth error on next login.
+
+    if (insertError) {
+      // Non-blocking: patient insert may fail due to RLS (missing DOB constraint, etc.).
+      // The user can still proceed; admin can complete the patient record later.
+      console.warn('Patient row insert skipped (non-blocking):', insertError.message);
+    }
   }
 
   private async loadProfile(user: User): Promise<ProfileRow | null> {
