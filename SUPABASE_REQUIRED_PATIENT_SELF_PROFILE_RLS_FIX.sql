@@ -136,6 +136,12 @@ ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT 
 -- the standard ones.
 -- ============================================================================
 
+-- Drop ALL views that reference bookings (their _RETURN rules block ALTER COLUMN TYPE)
+DROP VIEW IF EXISTS public.patient_bookings_view CASCADE;
+DROP VIEW IF EXISTS public.doctor_today_queue_view CASCADE;
+DROP VIEW IF EXISTS public.staff_today_queue_view CASCADE;
+DROP VIEW IF EXISTS public.consultation_record_view CASCADE;
+
 -- Drop all policies that might block the ALTER
 DO $$
 DECLARE
@@ -144,7 +150,6 @@ BEGIN
     FOR rec IN (
         SELECT policyname, tablename FROM pg_policies
         WHERE schemaname = 'public'
-        -- Include any table whose policies might reference bookings columns
         AND tablename IN ('bookings', 'reviews')
     ) LOOP
         EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', rec.policyname, rec.tablename);
@@ -152,7 +157,7 @@ BEGIN
 END;
 $$;
 
--- Now alter the column types (no policy dependencies to block)
+-- Now alter the column types (no view or policy dependencies to block)
 ALTER TABLE public.bookings ALTER COLUMN status TYPE TEXT USING status::TEXT;
 ALTER TABLE public.bookings ALTER COLUMN status SET DEFAULT 'Pending';
 ALTER TABLE public.bookings ALTER COLUMN payment_mode TYPE TEXT USING payment_mode::TEXT;
@@ -160,7 +165,117 @@ ALTER TABLE public.bookings ALTER COLUMN payment_mode SET DEFAULT 'PayAtClinic';
 ALTER TABLE public.bookings ALTER COLUMN payment_status TYPE TEXT USING payment_status::TEXT;
 ALTER TABLE public.bookings ALTER COLUMN payment_status SET DEFAULT 'Unpaid';
 
+-- ==========================================================================
+-- Recreate views (dropped above with CASCADE to unblock ALTER COLUMN TYPE)
+-- These are the exact definitions from phase-02-booking-workflow.sql lines 185–442
+-- ==========================================================================
+
+-- 1a. patient_bookings_view — core booking list
+CREATE VIEW public.patient_bookings_view AS
+SELECT
+    b.id AS booking_id,
+    b.id AS booking_key,
+    b.patient_id,
+    b.doctor_id,
+    b.appointment_date,
+    b.slot_start_time,
+    b.slot_end_time,
+    b.queue_number,
+    b.status AS booking_status,
+    b.payment_status,
+    b.payment_mode,
+    b.total_amount,
+    b.final_amount,
+    b.notes,
+    b.is_walk_in,
+    b.is_professional_fee_waived,
+    b.checked_in_at,
+    b.cancelled_at,
+    b.cancellation_reason,
+    b.created_at,
+    b.updated_at,
+    -- Patient info
+    p.first_name AS patient_first_name,
+    p.last_name AS patient_last_name,
+    p.avatar_url AS patient_avatar,
+    -- Doctor info
+    d.first_name AS doctor_first_name,
+    d.last_name AS doctor_last_name,
+    d.avatar_url AS doctor_avatar,
+    -- Service summary
+    COALESCE(
+        (SELECT string_agg(s.name, ', ') FROM public.booking_services bs
+         JOIN public.services s ON s.id = bs.service_id
+         WHERE bs.booking_id = b.id),
+        ''
+    ) AS service_names
+FROM public.bookings b
+LEFT JOIN public.patients p ON p.id = b.patient_id
+LEFT JOIN public.doctors d ON d.id = b.doctor_id;
+
+-- 1b. doctor_today_queue_view — today's queue for a doctor
+CREATE VIEW public.doctor_today_queue_view AS
+SELECT *
+FROM public.patient_bookings_view
+WHERE appointment_date = CURRENT_DATE
+ORDER BY queue_number ASC NULLS LAST, slot_start_time ASC;
+
+-- 1c. staff_today_queue_view — today's queue for staff
+CREATE VIEW public.staff_today_queue_view AS
+SELECT *
+FROM public.patient_bookings_view
+WHERE appointment_date = CURRENT_DATE
+ORDER BY queue_number ASC NULLS LAST, slot_start_time ASC;
+
+-- 1d. consultation_record_view — full consultation details
+CREATE VIEW public.consultation_record_view AS
+SELECT
+    c.id AS consultation_id,
+    c.booking_id,
+    b.patient_id,
+    b.doctor_id,
+    b.appointment_date,
+    b.slot_start_time,
+    b.slot_end_time,
+    b.status AS booking_status,
+    b.is_walk_in,
+    p.first_name AS patient_first_name,
+    p.last_name AS patient_last_name,
+    p.date_of_birth,
+    p.phone,
+    d.first_name AS doctor_first_name,
+    d.last_name AS doctor_last_name,
+    -- Diagnoses
+    (SELECT jsonb_agg(jsonb_build_object('id', diag.id, 'diagnosis', diag.diagnosis, 'notes', diag.notes, 'is_primary', diag.is_primary))
+     FROM public.diagnoses diag WHERE diag.consultation_id = c.id
+    ) AS diagnoses,
+    -- Prescriptions
+    (SELECT jsonb_agg(jsonb_build_object('id', med.id, 'medication_id', med.medication_id, 'medication_name', med.medication_name, 'dosage', med.dosage, 'frequency', med.frequency, 'duration', med.duration, 'notes', med.notes))
+     FROM public.medications med WHERE med.consultation_id = c.id
+    ) AS prescriptions,
+    -- Services
+    (SELECT jsonb_agg(DISTINCT jsonb_build_object('id', s.id, 'name', s.name, 'category', s.category))
+     FROM public.booking_services bsv
+     JOIN public.services s ON s.id = bsv.service_id
+     WHERE bsv.booking_id = b.id AND bsv.booking_id IS NOT NULL
+    ) AS services,
+    -- Vitals
+    (SELECT row_to_json(v.*) FROM public.vitals v WHERE v.booking_id = b.id LIMIT 1
+    ) AS vitals
+FROM public.consultations c
+JOIN public.bookings b ON b.id = c.booking_id
+JOIN public.patients p ON p.id = b.patient_id
+JOIN public.doctors d ON d.id = b.doctor_id;
+
+-- Re-grant SELECT on views (grants survive the DROP + recreate cycle)
+GRANT SELECT ON public.patient_bookings_view TO authenticated, anon;
+GRANT SELECT ON public.doctor_today_queue_view TO authenticated, anon;
+GRANT SELECT ON public.staff_today_queue_view TO authenticated, anon;
+GRANT SELECT ON public.consultation_record_view TO authenticated, anon;
+
+-- ==========================================================================
 -- Recreate standard policies on bookings
+-- ==========================================================================
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 
 -- Patients can see their own bookings
