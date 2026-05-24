@@ -307,7 +307,14 @@ export class DoctorFormPage implements OnInit {
         consultationFee: Number(value.consultationFee ?? 0),
         slotDurationMinutes: Number(value.slotDurationMinutes ?? 30),
         slotCapacity: Number(value.slotCapacity ?? 1),
-        dailyPatientLimit: value.dailyPatientLimit ?? null
+        dailyPatientLimit: value.dailyPatientLimit ?? null,
+        schedule: this.scheduleDraft
+          .filter((row) => row.enabled)
+          .map((row) => ({
+            dayOfWeek: row.dayOfWeek,
+            startTime: row.startTime,
+            endTime: row.endTime
+          }))
       };
 
       this.adminDoctorsService.createDoctorInvite(invitePayload)

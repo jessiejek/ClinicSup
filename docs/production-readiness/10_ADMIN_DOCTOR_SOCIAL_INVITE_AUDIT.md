@@ -164,9 +164,48 @@ if activated=false:
 ## Build Result
 
 ```
-Build: 2026-05-24T11:40:05.219Z
-Hash: b1a8487bfd261173
-Time: 27862ms
+Build: 2026-05-24T12:12:58.774Z
+Hash: 57f7d304faeb30a0
+Time: 22056ms
 Errors: 0
 Warnings: All pre-existing (SCSS budgets, Ionic pseudo-class selectors)
 ```
+
+---
+
+## Doctor Portal Scan (2026-05-24)
+
+### Root Cause: Empty Schedule After Activation
+
+When admin creates a doctor invite, the schedule is captured in `doctor-form.page.ts` (`scheduleDraft`) but was **never saved to any Supabase table**. The old password-based flow (`createDoctor()` / `CreateDoctorDto`) never worked because `doctors.user_id` has a NOT NULL constraint. The invite flow (`createDoctorInvite()`) only inserts profile fields into `doctor_invites`, ignoring the schedule entirely.
+
+During activation, the `activate-doctor-invite` Edge Function creates a `doctors` row but **never creates `doctor_schedules` rows**. Result: logged-in doctor sees an empty schedule.
+
+### Fix Applied
+
+| File | Change |
+|---|---|
+| `SUPABASE_REQUIRED_DOCTOR_INVITES_SQL.md` | Added `schedule JSONB NOT NULL DEFAULT '[]'::jsonb` column |
+| `SUPABASE_REQUIRED_DOCTOR_PORTAL_SCHEDULE_FIX_SQL.md` | **NEW** — ALTER TABLE SQL for existing `doctor_invites` tables |
+| `admin-doctors.service.ts` | Added `schedule` field to `CreateDoctorInviteDto` + included in insert payload |
+| `doctor-form.page.ts` | Passes `scheduleDraft` mapped to `dayOfWeek/startTime/endTime` in invite payload |
+| `activate-doctor-invite/index.ts` | Reads `invite.schedule` array → creates `doctor_schedules` rows using service_role adminClient |
+
+### Verified Working Features
+
+| Feature | Status | How It Works |
+|---|---|---|
+| Doctor profile page | ✅ | `getMyProfile()` → `doctors WHERE user_id = authUser.id` |
+| Doctor profile edit | ✅ | `updateMyProfile()` → updates doctors row by user_id |
+| Doctor schedule page | ✅ (will show schedule after SQL + EF deploy) | `getMySchedule()` → get doctor by user_id → get doctor_schedules by doctor_id |
+| Doctor appointments/queue | ✅ | `getDoctorTodaySummary()` → `current_doctor_id()` RPC + `doctor_today_queue_view` |
+| Doctor patients list | ✅ | `patient_bookings_view` with RLS (`doctor_id = current_doctor_id()`) |
+| Doctor appointment detail | ✅ | Checks `doctor.userId` match |
+| Doctor consultation | ✅ | Uses `save_consultation_record` RPC |
+
+### RLS Confirmation
+
+- `doctor_schedules`: SELECT policy is `true` (public read) — no RLS issue
+- `bookings`: SELECT policy uses `doctor_id = current_doctor_id()` which queries `doctors WHERE user_id = auth.uid()` — works ✓
+- `current_doctor_id()`: `SELECT id FROM doctors WHERE user_id = auth.uid()` — after activation creates doctors row with `user_id = callerId`, this works ✓
+- `doctor_today_queue_view` and `patient_bookings_view`: inherit RLS from base `bookings` table — works ✓

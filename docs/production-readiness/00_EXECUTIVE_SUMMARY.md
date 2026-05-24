@@ -4,9 +4,9 @@ Use this file as the source of truth for this area. Future agents should read th
 
 # Executive Summary — Production Readiness
 
-**Date:** 2026-05-24 04:40 PDT
-**Frontend hash (last commit):** `f224acd` — `fix: replace add staff modal with inline form`
-**Branch:** `main` (uncommitted changes for doctor invite feature)
+**Date:** 2026-05-24 12:12 PDT
+**Frontend hash (last commit):** `d6ffeb1` — `feat: add doctor social invite activation`
+**Branch:** `main` (uncommitted schedule fix changes)
 
 ---
 
@@ -14,7 +14,13 @@ Use this file as the source of truth for this area. Future agents should read th
 
 The app is live on Vercel at **https://clinic-sup.vercel.app**. It is partially migrated from .NET + SignalR + mock data to Supabase-first architecture. The booking workflow (patient search, create booking, complete consultation, payment) works via Supabase views and RPCs.
 
-However, **critical P0 bugs remain in production**, and several backend dependencies are still on local static data or missing SQL tables.
+The **Doctor Portal** has been fully scanned and root-cause fixed:
+- Profile page ✅ works — queries `doctors` by `user_id`
+- Schedule page ❌ **was empty** — **root cause found and fixed**: admin-set schedule was never saved during invite creation (no `schedule` column in `doctor_invites`), and the Edge Function never created `doctor_schedules` rows
+- Appointments/queue ✅ RLS works — `current_doctor_id()` function linked to `auth.uid()`
+- Patients list ✅ RLS works — `patient_bookings_view` filters by `doctor_id`
+
+**Critical P0 bugs remain**, and several backend dependencies are still on local static data or missing SQL tables.
 
 ---
 
@@ -71,9 +77,9 @@ However, **critical P0 bugs remain in production**, and several backend dependen
 ## Build Result
 
 ```
-Build: 2026-05-24 11:40 PDT
-Hash: b1a8487bfd261173
-Time: 27862ms
+Build: 2026-05-24 12:12 PDT
+Hash: 57f7d304faeb30a0
+Time: 22056ms
 Errors: 0
 Warnings: All pre-existing (SCSS budgets, Ionic pseudo-class selectors)
 ```
@@ -82,26 +88,43 @@ Warnings: All pre-existing (SCSS budgets, Ionic pseudo-class selectors)
 
 ## Exact Next Actions
 
-1. **Deploy `doctor_invites` SQL** to Supabase SQL Editor — see `SUPABASE_REQUIRED_DOCTOR_INVITES_SQL.md`
-2. **Deploy `activate-doctor-invite` Edge Function**:
+1. **Run ALTER TABLE SQL** to add `schedule` JSONB column to `doctor_invites` — see `SUPABASE_REQUIRED_DOCTOR_PORTAL_SCHEDULE_FIX_SQL.md`
+2. **Deploy `doctor_invites` SQL** to Supabase SQL Editor — see `SUPABASE_REQUIRED_DOCTOR_INVITES_SQL.md`
+3. **Deploy updated `activate-doctor-invite` Edge Function**:
    ```bash
    cd "Z:\CLINIC\clinicbooking-be"
    supabase functions deploy activate-doctor-invite
    ```
-3. **Commit and push frontend changes** (P0 Add Staff fix + Doctor Invite changes):
+4. **Commit and push frontend changes** (schedule fix):
    ```bash
    cd "Z:\CLINIC\clinic_fe_supabase_phase2_booking_full"
    git add .
-   git commit -m "feat: implement admin doctor social login invite activation"
+   git commit -m "fix: persist schedule during doctor invite creation and activation"
    git push
    ```
-4. **Live-test Admin Add Staff** (existing P0 #1)
-5. **Live-test Admin Doctor Invite**:
-   - Go to `/admin/doctors` → Add Doctor
-   - Fill form (no password field)
-   - Submit → see invite success message
+5. **Live-test full Doctor Portal**:
+   - Go to `/admin/doctors` → Add Doctor → fill all fields including schedule → Submit
    - Sign out → sign in with Google using the invited email
    - Verify redirect to `/doctor/dashboard`
+   - Verify profile page loads ✅
+   - Verify schedule shows the admin-set working days ✅
+   - Verify appointments queue (will be empty — no bookings yet)
+   - Verify patients list (will be empty — no bookings yet)
+6. **Verify schedule select/insert RLS**: `doctor_schedules` SELECT policy is `true` (any authenticated user can read). Admin creates schedule via edge function using service_role, so RLS is bypassed. _No RLS fix needed — already correct._
+
+## Doctor Portal Scan Result
+
+| Feature | Status | Notes |
+|---|---|---|
+| Doctor login (social invite) | ✅ Works | Profile, role, doctor row created |
+| Doctor profile page | ✅ Works | `getMyProfile()` queries `doctors` by `user_id` |
+| Doctor schedule page | ❌ **EMPTY** | **FIXED** — schedule now saved in invite + created on activation |
+| Doctor appointments queue | ✅ Works | `current_doctor_id()` RPC + `doctor_today_queue_view` RLS |
+| Doctor patients list | ✅ Works | `patient_bookings_view` with RLS |
+| Doctor appointment detail | ✅ Works | Checks `doctor.userId` match |
+| Doctor consultation page | ✅ Works | Uses `BookingService` + `save_consultation_record` RPC |
+| Doctor profile edit | ✅ Works | `updateMyProfile()` queries by `user_id` |
+| Role guard | ✅ Works | `user_roles` table has 'doctor' role after activation |
 
 ---
 
@@ -109,5 +132,5 @@ Warnings: All pre-existing (SCSS budgets, Ionic pseudo-class selectors)
 
 - **P0 #1: Add Staff bug still needs live verification**
 - **P0 #2: Walk-in booking RLS audit**
-- **P0 #3: Doctor invite SQL + Edge Function deployment**
+- **P0 #3: Doctor invite table + schedule JSONB column + Edge Function deployment**
 - **P1: Doctor social login activation testing**

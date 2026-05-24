@@ -90,7 +90,12 @@ Same auth pattern as `create-staff`. Additionally:
 ### Prerequisites
 
 - `doctor_invites` table must be deployed from `SUPABASE_REQUIRED_DOCTOR_INVITES_SQL.md`
+- `schedule` JSONB column must exist on `doctor_invites` (ALTER TABLE from `SUPABASE_REQUIRED_DOCTOR_PORTAL_SCHEDULE_FIX_SQL.md`)
 - `SUPABASE_SERVICE_ROLE_KEY` secret must be set (or `SERVICE_ROLE_KEY` as fallback)
+
+### Schedule Creation (new in latest update)
+
+After upserting the `doctors` row, the Edge Function now reads `invite.schedule` (JSONB array of `{ dayOfWeek, startTime, endTime }`) and inserts corresponding rows into `public.doctor_schedules`. This ensures the admin-set schedule survives the invite → activation flow. If the schedule array is empty or missing, no `doctor_schedules` rows are created (doctor can set them manually later).
 
 ## Git vs Deployed State Comparison
 
@@ -98,12 +103,12 @@ Same auth pattern as `create-staff`. Additionally:
 |---|---|---|---|
 | `create-staff/index.ts` | ✅ Updated (explicit auth, role normalization, service_role fallback) | ✅ Deployed | Both in sync |
 | `update-staff-status/index.ts` | ✅ Updated (same auth pattern) | ✅ Deployed | Both in sync |
-| `activate-doctor-invite/index.ts` | ✅ Created | ❌ **NOT DEPLOYED** | New Edge Function |
+| `activate-doctor-invite/index.ts` | ✅ Updated (doctor_schedules creation + schedule fix) | ❌ **NOT DEPLOYED** | New Edge Function + schedule fix |
 | `cors.ts` | ✅ No `x-client-info` header | ✅ Deployed | Deployed alongside functions |
-| `staff.page.ts` (frontend) | ✅ Updated (explicit JWT header) | ❌ **NOT COMMITTED/PUSHED** | Unstaged changes. Vercel still serves old code. |
-| `auth-callback.page.ts` (frontend) | ✅ Updated (doctor activation check) | ❌ **NOT COMMITTED/PUSHED** | Unstaged changes |
-| `doctor-form.page.ts` (frontend) | ✅ Updated (remove password, invite flow) | ❌ **NOT COMMITTED/PUSHED** | Unstaged changes |
-| `admin-doctors.service.ts` (frontend) | ✅ Updated (add invite method) | ❌ **NOT COMMITTED/PUSHED** | Unstaged changes |
+| `staff.page.ts` (frontend) | ✅ Committed (`d6ffeb1`) | ✅ Committed/pushed | Auth fix committed |
+| `auth-callback.page.ts` (frontend) | ✅ Committed (`d6ffeb1`) | ✅ Committed/pushed | Doctor activation check committed |
+| `doctor-form.page.ts` (frontend) | ✅ Updated (passes schedule in invite) | ⚠️ Uncommitted update | Schedule fix needs separate commit |
+| `admin-doctors.service.ts` (frontend) | ✅ Updated (schedule in CreateDoctorInviteDto + payload) | ⚠️ Uncommitted update | Schedule fix needs separate commit |
 
 ---
 

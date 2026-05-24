@@ -147,9 +147,20 @@ Migrate admin-settings.service.ts from MockDataService to Supabase.
 
 ---
 
-## Prompt 7: Deploy Doctor Invite SQL
+## Prompt 7: Run Schedule ALTER TABLE SQL
 
-**Prompt before testing invite flow:**
+**Prompt before deploying doctor_invites table:**
+
+```
+Open Supabase Dashboard SQL Editor for project czswgpjjanllkmmwhmdh.
+Copy the SQL from SUPABASE_REQUIRED_DOCTOR_PORTAL_SCHEDULE_FIX_SQL.md.
+Run it.
+Verify: SELECT column_name FROM information_schema.columns WHERE table_name='doctor_invites' AND column_name='schedule';
+```
+
+## Prompt 8: Deploy Doctor Invite SQL
+
+**Prompt after schedule column is added:**
 
 ```
 Open Supabase Dashboard SQL Editor for project czswgpjjanllkmmwhmdh.
@@ -159,7 +170,7 @@ Verify table exists: SELECT * FROM doctor_invites LIMIT 1;
 Verify indexes: SELECT indexname FROM pg_indexes WHERE tablename = 'doctor_invites';
 ```
 
-## Prompt 8: Deploy Activate-Doctor-Invite Edge Function
+## Prompt 9: Deploy Activate-Doctor-Invite Edge Function
 
 **Prompt after SQL deployed:**
 

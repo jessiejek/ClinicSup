@@ -9,17 +9,14 @@ Use this file as the source of truth for this area. Future agents should read th
 ## npm run build Result
 
 ```
-Build at: 2026-05-24T11:40:05.219Z
-Hash: b1a8487bfd261173
-Time: 27862ms
-✔ Browser application bundle generation complete
-✔ Copying assets complete
-✔ Index html generation complete
+Build at: 2026-05-24T12:12:58.774Z
+Hash: 57f7d304faeb30a0
+Time: 22056ms
 Errors: 0
 Warnings: All pre-existing (SCSS budgets exceeded; Ionic pseudo-class selectors)
 ```
 
-**Doctor form chunk:** `2684.032640b0c91c6651.js` (18.52 kB)
+**Doctor form chunk:** `2684.90ab8c024d78b188.js` (18.64 kB)
 **Staff page chunk:** `3028.ebecce10ab37cc03.js` (17.64 kB)
 
 ---

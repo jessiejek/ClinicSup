@@ -128,6 +128,11 @@ export interface CreateDoctorInviteDto {
   slotDurationMinutes: number;
   slotCapacity: number;
   dailyPatientLimit: number | null;
+  schedule?: Array<{
+    dayOfWeek: string;
+    startTime: string;
+    endTime: string;
+  }>;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -265,6 +270,7 @@ export class AdminDoctorsService {
       slot_duration_minutes: dto.slotDurationMinutes,
       slot_capacity: dto.slotCapacity,
       daily_patient_limit: dto.dailyPatientLimit ?? null,
+      schedule: dto.schedule ?? null,
       status: 'pending',
       invited_by: invitedBy,
       doctor_id: null,
