@@ -124,220 +124,120 @@ ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
 -- ============================================================================
--- SECTION E3: Change bookings enum columns to TEXT
--- The create_booking RPC passes TEXT values (v_booking_status TEXT, 'PayAtClinic'
--- as TEXT, 'Unpaid' as TEXT) but if the existing table has these as enum types
--- (booking_status, payment_mode, payment_status), PostgreSQL rejects the insert.
--- Error: column "status" is of type booking_status but expression is of type text
+-- SECTION E3: Fix create_booking RPC to cast TEXT to enum types
+-- The create_booking RPC inserts TEXT values into booking_status, payment_mode,
+-- and payment_status enum columns. PostgreSQL cannot implicitly cast TEXT to
+-- an enum, so the INSERT fails with:
+--    column "status" is of type booking_status but expression is of type text
 --
--- PostgreSQL blocks ALTER COLUMN TYPE if any policy references the column,
--- so we temporarily drop all policies on public.bookings (and any other table
--- that might reference bookings.status via subquery or view), then recreate
--- the standard ones.
+-- Instead of ALTER COLUMN TYPE (which cascades into views, policies, and
+-- functions that all depend on the column type), we fix the RPC to cast
+-- the TEXT values explicitly to their enum types.
 -- ============================================================================
 
--- Drop ALL views that reference bookings (their _RETURN rules block ALTER COLUMN TYPE)
-DROP VIEW IF EXISTS public.patient_bookings_view CASCADE;
-DROP VIEW IF EXISTS public.doctor_today_queue_view CASCADE;
-DROP VIEW IF EXISTS public.staff_today_queue_view CASCADE;
-DROP VIEW IF EXISTS public.consultation_record_view CASCADE;
-
--- Drop all policies that might block the ALTER
-DO $$
+-- Recreate create_booking RPC with explicit enum casts
+CREATE OR REPLACE FUNCTION public.create_booking(
+    p_doctor_id UUID,
+    p_service_ids UUID[],
+    p_appointment_date DATE,
+    p_slot_start_time TIME,
+    p_slot_end_time TIME,
+    p_patient_id UUID DEFAULT NULL,
+    p_notes TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    booking_id UUID,
+    queue_number INT,
+    status TEXT,
+    payment_status TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
 DECLARE
-    rec RECORD;
+    v_patient_id UUID;
+    v_queue_number INT;
+    v_booking_id UUID;
+    v_total_amount NUMERIC(10,2);
+    v_doctor_consultation_fee NUMERIC(10,2);
+    v_service RECORD;
+    v_booking_status TEXT;
 BEGIN
-    FOR rec IN (
-        SELECT policyname, tablename FROM pg_policies
-        WHERE schemaname = 'public'
-        AND tablename IN ('bookings', 'reviews')
-    ) LOOP
-        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', rec.policyname, rec.tablename);
+    -- Determine patient: use current patient if not provided
+    v_patient_id := COALESCE(p_patient_id, public.current_patient_id());
+    IF v_patient_id IS NULL THEN
+        RAISE EXCEPTION 'Patient is required. Provide p_patient_id or ensure logged-in user has a patient record.';
+    END IF;
+
+    -- Verify doctor exists and is active
+    IF NOT EXISTS (SELECT 1 FROM public.doctors WHERE id = p_doctor_id AND status = 'Active') THEN
+        RAISE EXCEPTION 'Doctor not found or not active.';
+    END IF;
+
+    -- Verify all service IDs exist
+    IF NOT EXISTS (
+        SELECT 1 FROM public.services s
+        WHERE s.id = ANY(p_service_ids) AND s.is_active = true
+        HAVING COUNT(*) = array_length(p_service_ids, 1)
+    ) THEN
+        RAISE EXCEPTION 'One or more services not found or inactive.';
+    END IF;
+
+    -- Verify slot availability (no overlapping bookings)
+    IF EXISTS (
+        SELECT 1 FROM public.bookings
+        WHERE doctor_id = p_doctor_id
+          AND appointment_date = p_appointment_date
+          AND slot_start_time < p_slot_end_time
+          AND slot_end_time > p_slot_start_time
+          AND status NOT IN ('Cancelled', 'NoShow', 'Expired')
+    ) THEN
+        RAISE EXCEPTION 'Time slot is already booked.';
+    END IF;
+
+    -- Calculate total amount from services
+    SELECT COALESCE(SUM(s.price), 0) INTO v_total_amount
+    FROM public.services s WHERE s.id = ANY(p_service_ids);
+
+    -- Get doctor's consultation fee
+    SELECT consultation_fee INTO v_doctor_consultation_fee
+    FROM public.doctors WHERE id = p_doctor_id;
+
+    -- Add consultation fee to total
+    v_total_amount := v_total_amount + COALESCE(v_doctor_consultation_fee, 0);
+
+    -- Assign queue number (next number for this doctor on this date)
+    SELECT COALESCE(MAX(queue_number), 0) + 1 INTO v_queue_number
+    FROM public.bookings
+    WHERE doctor_id = p_doctor_id AND appointment_date = p_appointment_date;
+
+    -- Default status: 'Confirmed' for patient-initiated, 'Pending' for walk-in
+    v_booking_status := 'Confirmed';
+
+    -- Create booking with explicit enum casts for status, payment_mode, payment_status
+    INSERT INTO public.bookings (
+        patient_id, doctor_id, appointment_date, slot_start_time, slot_end_time,
+        queue_number, status, payment_mode, payment_status, total_amount, final_amount,
+        notes, is_walk_in
+    ) VALUES (
+        v_patient_id, p_doctor_id, p_appointment_date, p_slot_start_time, p_slot_end_time,
+        v_queue_number, v_booking_status::booking_status, 'PayAtClinic'::payment_mode, 'Unpaid'::payment_status,
+        v_total_amount, v_total_amount,
+        p_notes, (p_patient_id IS NULL)
+    )
+    RETURNING id INTO v_booking_id;
+
+    -- Create booking_service_items
+    FOR v_service IN SELECT s.id, s.name, s.price FROM public.services s WHERE s.id = ANY(p_service_ids)
+    LOOP
+        INSERT INTO public.booking_service_items (booking_id, service_id, service_name, quantity, price)
+        VALUES (v_booking_id, v_service.id, v_service.name, 1, v_service.price);
     END LOOP;
+
+    -- Return result
+    RETURN QUERY SELECT v_booking_id, v_queue_number, v_booking_status, 'Unpaid';
 END;
 $$;
-
--- Now alter the column types (no view or policy dependencies to block)
-ALTER TABLE public.bookings ALTER COLUMN status TYPE TEXT USING status::TEXT;
-ALTER TABLE public.bookings ALTER COLUMN status SET DEFAULT 'Pending';
-ALTER TABLE public.bookings ALTER COLUMN payment_mode TYPE TEXT USING payment_mode::TEXT;
-ALTER TABLE public.bookings ALTER COLUMN payment_mode SET DEFAULT 'PayAtClinic';
-ALTER TABLE public.bookings ALTER COLUMN payment_status TYPE TEXT USING payment_status::TEXT;
-ALTER TABLE public.bookings ALTER COLUMN payment_status SET DEFAULT 'Unpaid';
-
--- ==========================================================================
--- Recreate views (dropped above with CASCADE to unblock ALTER COLUMN TYPE)
--- These are the exact definitions from phase-02-booking-workflow.sql lines 185–442
--- ==========================================================================
-
--- 1a. patient_bookings_view — core booking list
-CREATE VIEW public.patient_bookings_view AS
-SELECT
-    b.id AS booking_id,
-    b.id AS booking_key,
-    b.patient_id,
-    b.doctor_id,
-    b.appointment_date,
-    b.slot_start_time,
-    b.slot_end_time,
-    b.queue_number,
-    b.status AS booking_status,
-    b.payment_status,
-    b.payment_mode,
-    b.total_amount,
-    b.final_amount,
-    b.notes,
-    b.is_walk_in,
-    b.is_professional_fee_waived,
-    b.checked_in_at,
-    b.cancelled_at,
-    b.cancellation_reason,
-    b.created_at,
-    b.updated_at,
-    -- Patient info
-    p.first_name AS patient_first_name,
-    p.last_name AS patient_last_name,
-    p.avatar_url AS patient_avatar,
-    -- Doctor info
-    d.first_name AS doctor_first_name,
-    d.last_name AS doctor_last_name,
-    d.avatar_url AS doctor_avatar,
-    -- Service summary
-    COALESCE(
-        (SELECT string_agg(s.name, ', ') FROM public.booking_services bs
-         JOIN public.services s ON s.id = bs.service_id
-         WHERE bs.booking_id = b.id),
-        ''
-    ) AS service_names
-FROM public.bookings b
-LEFT JOIN public.patients p ON p.id = b.patient_id
-LEFT JOIN public.doctors d ON d.id = b.doctor_id;
-
--- 1b. doctor_today_queue_view — today's queue for a doctor
-CREATE VIEW public.doctor_today_queue_view AS
-SELECT *
-FROM public.patient_bookings_view
-WHERE appointment_date = CURRENT_DATE
-ORDER BY queue_number ASC NULLS LAST, slot_start_time ASC;
-
--- 1c. staff_today_queue_view — today's queue for staff
-CREATE VIEW public.staff_today_queue_view AS
-SELECT *
-FROM public.patient_bookings_view
-WHERE appointment_date = CURRENT_DATE
-ORDER BY queue_number ASC NULLS LAST, slot_start_time ASC;
-
--- 1d. consultation_record_view — full consultation details
-CREATE VIEW public.consultation_record_view AS
-SELECT
-    c.id AS consultation_id,
-    c.booking_id,
-    b.patient_id,
-    b.doctor_id,
-    b.appointment_date,
-    b.slot_start_time,
-    b.slot_end_time,
-    b.status AS booking_status,
-    b.is_walk_in,
-    p.first_name AS patient_first_name,
-    p.last_name AS patient_last_name,
-    p.date_of_birth,
-    p.phone,
-    d.first_name AS doctor_first_name,
-    d.last_name AS doctor_last_name,
-    -- Diagnoses
-    (SELECT jsonb_agg(jsonb_build_object('id', diag.id, 'diagnosis', diag.diagnosis, 'notes', diag.notes, 'is_primary', diag.is_primary))
-     FROM public.diagnoses diag WHERE diag.consultation_id = c.id
-    ) AS diagnoses,
-    -- Prescriptions
-    (SELECT jsonb_agg(jsonb_build_object('id', med.id, 'medication_id', med.medication_id, 'medication_name', med.medication_name, 'dosage', med.dosage, 'frequency', med.frequency, 'duration', med.duration, 'notes', med.notes))
-     FROM public.medications med WHERE med.consultation_id = c.id
-    ) AS prescriptions,
-    -- Services
-    (SELECT jsonb_agg(DISTINCT jsonb_build_object('id', s.id, 'name', s.name, 'category', s.category))
-     FROM public.booking_services bsv
-     JOIN public.services s ON s.id = bsv.service_id
-     WHERE bsv.booking_id = b.id AND bsv.booking_id IS NOT NULL
-    ) AS services,
-    -- Vitals
-    (SELECT row_to_json(v.*) FROM public.vitals v WHERE v.booking_id = b.id LIMIT 1
-    ) AS vitals
-FROM public.consultations c
-JOIN public.bookings b ON b.id = c.booking_id
-JOIN public.patients p ON p.id = b.patient_id
-JOIN public.doctors d ON d.id = b.doctor_id;
-
--- Re-grant SELECT on views (grants survive the DROP + recreate cycle)
-GRANT SELECT ON public.patient_bookings_view TO authenticated, anon;
-GRANT SELECT ON public.doctor_today_queue_view TO authenticated, anon;
-GRANT SELECT ON public.staff_today_queue_view TO authenticated, anon;
-GRANT SELECT ON public.consultation_record_view TO authenticated, anon;
-
--- ==========================================================================
--- Recreate standard policies on bookings
--- ==========================================================================
-ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
-
--- Patients can see their own bookings
-DROP POLICY IF EXISTS "bookings_select_patient" ON public.bookings;
-CREATE POLICY "bookings_select_patient" ON public.bookings
-    FOR SELECT USING (
-        patient_id IN (SELECT id FROM public.patients WHERE user_id = auth.uid())
-    );
-
--- Staff/admin can see all bookings
-DROP POLICY IF EXISTS "bookings_select_staff" ON public.bookings;
-CREATE POLICY "bookings_select_staff" ON public.bookings
-    FOR SELECT USING (
-        public.has_any_role(ARRAY['staff', 'admin', 'super_admin', 'doctor']::app_role[])
-    );
-
--- Doctors can see bookings assigned to them
-DROP POLICY IF EXISTS "bookings_select_doctor" ON public.bookings;
-CREATE POLICY "bookings_select_doctor" ON public.bookings
-    FOR SELECT USING (
-        doctor_id IN (SELECT id FROM public.doctors WHERE user_id = auth.uid())
-    );
-
--- Patients can insert their own bookings (via RPC, but policy still needed for direct inserts)
-DROP POLICY IF EXISTS "bookings_insert_patient" ON public.bookings;
-CREATE POLICY "bookings_insert_patient" ON public.bookings
-    FOR INSERT WITH CHECK (
-        patient_id IN (SELECT id FROM public.patients WHERE user_id = auth.uid())
-        OR public.has_any_role(ARRAY['staff', 'admin', 'super_admin']::app_role[])
-    );
-
--- Staff/admin can update bookings
-DROP POLICY IF EXISTS "bookings_update_staff" ON public.bookings;
-CREATE POLICY "bookings_update_staff" ON public.bookings
-    FOR UPDATE USING (
-        public.has_any_role(ARRAY['staff', 'admin', 'super_admin', 'doctor']::app_role[])
-    );
-
--- Recreate standard reviews policy (was dropped above to unblock ALTER)
-DROP POLICY IF EXISTS "reviews_select_authenticated" ON public.reviews;
-CREATE POLICY "reviews_select_authenticated"
-    ON public.reviews
-    FOR SELECT
-    TO authenticated
-    USING (true);
-
-DROP POLICY IF EXISTS "reviews_select_public" ON public.reviews;
-CREATE POLICY "reviews_select_public"
-    ON public.reviews
-    FOR SELECT
-    USING (true);
-
-DROP POLICY IF EXISTS "reviews_insert_own" ON public.reviews;
-CREATE POLICY "reviews_insert_own"
-    ON public.reviews
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (
-        patient_id IN (
-            SELECT p.id FROM public.patients p WHERE p.user_id = auth.uid()
-        )
-    );
 
 -- ============================================================================
 -- SECTION F: Verify create_booking has self-booking support
