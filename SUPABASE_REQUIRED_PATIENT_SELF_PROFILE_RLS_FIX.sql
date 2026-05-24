@@ -95,7 +95,16 @@ END;
 $$;
 
 -- ============================================================================
--- SECTION E: Verify create_booking has self-booking support
+-- SECTION E: Drop patients_sex_check constraint (blocks social-login insert)
+-- The CHECK constraint on sex (likely IN ('male','female','other') or similar)
+-- rejects 'rather-not-say' used as placeholder for social-login users.
+-- Since sex is now nullable, the constraint is unnecessary.
+-- ============================================================================
+
+ALTER TABLE public.patients DROP CONSTRAINT IF EXISTS patients_sex_check;
+
+-- ============================================================================
+-- SECTION F: Verify create_booking has self-booking support
 -- (showing the patient-resolve logic; the full RPC is in Phase 2 SQL)
 -- ============================================================================
 
