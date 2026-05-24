@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { SupabaseService } from '../../core/services/supabase.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-auth-callback',
@@ -51,8 +52,6 @@ export class AuthCallbackPage implements OnInit {
   async ngOnInit(): Promise<void> {
     try {
       // Wait a tick for the Supabase client to process the OAuth hash fragment.
-      // detectSessionInUrl: true runs during createClient, but we need the
-      // session to be fully settled before proceeding.
       await new Promise((r) => setTimeout(r, 100));
 
       const { data, error } = await this.supabase.auth.getSession();
@@ -62,7 +61,6 @@ export class AuthCallbackPage implements OnInit {
       }
 
       if (!data.session?.user) {
-        // No session found — OAuth may not have completed.
         this.statusText = 'Sign in was not completed. Redirecting...';
         await new Promise((r) => setTimeout(r, 1500));
         void this.router.navigate(['/auth/login']);
@@ -71,18 +69,47 @@ export class AuthCallbackPage implements OnInit {
 
       this.statusText = 'Loading your account...';
 
-      // loadAuthUser creates profile, assigns role, creates patient row
+      const accessToken = data.session.access_token;
+
+      // loadAuthUser creates profile, assigns role (defaults to Patient), creates patient row
       const authUser = await this.authService.loadAuthUser(
         data.session.user,
         data.session
       );
 
-      // Persist and set user in state
-      this.authService.persistUser(authUser);
-      this.authState.setUser(authUser);
+      // ---- Doctor Social Login Activation: check for pending doctor invite ----
+      let activeRole = authUser.role;
+      if (activeRole === 'Patient') {
+        this.statusText = 'Checking for doctor invitations...';
+        try {
+          const activationResult = await this.tryActivateDoctorInvite(accessToken);
+          if (activationResult?.activated && activationResult.role === 'doctor') {
+            // Reload user profile with updated role
+            const refreshedSession = await this.supabase.auth.getSession();
+            if (refreshedSession.data.session?.user) {
+              const reloadedUser = await this.authService.loadAuthUser(
+                refreshedSession.data.session.user,
+                refreshedSession.data.session
+              );
+              this.authService.persistUser(reloadedUser);
+              this.authState.setUser(reloadedUser);
+              activeRole = 'Doctor';
+              void this.router.navigate(['/doctor/dashboard']);
+              return;
+            }
+          }
+        } catch (activateErr: unknown) {
+          console.warn('[AuthCallback] Doctor activation check failed (non-fatal):', activateErr);
+          // Continue with normal patient flow
+        }
+      }
 
-      // Navigate to the correct portal
-      this.authService.navigateByRole(authUser);
+      // Persist and set user in state (if not already redirected as doctor)
+      if (activeRole !== 'Doctor') {
+        this.authService.persistUser(authUser);
+        this.authState.setUser(authUser);
+        this.authService.navigateByRole(authUser);
+      }
     } catch (err: unknown) {
       console.error('[AuthCallback] OAuth callback error:', err);
       this.statusText = err instanceof Error ? err.message : 'Sign in failed.';
@@ -90,5 +117,23 @@ export class AuthCallbackPage implements OnInit {
       this.authState.clearError();
       void this.router.navigate(['/auth/login']);
     }
+  }
+
+  private async tryActivateDoctorInvite(accessToken: string): Promise<{ activated: boolean; role: string | null } | null> {
+    const { data: funcData, error: funcError } = await this.supabase.functions.invoke(
+      'activate-doctor-invite',
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (funcError) {
+      console.warn('[AuthCallback] activate-doctor-invite invocation error:', funcError);
+      return null;
+    }
+
+    return funcData as { activated: boolean; role: string | null } | null;
   }
 }

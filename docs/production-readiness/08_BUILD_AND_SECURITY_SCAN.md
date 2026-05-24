@@ -9,9 +9,9 @@ Use this file as the source of truth for this area. Future agents should read th
 ## npm run build Result
 
 ```
-Build at: 2026-05-24T09:22:49.017Z
-Hash: 047b08094a279114
-Time: 26298ms
+Build at: 2026-05-24T11:40:05.219Z
+Hash: b1a8487bfd261173
+Time: 27862ms
 ✔ Browser application bundle generation complete
 ✔ Copying assets complete
 ✔ Index html generation complete
@@ -19,6 +19,7 @@ Errors: 0
 Warnings: All pre-existing (SCSS budgets exceeded; Ionic pseudo-class selectors)
 ```
 
+**Doctor form chunk:** `2684.032640b0c91c6651.js` (18.52 kB)
 **Staff page chunk:** `3028.ebecce10ab37cc03.js` (17.64 kB)
 
 ---
@@ -104,12 +105,10 @@ Warnings: All pre-existing (SCSS budgets exceeded; Ionic pseudo-class selectors)
 |---|---|
 | Latest frontend commit | `f224acd` (committed, pushed) |
 | Staff page fix (explicit JWT) | ❌ **NOT committed/pushed** — Vercel serves old code |
+| Doctor invite feature (auth-callback, doctor-form, admin-doctors service) | ❌ **NOT committed/pushed** |
 | Edge Function create-staff | ✅ Deployed (deployed directly via CLI) |
 | Edge Function update-staff-status | ✅ Deployed (deployed directly via CLI) |
-| Vercel deployment | ⚠️ **May be stale** — only files up to commit `f224acd` are deployed. The staff.page.ts fix is NOT in that commit. |
+| Edge Function activate-doctor-invite | ❌ **NOT deployed** |
+| Vercel deployment | ⚠️ **May be stale** — only files up to commit `f224acd` are deployed. |
 
-**Risk:** The frontend code that explicitly passes `Authorization` header is **NOT live on Vercel**. The deployed version still uses the old `supabase.functions.invoke()` without explicit headers. The Edge Functions are updated, but without the frontend JWT fix:
-- If `supabase.functions.invoke()` auto-injects the token (which it should in theory), it will work
-- If it doesn't auto-inject, the updated Edge Functions will return 401 "Missing Authorization header"
-
-**Recommendation:** Commit and push the frontend fix to Vercel before testing live.
+**Risk:** Multiple frontend files are not committed/pushed. All new features exist only locally.

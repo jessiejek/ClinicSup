@@ -66,26 +66,61 @@ Same auth pattern as `create-staff`. Additionally:
 
 ---
 
+## Function: `activate-doctor-invite`
+
+| Property | Detail |
+|---|---|
+| **File** | `clinicbooking-be/supabase/functions/activate-doctor-invite/index.ts` |
+| **Deployed** | ❌ **NOT DEPLOYED** |
+| **Last deploy method** | Not yet deployed |
+| **Environment secrets** | `SUPABASE_URL` (auto), `SUPABASE_ANON_KEY` (auto), `SUPABASE_SERVICE_ROLE_KEY` (must be set) |
+
+### Auth Validation
+
+1. Reads `Authorization: Bearer <token>` header — returns 401 if missing
+2. Validates JWT via `anonClient.auth.getUser(token)`
+3. Gets caller email from auth user, normalizes to lowercase
+4. Gets service role key with fallback (`SERVICE_ROLE_KEY`)
+5. Queries `doctor_invites WHERE status='pending' AND email=<email>`
+6. No pending invite → returns `{ activated: false }` HTTP 200 (not an error)
+7. Pending invite found → upserts profile, user_roles, doctors rows
+8. Marks invite as accepted
+9. Returns `{ activated: true, role: 'doctor', doctorId }`
+
+### Prerequisites
+
+- `doctor_invites` table must be deployed from `SUPABASE_REQUIRED_DOCTOR_INVITES_SQL.md`
+- `SUPABASE_SERVICE_ROLE_KEY` secret must be set (or `SERVICE_ROLE_KEY` as fallback)
+
 ## Git vs Deployed State Comparison
 
 | Item | Local Code | Deployed | Notes |
 |---|---|---|---|
 | `create-staff/index.ts` | ✅ Updated (explicit auth, role normalization, service_role fallback) | ✅ Deployed | Both in sync |
 | `update-staff-status/index.ts` | ✅ Updated (same auth pattern) | ✅ Deployed | Both in sync |
+| `activate-doctor-invite/index.ts` | ✅ Created | ❌ **NOT DEPLOYED** | New Edge Function |
 | `cors.ts` | ✅ No `x-client-info` header | ✅ Deployed | Deployed alongside functions |
 | `staff.page.ts` (frontend) | ✅ Updated (explicit JWT header) | ❌ **NOT COMMITTED/PUSHED** | Unstaged changes. Vercel still serves old code. |
+| `auth-callback.page.ts` (frontend) | ✅ Updated (doctor activation check) | ❌ **NOT COMMITTED/PUSHED** | Unstaged changes |
+| `doctor-form.page.ts` (frontend) | ✅ Updated (remove password, invite flow) | ❌ **NOT COMMITTED/PUSHED** | Unstaged changes |
+| `admin-doctors.service.ts` (frontend) | ✅ Updated (add invite method) | ❌ **NOT COMMITTED/PUSHED** | Unstaged changes |
 
 ---
 
-## Deployment Commands (for re-deploy)
+## Deployment Commands
 
 ```bash
 cd "Z:\CLINIC\clinicbooking-be"
+
+# Deploy existing functions (re-deploy if changed)
 supabase functions deploy create-staff
 supabase functions deploy update-staff-status
+
+# Deploy new doctor activation function
+supabase functions deploy activate-doctor-invite
 ```
 
-## Set Service Role Key (if needed)
+## Set Service Role Key (if not already set)
 
 ```bash
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<paste-key-here>
@@ -99,4 +134,5 @@ supabase secrets set SERVICE_ROLE_KEY=<paste-key-here>
 1. Go to https://supabase.com/dashboard/project/czswgpjjanllkmmwhmdh/functions
 2. Check `create-staff` → Logs → Invoke it with a test admin JWT
 3. Check `update-staff-status` → Logs → Invoke with a test admin JWT
-4. **Verify** environment secrets are set in Settings → API
+4. Check `activate-doctor-invite` → Logs → Invoke with a test doctor email
+5. **Verify** environment secrets are set in Settings → API

@@ -14,6 +14,7 @@ import {
 } from '../components/doctor-schedule-form/doctor-schedule-form.component';
 import {
   AdminDoctorsService,
+  CreateDoctorInviteDto,
   CreateDoctorDto,
   DoctorSummary,
   UpsertSchedulesDto
@@ -64,27 +65,17 @@ const DAY_NAMES: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'F
                   class="filter-input"
                   type="email"
                   formControlName="doctorEmail"
-                  placeholder="Doctor Email"
+                  placeholder="Doctor email for social login invite"
                   autocomplete="email"
                 />
                 <div class="form-error-message" *ngIf="form.get('doctorEmail')?.touched && form.get('doctorEmail')?.invalid">
                   <span *ngIf="form.get('doctorEmail')?.hasError('required')">Doctor email is required.</span>
                   <span *ngIf="form.get('doctorEmail')?.hasError('email')">Enter a valid doctor email.</span>
                 </div>
-              </label>
-              <label class="form-field" *ngIf="!isEditMode">
-                <span class="form-field__label">Temporary Password</span>
-                <input
-                  class="filter-input"
-                  type="password"
-                  formControlName="tempPassword"
-                  placeholder="Temporary Password"
-                  autocomplete="new-password"
-                />
-                <div class="form-error-message" *ngIf="form.get('tempPassword')?.touched && form.get('tempPassword')?.invalid">
-                  <span *ngIf="form.get('tempPassword')?.hasError('required')">Temporary password is required.</span>
-                  <span *ngIf="form.get('tempPassword')?.hasError('minlength')">Temporary password must be at least 8 characters.</span>
-                </div>
+                <p class="form-field__hint" *ngIf="!isEditMode">
+                  The doctor will use this email to sign in with Google or Facebook.
+                  No password needed.
+                </p>
               </label>
               <label class="form-field">
                 <span class="form-field__label">Specialty</span>
@@ -173,7 +164,6 @@ export class DoctorFormPage implements OnInit {
   form = this.fb.group({
     fullName: ['', [Validators.required, Validators.minLength(2)]],
     doctorEmail: ['', [Validators.required, Validators.email]],
-    tempPassword: ['', [Validators.required, Validators.minLength(8)]],
     specialization: ['', Validators.required],
     bio: [''],
     licenseNumber: [''],
@@ -193,13 +183,9 @@ export class DoctorFormPage implements OnInit {
     if (this.isEditMode) {
       this.form.controls.doctorEmail.clearValidators();
       this.form.controls.doctorEmail.updateValueAndValidity({ emitEvent: false });
-      this.form.controls.tempPassword.clearValidators();
-      this.form.controls.tempPassword.updateValueAndValidity({ emitEvent: false });
     } else {
       this.form.controls.doctorEmail.setValidators([Validators.required, Validators.email]);
       this.form.controls.doctorEmail.updateValueAndValidity({ emitEvent: false });
-      this.form.controls.tempPassword.setValidators([Validators.required, Validators.minLength(8)]);
-      this.form.controls.tempPassword.updateValueAndValidity({ emitEvent: false });
     }
 
     if (!this.doctorId) {
@@ -240,7 +226,6 @@ export class DoctorFormPage implements OnInit {
         this.form.patchValue({
           fullName: doctor.fullName,
           doctorEmail: '',
-          tempPassword: '',
           specialization: doctor.specialization,
           bio: doctor.bio ?? '',
           licenseNumber: doctor.licenseNumber ?? '',
@@ -263,35 +248,6 @@ export class DoctorFormPage implements OnInit {
 
     this.isSaving = true;
     const value = this.form.getRawValue();
-    const updatePayload: Omit<Doctor, 'id'> = {
-      userId: this.currentDoctor?.userId ?? `user-doctor-${Date.now()}`,
-      fullName: value.fullName ?? '',
-      specialization: value.specialization ?? '',
-      bio: value.bio ?? '',
-      licenseNumber: value.licenseNumber ?? '',
-      ptrNumber: value.ptrNumber ?? '',
-      s2Number: value.s2Number ?? '',
-      consultationFee: Number(value.consultationFee ?? 0),
-      status: (value.status as Doctor['status']) ?? 'Active',
-      slotDurationMinutes: Number(value.slotDurationMinutes ?? 30),
-      slotCapacity: Number(value.slotCapacity ?? 1),
-      dailyPatientLimit: value.dailyPatientLimit ?? null
-    };
-
-    const createPayload: CreateDoctorDto = {
-      fullName: value.fullName ?? '',
-      specialization: value.specialization ?? '',
-      bio: value.bio ?? '',
-      licenseNumber: value.licenseNumber ?? '',
-      ptrNumber: value.ptrNumber ?? '',
-      s2Number: value.s2Number ?? '',
-      consultationFee: Number(value.consultationFee ?? 0),
-      slotDurationMinutes: Number(value.slotDurationMinutes ?? 30),
-      slotCapacity: Number(value.slotCapacity ?? 1),
-      dailyPatientLimit: value.dailyPatientLimit ?? null,
-      doctorEmail: String(value.doctorEmail ?? '').trim(),
-      tempPassword: String(value.tempPassword ?? '')
-    };
 
     const schedulesPayload: UpsertSchedulesDto = {
       schedules: this.scheduleDraft
@@ -303,30 +259,80 @@ export class DoctorFormPage implements OnInit {
         }))
     };
 
-    const save$ = this.isEditMode && this.doctorId
-      ? this.adminDoctorsService.updateDoctor(this.doctorId, updatePayload)
-      : this.adminDoctorsService.createDoctor(createPayload);
+    if (this.isEditMode && this.doctorId) {
+      // Edit mode: update existing doctor + schedule
+      const updatePayload: Partial<Doctor> = {
+        fullName: value.fullName ?? '',
+        specialization: value.specialization ?? '',
+        bio: value.bio ?? '',
+        licenseNumber: value.licenseNumber ?? '',
+        ptrNumber: value.ptrNumber ?? '',
+        s2Number: value.s2Number ?? '',
+        consultationFee: Number(value.consultationFee ?? 0),
+        status: (value.status as Doctor['status']) ?? 'Active',
+        slotDurationMinutes: Number(value.slotDurationMinutes ?? 30),
+        slotCapacity: Number(value.slotCapacity ?? 1),
+        dailyPatientLimit: value.dailyPatientLimit ?? null
+      };
 
-    save$
-      .pipe(
-        switchMap((savedDoctor) =>
-          this.adminDoctorsService.updateSchedule(savedDoctor.id, schedulesPayload).pipe(map(() => savedDoctor))
-        ),
-        finalize(() => {
-          this.isSaving = false;
-        }),
-        takeUntilDestroyed(this.destroyRef)
-      )
-      .subscribe({
-        next: async () => {
-          const message = this.isEditMode ? 'Doctor updated successfully.' : 'Doctor created successfully.';
-          await this.presentToast(message, 'success');
-          void this.router.navigate(['/admin/doctors']);
-        },
-        error: (error: unknown) => {
-          void this.presentToast(extractApiErrorMessage(error, 'Failed to save doctor.'));
-        }
-      });
+      this.adminDoctorsService.updateDoctor(this.doctorId, updatePayload)
+        .pipe(
+          switchMap((savedDoctor) =>
+            this.adminDoctorsService.updateSchedule(savedDoctor.id, schedulesPayload).pipe(map(() => savedDoctor))
+          ),
+          finalize(() => {
+            this.isSaving = false;
+          }),
+          takeUntilDestroyed(this.destroyRef)
+        )
+        .subscribe({
+          next: async () => {
+            await this.presentToast('Doctor updated successfully.', 'success');
+            void this.router.navigate(['/admin/doctors']);
+          },
+          error: (error: unknown) => {
+            void this.presentToast(extractApiErrorMessage(error, 'Failed to update doctor.'));
+          }
+        });
+    } else {
+      // Create mode: create a doctor invite (no password needed)
+      const invitePayload: CreateDoctorInviteDto = {
+        fullName: value.fullName ?? '',
+        email: String(value.doctorEmail ?? '').trim(),
+        specialization: value.specialization ?? '',
+        bio: value.bio ?? '',
+        licenseNumber: value.licenseNumber ?? '',
+        ptrNumber: value.ptrNumber ?? '',
+        s2Number: value.s2Number ?? '',
+        consultationFee: Number(value.consultationFee ?? 0),
+        slotDurationMinutes: Number(value.slotDurationMinutes ?? 30),
+        slotCapacity: Number(value.slotCapacity ?? 1),
+        dailyPatientLimit: value.dailyPatientLimit ?? null
+      };
+
+      this.adminDoctorsService.createDoctorInvite(invitePayload)
+        .pipe(
+          finalize(() => {
+            this.isSaving = false;
+          }),
+          takeUntilDestroyed(this.destroyRef)
+        )
+        .subscribe({
+          next: async () => {
+            const toast = await this.toastController.create({
+              message: 'Doctor invite created. The doctor must sign in with Google or Facebook using this email to activate the account.',
+              duration: 5000,
+              color: 'success',
+              position: 'top'
+            });
+            await toast.present();
+            void this.router.navigate(['/admin/doctors']);
+          },
+          error: (error: unknown) => {
+            void this.presentToast(extractApiErrorMessage(error, 'Failed to create doctor invite.'));
+          }
+        });
+    }
   }
 
   cancel(): void {

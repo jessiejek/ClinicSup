@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, from, map } from 'rxjs';
+import { Observable, from, map, switchMap, take } from 'rxjs';
+import { AuthStateService } from '../../../core/services/auth-state.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import {
   DayOfWeek,
@@ -115,9 +116,24 @@ export interface BlockDateDto {
 
 export type BlockedDate = DoctorBlockedDate;
 
+export interface CreateDoctorInviteDto {
+  fullName: string;
+  email: string;
+  specialization: string;
+  bio?: string;
+  licenseNumber?: string;
+  ptrNumber?: string;
+  s2Number?: string;
+  consultationFee: number;
+  slotDurationMinutes: number;
+  slotCapacity: number;
+  dailyPatientLimit: number | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AdminDoctorsService {
   private readonly supabase = inject(SupabaseService).client;
+  private readonly authState = inject(AuthStateService);
 
   getAllDoctors(): Observable<DoctorSummary[]> {
     return from(this.fetchAllDoctors());
@@ -133,6 +149,18 @@ export class AdminDoctorsService {
 
   addDoctor(doctor: CreateDoctorDto): Observable<DoctorDetail> {
     return this.createDoctor(doctor);
+  }
+
+  createDoctorInvite(dto: CreateDoctorInviteDto): Observable<{ inviteId: string }> {
+    return this.authState.currentUser$.pipe(
+      take(1),
+      switchMap((authUser) => {
+        if (!authUser) {
+          throw new Error('You must be logged in as admin to invite a doctor.');
+        }
+        return from(this.createDoctorInviteAsync(dto, authUser.id));
+      })
+    );
   }
 
   updateDoctor(id: string, dto: UpdateDoctorDto): Observable<DoctorDetail> {
@@ -220,6 +248,46 @@ export class AdminDoctorsService {
     if (error) {
       throw error;
     }
+  }
+
+  private async createDoctorInviteAsync(dto: CreateDoctorInviteDto, invitedBy: string): Promise<{ inviteId: string }> {
+    const normalizedEmail = dto.email.trim().toLowerCase();
+
+    const payload: Record<string, unknown> = {
+      email: normalizedEmail,
+      full_name: dto.fullName.trim(),
+      specialization: dto.specialization.trim(),
+      bio: dto.bio?.trim() || null,
+      license_number: dto.licenseNumber?.trim() || null,
+      ptr_number: dto.ptrNumber?.trim() || null,
+      s2_number: dto.s2Number?.trim() || null,
+      consultation_fee: dto.consultationFee,
+      slot_duration_minutes: dto.slotDurationMinutes,
+      slot_capacity: dto.slotCapacity,
+      daily_patient_limit: dto.dailyPatientLimit ?? null,
+      status: 'pending',
+      invited_by: invitedBy,
+      doctor_id: null,
+    };
+
+    const { data, error } = await this.supabase
+      .from('doctor_invites')
+      .insert(payload)
+      .select('id')
+      .single();
+
+    if (error) {
+      // If table doesn't exist, show a clear migration message
+      if (error.code === '42P01') {
+        throw new Error(
+          'The doctor_invites table does not exist yet. ' +
+          'Deploy SUPABASE_REQUIRED_DOCTOR_INVITES_SQL.md first, then try again.'
+        );
+      }
+      throw error;
+    }
+
+    return { inviteId: (data as { id: string }).id };
   }
 
   private async createDoctorAsync(dto: CreateDoctorDto): Promise<DoctorSummary> {

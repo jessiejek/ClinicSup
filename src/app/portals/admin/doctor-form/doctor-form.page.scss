@@ -62,6 +62,13 @@
   resize: vertical;
 }
 
+.form-field__hint {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--clinic-text-muted, #6b7280);
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;
