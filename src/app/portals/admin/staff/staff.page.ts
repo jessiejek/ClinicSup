@@ -196,19 +196,47 @@ export class StaffPage implements OnInit {
     this.addSubmitting = true;
 
     try {
+      // Explicitly get session and access token
+      const { data: sessionData } = await this.supabase.client.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
+      if (!accessToken) {
+        const msg = 'Your admin session expired. Please log in again.';
+        this.addError = msg;
+        const toast = await this.toastCtrl.create({
+          message: msg,
+          duration: 5000,
+          position: 'bottom',
+          color: 'danger',
+        });
+        await toast.present();
+        return;
+      }
+
+      const bodyPayload: Record<string, unknown> = {
+        fullName: this.draft.fullName.trim(),
+        email: this.draft.email.trim(),
+      };
+      const pw = this.draft.password.trim();
+      if (pw) {
+        bodyPayload['password'] = pw;
+      }
+
       const { data, error } = await this.supabase.client.functions.invoke<CreateStaffResponse>(
         'create-staff',
         {
-          body: {
-            fullName: this.draft.fullName.trim(),
-            email: this.draft.email.trim(),
-            password: this.draft.password.trim() || undefined,
+          body: bodyPayload,
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
           },
         },
       );
 
       if (error) {
-        throw new Error(error.message || 'Failed to create staff account.');
+        console.error('[AdminStaff] create-staff failed:', error);
+        const httpStatus = (error as any)?.context?.status ?? '';
+        const msg = error.message || 'Failed to create staff account.';
+        throw new Error(httpStatus ? `Error ${httpStatus}: ${msg}` : msg);
       }
 
       if (!data?.userId) {
@@ -230,7 +258,6 @@ export class StaffPage implements OnInit {
       const message = err?.message || 'Could not create staff account.';
       this.addError = message;
 
-      // Also show a toast for visibility
       const toast = await this.toastCtrl.create({
         message,
         duration: 5000,
@@ -248,6 +275,22 @@ export class StaffPage implements OnInit {
     this.toggleBusy.add(id);
 
     try {
+      // Explicitly get session token
+      const { data: sessionData } = await this.supabase.client.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
+      if (!accessToken) {
+        const msg = 'Your admin session expired. Please log in again.';
+        const toast = await this.toastCtrl.create({
+          message: msg,
+          duration: 5000,
+          position: 'bottom',
+          color: 'danger',
+        });
+        await toast.present();
+        return;
+      }
+
       const member = this.staff.find(s => s.id === id);
       if (!member) return;
 
@@ -255,11 +298,19 @@ export class StaffPage implements OnInit {
 
       const { data, error } = await this.supabase.client.functions.invoke<UpdateStatusResponse>(
         'update-staff-status',
-        { body: { userId: id, action } },
+        {
+          body: { userId: id, action },
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
       );
 
       if (error) {
-        throw new Error(error.message || `Failed to ${action} staff member.`);
+        console.error('[AdminStaff] update-staff-status failed:', error);
+        const httpStatus = (error as any)?.context?.status ?? '';
+        const msg = error.message || `Failed to ${action} staff member.`;
+        throw new Error(httpStatus ? `Error ${httpStatus}: ${msg}` : msg);
       }
 
       // Reload the list to reflect updated status
