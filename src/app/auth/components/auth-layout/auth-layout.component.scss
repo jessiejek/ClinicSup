@@ -93,7 +93,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   background: white;
   overflow-y: auto;
   padding: var(--space-8);
@@ -102,6 +102,16 @@
 .auth-form-container {
   width: 100%;
   max-width: 440px;
+  /* center vertically when content fits, top-align when content overflows */
+  margin: auto 0;
+}
+
+/* ensure bottom content is visible above browser chrome */
+.auth-form-container::after {
+  content: '';
+  display: block;
+  height: var(--space-8);
+  pointer-events: none;
 }
 
 .auth-mobile-brand {
@@ -124,6 +134,10 @@
 
   .auth-right {
     justify-content: flex-start;
-    padding-top: var(--space-12);
+    padding: var(--space-6) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom, 16px));
+  }
+
+  .auth-form-container::after {
+    height: var(--space-6);
   }
 }
