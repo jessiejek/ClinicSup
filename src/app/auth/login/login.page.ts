@@ -90,7 +90,14 @@ export class LoginPage {
     // Supabase OAuth will redirect the page to Google, then back to the app.
     // The OAuth session is automatically handled by Supabase client (detectSessionInUrl: true).
     this.authService.loginWithGoogle().subscribe({
-      error: () => { /* Redirect is happening — ignore redirect-errors */ }
+      error: () => { /* Redirect is happening */ }
+    });
+  }
+
+  onFacebookLogin(): void {
+    this.authState.clearError();
+    this.authService.loginWithFacebook().subscribe({
+      error: () => { /* Redirect is happening */ }
     });
   }
 

@@ -82,10 +82,11 @@
       <button
         type="button"
         class="btn-social btn-social--facebook"
-        disabled
+        (click)="onFacebookLogin()"
+        [disabled]="(isLoading$ | async) === true"
       >
         <span class="btn-social__icon" aria-hidden="true">f</span>
-        Facebook (coming soon)
+        Continue with Facebook
       </button>
     </div>
 

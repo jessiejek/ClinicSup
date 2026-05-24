@@ -39,8 +39,10 @@ export class AuthService {
     );
   }
 
-  loginWithFacebook(_accessToken: string, _userId: string): Observable<AuthUser> {
-    return throwError(() => new Error('Facebook sign-in is deferred until Supabase OAuth is wired.'));
+  loginWithFacebook(): Observable<never> {
+    return from(this.loginWithFacebookAsync()).pipe(
+      switchMap(() => throwError(() => new Error('Redirecting to Facebook...')))
+    );
   }
 
   registerPatient(
@@ -158,6 +160,22 @@ export class AuthService {
       throw error;
     }
     // The page will redirect to Google, then back to the app with the OAuth session.
+  }
+
+  private async loginWithFacebookAsync(): Promise<void> {
+    const redirectUrl = environment.siteUrl || window.location.origin;
+    console.log('[Auth] Facebook OAuth redirectTo:', redirectUrl);
+    const { error } = await this.supabase.auth.signInWithOAuth({
+      provider: 'facebook',
+      options: {
+        redirectTo: redirectUrl
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+    // The page will redirect to Facebook, then back to the app with the OAuth session.
   }
 
   private async registerPatientAsync(

@@ -402,7 +402,7 @@ export class RegisterPage implements AfterViewInit {
       await this.presentErrorToast(this.facebookSdkError);
       return;
     }
-    this.authState.loginWithFacebook(accessToken, userID).pipe(
+    this.authState.loginWithFacebook().pipe(
       finalize(() => { this.facebookLoading = false; })
     ).subscribe({ error: () => undefined });
   }

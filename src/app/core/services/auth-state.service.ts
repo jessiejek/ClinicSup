@@ -69,11 +69,11 @@ export class AuthStateService {
     );
   }
 
-  loginWithFacebook(accessToken: string, userId: string): Observable<AuthUser> {
+  loginWithFacebook(): Observable<AuthUser> {
     this.loadingSubject.next(true);
     this.errorSubject.next(null);
 
-    return this.authService.loginWithFacebook(accessToken, userId).pipe(
+    return this.authService.loginWithFacebook().pipe(
       tap((user) => {
         this.setUser(user);
         this.authService.navigateByRole(user);
