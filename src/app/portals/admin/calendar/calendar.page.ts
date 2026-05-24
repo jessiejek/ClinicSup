@@ -3,7 +3,6 @@ import { Component, OnInit, inject } from '@angular/core';
 import { Booking, Doctor } from '../../../core/models';
 import { BookingService } from '../../../core/services/booking.service';
 import { DoctorStateService } from '../../../core/services/doctor-state.service';
-import { MockDataService } from '../../../core/services/mock-data.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
 
@@ -43,7 +42,7 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
           <div class="calendar__doctor">{{ doctor.fullName }}</div>
           <div class="calendar__cell" *ngFor="let day of weekDays">
             <div class="calendar__booking" *ngFor="let booking of bookingsForCell(doctor.id, day.date)">
-              <strong>{{ patientName(booking.patientId) }}</strong>
+              <strong>{{ booking.patientName }}</strong>
               <span>{{ booking.slotStartTime }}</span>
             </div>
           </div>
@@ -56,7 +55,6 @@ import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.
 export class CalendarPage implements OnInit {
   private readonly bookingService = inject(BookingService);
   private readonly doctorState = inject(DoctorStateService);
-  private readonly mockData = inject(MockDataService);
 
   bookings: Booking[] = [];
   doctors: Doctor[] = [];
@@ -66,7 +64,7 @@ export class CalendarPage implements OnInit {
   ngOnInit(): void {
     this.bookingService.getBookings().subscribe((bookings) => (this.bookings = bookings));
     this.bookingService.isLoading$.subscribe((loading) => (this.isLoading = loading));
-    this.doctorState.getDoctors().subscribe((doctors) => (this.doctors = doctors.length ? doctors : this.mockData.getDoctors()));
+    this.doctorState.getDoctors().subscribe((doctors) => (this.doctors = doctors));
   }
 
   get weekDays(): Array<{ label: string; date: string }> {
@@ -99,10 +97,6 @@ export class CalendarPage implements OnInit {
 
   bookingsForCell(doctorId: string, day: string): Booking[] {
     return this.weekBookings.filter((booking) => booking.doctorId === doctorId && booking.appointmentDate === day);
-  }
-
-  patientName(patientId: string): string {
-    return this.mockData.getPatientById(patientId)?.firstName ?? 'Patient';
   }
 
   private startOfWeek(date: Date): Date {

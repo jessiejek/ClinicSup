@@ -3,7 +3,6 @@ import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ToastController } from '@ionic/angular/standalone';
-import { MockDataService } from '../../../core/services/mock-data.service';
 import {
   AdminReportsService,
   DailyBookingSummaryRow,
@@ -156,7 +155,6 @@ export class ReportsPage implements OnInit {
   private readonly reportsService = inject(AdminReportsService);
   private readonly router = inject(Router);
   private readonly toastCtrl = inject(ToastController);
-  private readonly mockData = inject(MockDataService);
 
   isLoading = true;
   dateFrom = this.daysAgoIso(7);
@@ -194,11 +192,7 @@ export class ReportsPage implements OnInit {
   }
 
   viewBooking(bookingId: string): void {
-    if (this.mockData.getBookingById(bookingId)) {
-      void this.router.navigate(['/admin/bookings', bookingId]);
-      return;
-    }
-    void this.presentToast('View booking is mocked for this report row.');
+    void this.router.navigate(['/admin/bookings', bookingId]);
   }
 
   sendReminder(row: PendingFollowUpReportRow): void {
