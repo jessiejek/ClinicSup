@@ -1,10 +1,11 @@
 import { NgFor, NgIf } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MockDataService } from '../../../core/services/mock-data.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
-import { IonModal } from '@ionic/angular/standalone';
+import { IonModal, ToastController } from '@ionic/angular/standalone';
+import { SupabaseService } from '../../../core/services/supabase.service';
 
 interface StaffRow {
   id: string;
@@ -14,21 +15,44 @@ interface StaffRow {
   status: 'Active' | 'Inactive';
 }
 
+interface CreateStaffResponse {
+  userId: string;
+  email: string;
+  fullName: string;
+  role: string;
+}
+
+interface UpdateStatusResponse {
+  userId: string;
+  status: 'Active' | 'Inactive';
+  banned: boolean;
+}
+
 @Component({
   selector: 'app-admin-staff-page',
   standalone: true,
-  imports: [FormsModule, NgFor, NgIf, EmptyStateComponent, StatusBadgeComponent, IonModal],
+  imports: [FormsModule, NgFor, NgIf, EmptyStateComponent, SkeletonComponent, StatusBadgeComponent, IonModal],
   template: `
     <section class="page-shell">
       <div class="page-shell__header">
         <div>
           <h2 class="page-title">Staff Accounts</h2>
-          <p class="page-subtitle">Mock staff management for front desk accounts.</p>
+          <p class="page-subtitle">Manage front desk accounts.</p>
         </div>
         <button class="btn-primary" type="button" (click)="openModal()">Add Staff</button>
       </div>
 
-      <div class="clinic-card" *ngIf="staff.length > 0">
+      <!-- Loading state -->
+      <app-skeleton variant="row" [count]="5" *ngIf="loading"></app-skeleton>
+
+      <!-- Error state -->
+      <div class="notice notice--error" *ngIf="error && !loading">
+        <p>{{ error }}</p>
+        <button class="btn-ghost" type="button" (click)="ngOnInit()">Try again</button>
+      </div>
+
+      <!-- Staff table -->
+      <div class="clinic-card" *ngIf="!loading && !error && staff.length > 0">
         <div class="table-scroll-wrap">
         <table class="clinic-table">
           <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
@@ -38,27 +62,35 @@ interface StaffRow {
               <td>{{ member.email }}</td>
               <td>{{ member.role }}</td>
               <td><app-status-badge [status]="member.status"></app-status-badge></td>
-              <td><button class="btn-ghost" type="button" (click)="toggle(member.id)">{{ member.status === 'Active' ? 'Deactivate' : 'Reactivate' }}</button></td>
+              <td>
+                <button class="btn-ghost" type="button" (click)="toggle(member.id)" [disabled]="toggleBusy.has(member.id)">
+                  {{ toggleBusy.has(member.id) ? '\u2026' : (member.status === 'Active' ? 'Deactivate' : 'Reactivate') }}
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
         </div>
       </div>
 
-      <app-empty-state *ngIf="staff.length === 0" icon="person-add-outline" title="No staff accounts" description="Create the first front desk account to continue." ctaLabel="Add Staff" (ctaClick)="openModal()"></app-empty-state>
+      <!-- Empty state -->
+      <app-empty-state *ngIf="!loading && !error && staff.length === 0" icon="person-add-outline" title="No staff accounts" description="Create the first front desk account to continue." ctaLabel="Add Staff" (ctaClick)="openModal()"></app-empty-state>
     </section>
 
     <ion-modal [isOpen]="modalOpen" (didDismiss)="modalOpen = false">
       <ng-template>
         <div class="modal-shell">
-          <h3>Add Staff</h3>
+          <h3 *ngIf="!addError">Add Staff</h3>
           <form class="modal-form" (ngSubmit)="save()">
-            <input class="filter-input" name="fullName" [(ngModel)]="draft.fullName" placeholder="Name" />
-            <input class="filter-input" name="email" [(ngModel)]="draft.email" placeholder="Email" />
-            <input class="filter-input" name="password" [(ngModel)]="draft.password" placeholder="Temporary Password" />
+            <input class="filter-input" name="fullName" [(ngModel)]="draft.fullName" placeholder="Full Name" required />
+            <input class="filter-input" name="email" type="email" [(ngModel)]="draft.email" placeholder="Email" required />
+            <input class="filter-input" name="password" [(ngModel)]="draft.password" placeholder="Temporary Password (optional)" />
+            <p class="text-sm text-muted" *ngIf="addError">{{ addError }}</p>
             <div class="modal-actions">
               <button type="button" class="btn-ghost" (click)="modalOpen = false">Cancel</button>
-              <button type="submit" class="btn-primary">Save</button>
+              <button type="submit" class="btn-primary" [disabled]="addSubmitting">
+                {{ addSubmitting ? 'Creating\u2026' : 'Save' }}
+              </button>
             </div>
           </form>
         </div>
@@ -68,34 +100,187 @@ interface StaffRow {
   styleUrl: './staff.page.scss'
 })
 export class StaffPage implements OnInit {
-  private readonly mockData = inject(MockDataService);
+  private readonly supabase = inject(SupabaseService);
+  private readonly toastCtrl = inject(ToastController);
+
   staff: StaffRow[] = [];
+  loading = true;
+  error: string | null = null;
+
   modalOpen = false;
   draft = { fullName: '', email: '', password: '' };
+  addError: string | null = null;
+  addSubmitting = false;
 
-  ngOnInit(): void {
-    this.staff = this.mockData.getUsers().filter((user) => user.role === 'Staff').map((user) => ({
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      role: user.role,
-      status: 'Active'
-    }));
+  /** Track which staff IDs have an in-flight toggle request */
+  toggleBusy = new Set<string>();
+
+  async ngOnInit(): Promise<void> {
+    this.loading = true;
+    this.error = null;
+    await this.loadStaff();
+  }
+
+  private async loadStaff(): Promise<void> {
+    try {
+      // Step 1: fetch user_ids from user_roles where role = 'staff'
+      const { data: roles, error: rolesError } = await this.supabase.client
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'staff');
+
+      if (rolesError) throw new Error(rolesError.message);
+
+      if (!roles || roles.length === 0) {
+        this.staff = [];
+        return;
+      }
+
+      const userIds = roles.map(r => r.user_id);
+
+      // Step 2: fetch profiles for those user_ids
+      // The `status` column requires the SQL migration in SUPABASE_EDGE_FUNCTIONS_DEPLOY.md.
+      // If it does not exist yet, the query will fail — we catch and fall back.
+      let profiles: { id: string; full_name: string; email: string | null; status?: string | null }[] = [];
+
+      try {
+        const { data, error: profilesError } = await this.supabase.client
+          .from('profiles')
+          .select('id, full_name, email, status')
+          .in('id', userIds);
+
+        if (profilesError) throw profilesError;
+        profiles = data || [];
+      } catch (_profileQueryErr: any) {
+        // Column may not exist yet — retry without `status`
+        console.warn('profiles.status column not found, falling back without it. Run the SQL migration in SUPABASE_EDGE_FUNCTIONS_DEPLOY.md');
+        const { data, error: fallbackError } = await this.supabase.client
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', userIds);
+
+        if (fallbackError) throw new Error(fallbackError.message);
+        profiles = (data || []).map(p => ({ ...p, status: null }));
+      }
+
+      this.staff = profiles.map(p => ({
+        id: p.id,
+        fullName: p.full_name,
+        email: p.email || '',
+        role: 'Staff',
+        status: (p.status === 'Inactive' ? 'Inactive' : 'Active') as 'Active' | 'Inactive',
+      }));
+    } catch (err: any) {
+      console.error('Failed to load staff:', err);
+      this.error = err?.message || 'Could not load staff accounts. Please try again.';
+      this.staff = [];
+    } finally {
+      this.loading = false;
+    }
   }
 
   openModal(): void {
     this.draft = { fullName: '', email: '', password: '' };
+    this.addError = null;
+    this.addSubmitting = false;
     this.modalOpen = true;
   }
 
-  save(): void {
-    this.staff = [...this.staff, { id: `staff-${Date.now()}`, fullName: this.draft.fullName, email: this.draft.email, role: 'Staff', status: 'Active' }];
-    this.modalOpen = false;
+  async save(): Promise<void> {
+    this.addError = null;
+    this.addSubmitting = true;
+
+    try {
+      const { data, error } = await this.supabase.client.functions.invoke<CreateStaffResponse>(
+        'create-staff',
+        {
+          body: {
+            fullName: this.draft.fullName.trim(),
+            email: this.draft.email.trim(),
+            password: this.draft.password.trim() || undefined,
+          },
+        },
+      );
+
+      if (error) {
+        throw new Error(error.message || 'Failed to create staff account.');
+      }
+
+      if (!data?.userId) {
+        throw new Error('No user ID returned from create-staff function.');
+      }
+
+      // Success — close modal and reload
+      this.modalOpen = false;
+      await this.loadStaff();
+
+      const toast = await this.toastCtrl.create({
+        message: `Staff account created for ${data.fullName} (${data.email})`,
+        duration: 4000,
+        position: 'bottom',
+        color: 'success',
+      });
+      await toast.present();
+    } catch (err: any) {
+      const message = err?.message || 'Could not create staff account.';
+      this.addError = message;
+
+      // Also show a toast for visibility
+      const toast = await this.toastCtrl.create({
+        message,
+        duration: 5000,
+        position: 'bottom',
+        color: 'danger',
+      });
+      await toast.present();
+    } finally {
+      this.addSubmitting = false;
+    }
   }
 
-  toggle(id: string): void {
-    this.staff = this.staff.map((member) =>
-      member.id === id ? { ...member, status: member.status === 'Active' ? 'Inactive' : 'Active' } : member
-    );
+  async toggle(id: string): Promise<void> {
+    if (this.toggleBusy.has(id)) return;
+    this.toggleBusy.add(id);
+
+    try {
+      const member = this.staff.find(s => s.id === id);
+      if (!member) return;
+
+      const action = member.status === 'Active' ? 'ban' : 'unban';
+
+      const { data, error } = await this.supabase.client.functions.invoke<UpdateStatusResponse>(
+        'update-staff-status',
+        { body: { userId: id, action } },
+      );
+
+      if (error) {
+        throw new Error(error.message || `Failed to ${action} staff member.`);
+      }
+
+      // Reload the list to reflect updated status
+      await this.loadStaff();
+
+      const toast = await this.toastCtrl.create({
+        message: data?.status === 'Active'
+          ? 'Staff account reactivated.'
+          : 'Staff account deactivated.',
+        duration: 3000,
+        position: 'bottom',
+        color: data?.status === 'Active' ? 'success' : 'warning',
+      });
+      await toast.present();
+    } catch (err: any) {
+      const message = err?.message || 'Could not update staff status.';
+
+      const toast = await this.toastCtrl.create({
+        message,
+        duration: 5000,
+        position: 'bottom',
+        color: 'danger',
+      });
+      await toast.present();
+    } finally {
+      this.toggleBusy.delete(id);
+    }
   }
 }

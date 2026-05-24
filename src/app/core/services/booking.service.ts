@@ -390,8 +390,8 @@ export class BookingService {
     );
   }
 
+  /** @deprecated Supabase-first — use booking status filtering on the local cache instead. */
   getPendingVerification(): Observable<Booking[]> {
-    void this.requestBookingList('/bookings/pending-verification', undefined, false).subscribe();
     return this.bookings$.pipe(
       map((bookings) => [...bookings].filter((booking) => booking.status === 'ProofSubmitted'))
     );
@@ -411,19 +411,61 @@ export class BookingService {
     );
   }
 
+  /** @deprecated Supabase-first — use getDoctorTodaySummary() or getBookingsByDoctorId(). */
   getDoctorUpcoming(): Observable<Booking[]> {
-    return this.requestBookingList('/bookings/doctor/upcoming', undefined, false).pipe(
+    return this.getBookings({ doctorId: undefined }).pipe(
       map((bookings) => [...bookings].sort((a, b) => bookingDateTime(a) - bookingDateTime(b)))
     );
   }
 
   getDoctorPatients(): Observable<DoctorPatientSummaryDto[]> {
-    return this.apiService.get<DoctorPatientSummaryDto[]>('/bookings/doctor/patients').pipe(
-      catchError((err) => {
-        console.warn('Failed to load doctor patients:', err);
-        return of([]);
-      })
-    );
+    return defer(() => {
+      this.beginLoading();
+      return from(this.fetchSupabaseDoctorPatients()).pipe(
+        catchError((err) => {
+          console.warn('Failed to load doctor patients from Supabase:', err);
+          return of([]);
+        }),
+        finalize(() => this.endLoading())
+      );
+    });
+  }
+
+  private async fetchSupabaseDoctorPatients(): Promise<DoctorPatientSummaryDto[]> {
+    // RLS on patient_bookings_view automatically limits to the current doctor's bookings.
+    const { data, error } = await this.supabase
+      .from('patient_bookings_view')
+      .select('*')
+      .order('appointment_date', { ascending: false })
+      .order('slot_start_time', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    const rows = (data ?? []) as Record<string, unknown>[];
+    const patientMap = new Map<string, Record<string, unknown>>();
+
+    for (const row of rows) {
+      const patientId = trimOptionalString(row['patient_id']);
+      if (!patientId || patientMap.has(patientId)) {
+        continue;
+      }
+      // First occurrence is the latest due to the sort order
+      patientMap.set(patientId, row);
+    }
+
+    return Array.from(patientMap.values()).map((row) => ({
+      patientId: trimOptionalString(row['patient_id']) ?? '',
+      patientName: trimOptionalString(row['patient_name']) ?? 'Patient',
+      patientCode: trimOptionalString(row['patient_code']),
+      latestDate: normalizeDateOnly(row['appointment_date']),
+      latestTime: normalizeTimeOnly(row['slot_start_time']),
+      services: normalizeBookingServices(row['services']).map((s) => s.name).filter(Boolean).join(', '),
+      status: normalizeBookingStatus(row['booking_status']) ?? 'Pending',
+      queueNumber: normalizeNullableNumber(row['queue_number']),
+      latestBookingId: trimOptionalString(row['booking_id']) ?? ''
+    }));
   }
 
   getMyBookings(page = 1, pageSize = 20): Observable<MyBookingsPageResult> {
@@ -500,12 +542,11 @@ export class BookingService {
     }
   }
 
-  submitProof(bookingId: string, dto: SubmitProofRequest): Observable<Booking> {
-    return this.requestBookingUpdate(
-      bookingId,
-      this.apiService.post<unknown>(`/bookings/${encodeURIComponent(bookingId)}/proof`, dto),
-      'Failed to submit proof.'
-    );
+  /** @deprecated Supabase-first — proof submission is deferred. Use proof-payments storage bucket instead. */
+  submitProof(bookingId: string, _dto: SubmitProofRequest): Observable<Booking> {
+    console.warn('submitProof() is deprecated. Proof submission via Supabase Storage is not yet implemented.');
+    const cached = this.getBookingById(bookingId);
+    return cached ? of(cached) : throwError(() => new Error('submitProof not available in Supabase-first architecture.'));
   }
 
   submitBookingProof(bookingId: string, proofType: ProofType, proofValue: string): void {
@@ -778,48 +819,14 @@ export class BookingService {
       .subscribe();
   }
 
+  /** @deprecated Supabase-first — rescheduling is not yet implemented via RPC. */
   rescheduleBooking(
     bookingId: string,
     dtoOrDate: RescheduleBookingRequest | string,
     newSlot?: string,
     newSlotEnd?: string
   ): void {
-    const dto: RescheduleBookingRequest =
-      typeof dtoOrDate === 'string'
-        ? {
-            appointmentDate: dtoOrDate,
-            slotStartTime: newSlot ?? '',
-            slotEndTime: newSlotEnd ?? newSlot
-          }
-        : dtoOrDate;
-
-    const previous = this.getBookingById(bookingId);
-    if (previous) {
-      this.patchBooking(bookingId, {
-        status: 'Rescheduled',
-        appointmentDate: dto.appointmentDate,
-        slotStartTime: dto.slotStartTime,
-        slotEndTime: dto.slotEndTime ?? previous.slotEndTime
-      });
-    }
-
-    this.beginLoading();
-    this.apiService
-      .patch<unknown>(`/bookings/${encodeURIComponent(bookingId)}/reschedule`, dto)
-      .pipe(
-        tap(() => {
-          void this.requestBookingById(bookingId, false).subscribe();
-        }),
-        catchError((error: unknown) => {
-          if (previous) {
-            this.upsertBooking(previous);
-          }
-          console.error('Failed to reschedule booking.', error);
-          return of(null);
-        }),
-        finalize(() => this.endLoading())
-      )
-      .subscribe();
+    console.warn('rescheduleBooking() is deprecated (no Supabase RPC yet).', bookingId, dtoOrDate);
   }
 
   getPayment(bookingId: string): Observable<Payment | undefined> {

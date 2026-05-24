@@ -66,6 +66,10 @@ export class ClinicDashboardRealtimeService {
   readonly events$: Observable<ClinicDashboardEvent> = this.eventsSubject.asObservable();
 
   constructor() {
+    if (!environment.apiBaseUrl) {
+      // Supabase-first: no .NET backend, no real-time hub. Service is a no-op.
+      return;
+    }
     this.authState.currentUser$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((user) => {
@@ -169,6 +173,9 @@ export class ClinicDashboardRealtimeService {
 }
 
 function buildClinicDashboardHubUrl(): string {
+  if (!environment.apiBaseUrl) {
+    return '';
+  }
   const url = new URL(environment.apiBaseUrl);
   const basePath = url.pathname.replace(/\/api(?:\/v\d+)?\/?$/i, '');
   url.pathname = `${basePath}/hubs/clinic-dashboard`.replace(/\/{2,}/g, '/');

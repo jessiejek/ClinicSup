@@ -4,7 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ToastController } from '@ionic/angular/standalone';
 import { Booking, Doctor, Patient, Service, ReceiptData } from '../../../core/models';
 import { BookingService } from '../../../core/services/booking.service';
-import { MockDataService } from '../../../core/services/mock-data.service';
+import { SupabaseService } from '../../../core/services/supabase.service';
 import { ClinicSettingsService } from '../../../core/services/clinic-settings.service';
 import { AuthStateService } from '../../../core/services/auth-state.service';
 import { AvatarComponent } from '../../../shared/components/avatar/avatar.component';
@@ -23,6 +23,16 @@ type BookingAction =
   | 'mark-complete'
   | 'mark-no-show'
   | 'cancel';
+
+interface PatientDetails {
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  patientCode?: string;
+  dateOfBirth?: string;
+  contactNumber?: string;
+  email?: string;
+}
 
 @Component({
   selector: 'app-admin-booking-detail-page',
@@ -79,9 +89,9 @@ type BookingAction =
               <app-avatar [name]="patientName" size="lg"></app-avatar>
               <div>
                 <h3>{{ patientName }}</h3>
-                <p>{{ patient?.patientCode }}</p>
-                <p>{{ patient?.dateOfBirth }} · {{ patient?.contactNumber }}</p>
-                <p>{{ patient?.email }}</p>
+                <p>{{ patientDetails?.patientCode }}</p>
+                <p>{{ patientDetails?.dateOfBirth }} · {{ patientDetails?.contactNumber }}</p>
+                <p>{{ patientDetails?.email }}</p>
               </div>
             </div>
           </div>
@@ -89,7 +99,7 @@ type BookingAction =
           <div class="clinic-card">
             <div class="section-heading">Doctor Info</div>
             <div class="profile-card">
-              <app-avatar [name]="doctor?.fullName || 'Doctor'" size="lg"></app-avatar>
+              <app-avatar [name]="(doctor?.fullName || 'Doctor')" size="lg"></app-avatar>
               <div>
                 <h3>{{ doctor?.fullName }}</h3>
                 <p>{{ doctor?.specialization }}</p>
@@ -103,7 +113,7 @@ type BookingAction =
               <p><strong>Date:</strong> {{ booking.appointmentDate }}</p>
               <p><strong>Time:</strong> {{ booking.slotStartTime }} - {{ booking.slotEndTime }}</p>
               <p><strong>Queue#:</strong> {{ booking.queueNumber ?? '—' }}</p>
-              <p><strong>Service:</strong> {{ service?.name }}</p>
+              <p><strong>Service:</strong> {{ serviceName }}</p>
             </div>
             <div class="clinic-card">
               <div class="section-heading">Payment Info</div>
@@ -145,7 +155,7 @@ type BookingAction =
 
               <div *ngSwitchCase="'Completed'" class="action-stack">
                 <button class="btn-primary" type="button" (click)="openReceipt(booking)">Print Receipt</button>
-                <button class="btn-outline" type="button" disabled (click)="soon()">Download Visit Summary</button>
+                <button class="btn-outline" type="button" disabled (click)="soon('Visit Summary')">Download Visit Summary</button>
               </div>
 
               <div *ngSwitchDefault class="action-stack">
@@ -203,23 +213,24 @@ type BookingAction =
       (confirmed)="refundPaymentAction($event.bookingId, $event.reason)"
       (cancelled)="refundModalOpen = false"
     ></app-refund-payment-modal>
+
     <app-receipt-modal [isOpen]="receiptModalOpen" [data]="receiptData" (closed)="receiptModalOpen = false"></app-receipt-modal>
   `,
   styleUrl: './booking-detail.page.scss'
 })
 export class BookingDetailPage implements OnInit {
   private readonly bookingService = inject(BookingService);
+  private readonly supabase = inject(SupabaseService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly mockData = inject(MockDataService);
   private readonly toastCtrl = inject(ToastController);
   private readonly clinicSettings = inject(ClinicSettingsService);
   private readonly authState = inject(AuthStateService);
 
   booking: Booking | null = null;
-  doctor: Doctor | null = null;
-  patient: Patient | null = null;
-  service: Service | null = null;
+  doctor: { fullName?: string; specialization?: string } | null = null;
+  patientDetails: PatientDetails | null = null;
+  serviceName = '';
   timelineSteps = ['Pending', 'Proof Submitted', 'Confirmed', 'Completed'];
   isLoading = true;
   confirmOpen = false;
@@ -237,16 +248,63 @@ export class BookingDetailPage implements OnInit {
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id') ?? '';
     this.bookingService.isLoading$.subscribe((loading) => (this.isLoading = loading));
-    this.bookingService.getBookingById$(id).subscribe((booking) => {
+    this.bookingService.getBookingById$(id).subscribe(async (booking) => {
       this.booking = booking ?? null;
-      this.doctor = booking ? this.mockData.getDoctorById(booking.doctorId) ?? null : null;
-      this.patient = booking ? this.mockData.getPatientById(booking.patientId) ?? null : null;
-      this.service = booking ? this.mockData.getServiceById(booking.serviceId) ?? null : null;
+
+      if (booking) {
+        this.doctor = booking.doctor
+          ? {
+              fullName: booking.doctor.fullName,
+              specialization: booking.doctor.specialization
+            }
+          : booking.doctorName
+            ? { fullName: booking.doctorName }
+            : null;
+
+        this.serviceName = booking.serviceName || '—';
+        await this.loadPatientDetails(booking.patientId);
+      }
     });
   }
 
+  private async loadPatientDetails(patientId: string): Promise<void> {
+    try {
+      const { data, error } = await this.supabase.client
+        .from('patients')
+        .select('first_name, middle_name, last_name, patient_code, date_of_birth, contact_number, email')
+        .eq('id', patientId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        this.patientDetails = {
+          firstName: data['first_name'] ?? '',
+          middleName: data['middle_name'] ?? undefined,
+          lastName: data['last_name'] ?? '',
+          patientCode: data['patient_code'] ?? undefined,
+          dateOfBirth: data['date_of_birth'] ?? undefined,
+          contactNumber: data['contact_number'] ?? undefined,
+          email: data['email'] ?? undefined
+        };
+      }
+    } catch (err: any) {
+      console.warn('Could not load patient details:', err?.message);
+      if (this.booking) {
+        this.patientDetails = {
+          firstName: this.booking.patientName || '',
+          lastName: '',
+          patientCode: this.booking.patient?.patientCode
+        };
+      }
+    }
+  }
+
   get patientName(): string {
-    return this.patient ? `${this.patient.firstName} ${this.patient.lastName}` : 'Unknown Patient';
+    if (this.patientDetails?.firstName || this.patientDetails?.lastName) {
+      return [this.patientDetails.firstName, this.patientDetails.lastName].filter(Boolean).join(' ');
+    }
+    return this.booking?.patientName || 'Unknown Patient';
   }
 
   get canWaive(): boolean {
@@ -273,8 +331,8 @@ export class BookingDetailPage implements OnInit {
 
   isStepComplete(step: string): boolean {
     const order = ['Pending', 'Proof Submitted', 'Confirmed', 'Completed'];
-    const current = order.findIndex((item) => this.isStepActive(item));
-    return order.indexOf(step) < current;
+    const currentIdx = order.findIndex((item) => this.isStepActive(item));
+    return order.indexOf(step) < currentIdx;
   }
 
   openConfirm(action: BookingAction, reasonRequired = false): void {
@@ -282,16 +340,17 @@ export class BookingDetailPage implements OnInit {
     this.modalReasonRequired = reasonRequired;
     this.modalDanger = reasonRequired || action === 'reject' || action === 'cancel';
     this.modalConfirmLabel = this.modalDanger ? 'Proceed' : 'Confirm';
-    const messages: Record<BookingAction, string> = {
-      confirm: 'Confirm this booking?',
-      reject: 'Reject this booking?',
-      'confirm-payment': 'Confirm that the payment is valid?',
-      'mark-complete': 'Mark this visit as completed?',
-      'mark-no-show': 'Mark the patient as no-show?',
-      cancel: 'Cancel this booking?'
+    const messages: Record<BookingAction, { title: string; message: string }> = {
+      confirm: { title: 'Confirm Booking', message: 'Confirm this booking and notify the patient?' },
+      reject: { title: 'Reject Booking', message: 'Reject this booking? The patient will be notified.' },
+      'confirm-payment': { title: 'Confirm Payment', message: 'Mark payment as validated?' },
+      'mark-complete': { title: 'Mark Complete', message: 'Mark this visit as completed?' },
+      'mark-no-show': { title: 'Mark No Show', message: 'Mark patient as no-show?' },
+      cancel: { title: 'Cancel Booking', message: 'Cancel this booking? This cannot be undone.' }
     };
-    this.modalTitle = 'Confirm Action';
-    this.modalMessage = messages[action];
+    const info = messages[action];
+    this.modalTitle = info.title;
+    this.modalMessage = info.message;
     this.confirmOpen = true;
   }
 
@@ -300,134 +359,173 @@ export class BookingDetailPage implements OnInit {
     this.pendingAction = null;
   }
 
-  runAction(reason?: string): void {
-    if (!this.booking || !this.pendingAction) {
-      return;
+  async runAction(reason?: string): Promise<void> {
+    const action = this.pendingAction;
+    if (!action || !this.booking) return;
+
+    this.confirmOpen = false;
+    this.isLoading = true;
+
+    try {
+      const bookingId = this.booking.id;
+      const currentUserId = this.authState.currentUser()?.id;
+
+      switch (action) {
+        case 'confirm':
+          await this.bookingService.confirmBooking(bookingId);
+          await this.recordAuditLog(bookingId, 'Confirmed booking', currentUserId, reason);
+          break;
+        case 'reject':
+          await this.bookingService.cancelBooking(bookingId, reason || 'Rejected by admin');
+          await this.recordAuditLog(bookingId, 'Rejected booking', currentUserId, reason);
+          break;
+        case 'confirm-payment':
+          await this.bookingService.updateBookingStatus(bookingId, 'Confirmed');
+          await this.recordAuditLog(bookingId, 'Confirmed payment', currentUserId, reason);
+          break;
+        case 'mark-complete':
+          await this.bookingService.updateBookingStatus(bookingId, 'Completed');
+          await this.recordAuditLog(bookingId, 'Marked completed', currentUserId, reason);
+          break;
+        case 'mark-no-show':
+          await this.bookingService.updateBookingStatus(bookingId, 'NoShow');
+          await this.recordAuditLog(bookingId, 'Marked no-show', currentUserId, reason);
+          break;
+        case 'cancel':
+          await this.bookingService.cancelBooking(bookingId, reason || 'Cancelled by admin');
+          await this.recordAuditLog(bookingId, 'Cancelled booking', currentUserId, reason);
+          break;
+      }
+
+      await this.showToast('Booking updated successfully', 'success');
+      await this.refreshBooking();
+    } catch (err: any) {
+      await this.showToast(err?.message || 'Action failed', 'danger');
+    } finally {
+      this.isLoading = false;
+      this.pendingAction = null;
     }
-    const bookingId = this.booking.id;
-    switch (this.pendingAction) {
-      case 'confirm':
-        this.bookingService.confirmBooking(bookingId);
-        this.addAuditLog('Booking', bookingId, 'Confirmed booking', reason);
-        break;
-      case 'reject':
-        this.bookingService.rejectBooking(bookingId, reason ?? 'Rejected by admin.');
-        this.addAuditLog('Booking', bookingId, 'Rejected booking', reason);
-        break;
-      case 'confirm-payment':
-        this.bookingService.confirmPayment(bookingId);
-        this.addAuditLog('Payment', bookingId, 'Confirmed payment', reason);
-        break;
-      case 'mark-complete':
-        this.bookingService.markComplete(bookingId);
-        this.addAuditLog('Booking', bookingId, 'Marked booking completed', reason);
-        break;
-      case 'mark-no-show':
-        this.bookingService.markNoShow(bookingId);
-        this.addAuditLog('Booking', bookingId, 'Marked no-show', reason);
-        break;
-      case 'cancel':
-        this.bookingService.cancelBooking(bookingId, reason ?? 'Cancelled by admin.');
-        this.addAuditLog('Booking', bookingId, 'Cancelled booking', reason);
-        break;
-    }
-    this.closeConfirmModal();
-    void this.presentToast('Action completed.');
   }
 
-  waivePayment(bookingId: string, reason: string): void {
-    if (this.bookingService.getBookingById(bookingId)) {
-      this.bookingService.waivePayment(bookingId, reason);
-      this.addAuditLog('Payment', bookingId, 'Waived payment', reason);
-      void this.presentToast('Payment waived.');
+  private async recordAuditLog(
+    entityId: string,
+    action: string,
+    performedBy?: string,
+    details?: string
+  ): Promise<void> {
+    try {
+      await this.supabase.client.from('audit_logs').insert({
+        entity_type: 'Booking',
+        entity_id: entityId,
+        action,
+        performed_by: performedBy || '00000000-0000-0000-0000-000000000000',
+        details: details || null
+      });
+    } catch (err: any) {
+      console.warn('Failed to record audit log:', err?.message);
     }
+  }
+
+  private async refreshBooking(): Promise<void> {
+    const id = this.route.snapshot.paramMap.get('id') ?? '';
+    this.bookingService.refresh();
+    this.bookingService.getBookingById$(id).subscribe((b) => {
+      this.booking = b ?? null;
+    });
+  }
+
+  async waivePayment(bookingId: string, reason: string): Promise<void> {
     this.waiveModalOpen = false;
+    this.isLoading = true;
+    try {
+      const { error } = await this.supabase.client
+        .from('bookings')
+        .update({ payment_status: 'Waived' })
+        .eq('id', bookingId);
+
+      if (error) throw error;
+
+      await this.recordAuditLog(
+        bookingId,
+        'Waived payment',
+        this.authState.currentUser()?.id,
+        reason
+      );
+      await this.showToast('Payment waived successfully', 'success');
+      await this.refreshBooking();
+    } catch (err: any) {
+      await this.showToast(err?.message || 'Failed to waive payment', 'danger');
+    } finally {
+      this.isLoading = false;
+    }
   }
 
-  refundPaymentAction(bookingId: string, reason: string): void {
-    if (this.bookingService.getBookingById(bookingId)) {
-      this.bookingService.refundPayment(bookingId, reason);
-      this.addAuditLog('Payment', bookingId, 'Refunded payment', reason);
-      void this.presentToast('Payment refunded.');
-    }
+  async refundPaymentAction(bookingId: string, reason: string): Promise<void> {
     this.refundModalOpen = false;
+    this.isLoading = true;
+    try {
+      const { error } = await this.supabase.client
+        .from('bookings')
+        .update({ payment_status: 'Refunded' })
+        .eq('id', bookingId);
+
+      if (error) throw error;
+
+      await this.recordAuditLog(
+        bookingId,
+        'Refunded payment',
+        this.authState.currentUser()?.id,
+        reason
+      );
+      await this.showToast('Payment refunded', 'success');
+      await this.refreshBooking();
+    } catch (err: any) {
+      await this.showToast(err?.message || 'Failed to refund payment', 'danger');
+    } finally {
+      this.isLoading = false;
+    }
   }
 
   reschedule(): void {
-    if (!this.booking) {
-      return;
-    }
-    void this.router.navigate(['/admin/walk-in'], { queryParams: { rescheduling: this.booking.id } });
+    void this.router.navigate(['/admin/bookings', this.booking?.id, 'reschedule']);
   }
 
-  soon(): void {
-    void this.presentToast('PDF download is mocked for demo mode.');
-  }
-
-  private addAuditLog(
-    entityType: 'Booking' | 'Patient' | 'Doctor' | 'Payment' | 'Settings' | 'Consultation',
-    entityId: string,
-    action: string,
-    reason?: string
-  ): void {
-    this.mockData.addAuditLog({
-      entityType,
-      entityId,
-      action,
-      performedBy: 'Dr. Grace E. Gavino',
-      performedAt: new Date().toISOString(),
-      details: reason
-    });
-  }
-
-  private async presentToast(message: string): Promise<void> {
-    const toast = await this.toastCtrl.create({
-      message,
-      duration: 2200,
-      color: 'success',
-      position: 'top'
-    });
-    await toast.present();
-  }
   openReceipt(booking: Booking): void {
-    this.receiptData = this.buildReceiptData(booking);
+    this.buildReceiptData(booking);
     this.receiptModalOpen = true;
   }
 
-  private buildReceiptData(booking: Booking): ReceiptData {
-    const patient = this.mockData.getPatients().find((p) => p.id === booking.patientId);
-    const doctor = this.mockData.getDoctors().find((d) => d.id === booking.doctorId);
-    const service = this.mockData.getServices().find((s) => s.id === booking.serviceId);
+  private buildReceiptData(booking: Booking): void {
     const settings = this.clinicSettings.load();
-    const currentUser = this.authState.snapshot;
-
-    return {
-      orNumber: booking.orNumber ?? '—',
-      clinicName: settings.clinicName,
-      clinicAddress: settings.address ?? '',
-      clinicPhone: settings.phone ?? '',
-      clinicEmail: settings.email ?? '',
-      patientName: patient ? `${patient.firstName} ${patient.lastName}` : '—',
-      patientCode: patient?.patientCode ?? '—',
-      doctorName: doctor?.fullName ?? '—',
-      serviceName: service?.name ?? '—',
-      appointmentDate: new Date(booking.appointmentDate).toLocaleDateString('en-PH', {
-        year: 'numeric', month: 'long', day: 'numeric'
-      }),
-      slotTime: booking.slotStartTime,
-      queueNumber: booking.queueNumber,
+    this.receiptData = {
+      appointmentDate: booking.appointmentDate || '',
+      patientName: this.patientName,
+      patientCode: this.patientDetails?.patientCode || '',
+      doctorName: this.doctor?.fullName || booking.doctorName || '',
+      serviceName: this.serviceName,
+      orNumber: `RCP-${booking.id?.slice(0, 8).toUpperCase()}`, // receiptNumber
+      totalFee: booking.totalFee,
+      paymentMethod: booking.paymentMode || 'PayAtClinic',
+      paymentStatus: booking.paymentStatus || 'Unpaid',
+      clinicName: settings?.clinicName || 'Clinic',
+      clinicAddress: settings?.address || '',
       consultationFee: booking.consultationFeeSnapshot,
       serviceFee: booking.serviceFeeSnapshot,
-      totalFee: booking.totalFee,
-      paymentMethod: booking.paymentMode === 'PayAtClinic' ? 'Pay at Clinic' : 'Online',
-      paymentStatus: booking.paymentStatus,
-      waivedReason: undefined,
-      isWalkIn: booking.isWalkIn,
-      printedBy: currentUser?.fullName ?? 'System',
-      printedAt: new Date().toLocaleDateString('en-PH', {
-        year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      })
+      queueNumber: booking.queueNumber,
+      slotTime: `${booking.slotStartTime} - ${booking.slotEndTime}`
     };
+  }
+
+  closeReceiptModal(): void {
+    this.receiptModalOpen = false;
+  }
+
+  soon(feature?: string): void {
+    void this.showToast(`${feature || 'This feature'} is coming soon`, 'warning');
+  }
+
+  private async showToast(message: string, color: 'success' | 'danger' | 'warning'): Promise<void> {
+    const toast = await this.toastCtrl.create({ message, color, duration: 3000, position: 'bottom' });
+    await toast.present();
   }
 }
