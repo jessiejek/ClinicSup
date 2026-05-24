@@ -4,9 +4,9 @@ Use this file as the source of truth for this area. Future agents should read th
 
 # Executive Summary — Production Readiness
 
-**Date:** 2026-05-24 06:24 PDT (updated)
-**Frontend hash (last build):** `9d82e019a6b4559a`
-**Branch:** `main` (uncommitted availability + schedule + services fixes)
+**Date:** 2026-05-24 06:42 PDT (updated)
+**Frontend hash (last build):** `fdf2e79afbb628e6`
+**Branch:** `main` (uncommitted availability + schedule + services + patient row fix)
 
 ---
 
@@ -72,6 +72,7 @@ The **Doctor Portal** has been fully scanned and root-cause fixed:
 | **Ambiguous `slot_start_time` column in RPC (code 42702)** | **P0 #8** | **FIXED**. `existing_bookings` CTE columns conflicted with `RETURNS TABLE` output params. Aliased as `booking_slot_start_time`. New standalone SQL file: `SUPABASE_RUN_GET_AVAILABLE_SLOTS_FIX.sql`. |
 | **Step 1 service selection not obvious** | **P0 #9** | **FIXED**. Added helper text "Please select at least one service to proceed" below services header + "Select a service to continue" near Change button. |
 | **Step 2 no default date selected** | **P0 #10** | **FIXED**. Auto-selects today (if valid) or next working day within 60 days. Uses Manila-timezone-safe logic. |
+| **Social-login patient has no `patients` row → create_booking fails** | **P0 #11** | **FIXED**. `ensurePatientRow()` used wrong column (`contact_email` doesn't exist) and omitted NOT NULL columns (`patient_code`, `date_of_birth`, `sex`). Now generates `patient_code`, uses correct `email` column. `StepPaymentComponent` calls `ensurePatientRecord()` before `create_booking`. SQL handoff created to make DOB/sex nullable. See `13_PATIENT_SOCIAL_LOGIN_BOOKING_AUDIT.md`. |
 
 ---
 
@@ -86,6 +87,7 @@ The **Doctor Portal** has been fully scanned and root-cause fixed:
 | Notifications | P3 | Frontend wired — table not deployed |
 | Supabase realtime (SignalR replacement) | P3 | Not implemented — currently polling |
 | Patient portal account creation | P3 | Throws controlled error — needs Edge Function |
+| **patients table date_of_birth/sex NOT NULL** | **P0** | Blocks social-login patient row creation. SQL handoff created to make nullable. Frontend uses placeholder values until deployed. |
 | Reschedule booking | P2 | Throws console.warn — no RPC implemented |
 
 ---
@@ -93,9 +95,9 @@ The **Doctor Portal** has been fully scanned and root-cause fixed:
 ## Build Result
 
 ```
-Build: 2026-05-24 13:27 PDT
-Hash: 9d82e019a6b4559a
-Time: 23422ms
+Build: 2026-05-24 13:42 PDT
+Hash: fdf2e79afbb628e6
+Time: 30837ms
 Errors: 0
 Warnings: All pre-existing (SCSS budgets + NG8107/NG8102 in doctor-consultation.page.ts)
 ```
@@ -154,7 +156,9 @@ Warnings: All pre-existing (SCSS budgets + NG8107/NG8102 in doctor-consultation.
 - **P0 #4: Deploy remaining SQLs** — doctor invite table, schedule + service_ids columns
 - **P0 #5: Deploy `activate-doctor-invite` Edge Function**
 - **P0 #6: Commit and push all frontend changes**
-- **P0 #7: Live-test patient booking full flow**
-- **P0 #8: Live-test Staff walk-in date selection**
-- **P0 #9: Live-test Admin walk-in date selection**
+- **P0 #7: Run `SUPABASE_REQUIRED_PATIENT_SELF_PROFILE_RLS_FIX.sql`** — make date_of_birth/sex nullable
+- **P0 #8: Live-test patient booking full flow** (social login → ensurePatientRecord → create_booking)
+- **P0 #9: Live-test Staff walk-in date selection**
+- **P0 #10: Live-test Admin walk-in date selection**
+- **P0 #11: Verify social-login patient has patients row after login**
 - **P1: Full Doctor Portal QA**

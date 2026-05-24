@@ -121,6 +121,11 @@ export class AuthStateService {
     this.authService.logout();
   }
 
+  /** @description Ensure a patients row exists for the logged-in user. Safe to call before booking. */
+  async ensurePatientRecord(): Promise<void> {
+    await this.authService.ensurePatientRecord();
+  }
+
   setUser(user: AuthUser): void {
     this.userSubject.next(user);
     this.authService.persistUser(user);

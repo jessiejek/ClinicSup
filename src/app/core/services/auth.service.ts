@@ -343,6 +343,15 @@ export class AuthService {
     return 'Patient';
   }
 
+  /** @description Public helper — any component can call this before booking. */
+  async ensurePatientRecord(): Promise<void> {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    if (!user) return;
+    const profile = await this.loadProfile(user);
+    const resolvedProfile = profile ?? await this.ensureProfileRow(user);
+    await this.ensurePatientRow(user, resolvedProfile);
+  }
+
   private async ensurePatientRow(user: User, profile: ProfileRow): Promise<void> {
     // Check if patient already exists linked to this user
     const { data: existingByUser } = await this.supabase
@@ -353,32 +362,43 @@ export class AuthService {
 
     if (existingByUser) return;
 
-    // Check by email as fallback
-    const { data: existingByEmail } = user.email
-      ? await this.supabase.from('patients').select('id').eq('contact_email', user.email).maybeSingle()
-      : { data: null };
-
-    if (existingByEmail) {
-      await this.supabase.from('patients').update({ user_id: user.id }).eq('id', existingByEmail.id);
-      return;
+    // Check by email as fallback (column is `email`, not `contact_email`)
+    if (user.email) {
+      const { data: existingByEmail } = await this.supabase
+        .from('patients')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle();
+      if (existingByEmail) {
+        await this.supabase.from('patients').update({ user_id: user.id }).eq('id', existingByEmail.id);
+        return;
+      }
     }
 
-    // Create minimal patient row
-    const [firstName, ...lastParts] = (profile.full_name || user.email || 'New Patient').split(' ');
-    const lastName = lastParts.join(' ') || '';
+    // Generate a unique patient code
+    const ts = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const patientCode = `PAT-${ts}${rand}`;
+
+    // Parse first/last name from profile
+    const fullName = profile.full_name || user.email || 'New Patient';
+    const firstSpace = fullName.indexOf(' ');
+    const firstName = firstSpace === -1 ? fullName : fullName.substring(0, firstSpace);
+    const lastName = firstSpace === -1 ? '' : fullName.substring(firstSpace + 1).trim();
 
     const { error: insertError } = await this.supabase.from('patients').insert({
+      patient_code: patientCode,
       user_id: user.id,
-      first_name: firstName,
-      last_name: lastName,
-      contact_email: user.email,
+      first_name: firstName || fullName,
+      last_name: lastName || '.',
+      date_of_birth: '2000-01-01',   // TODO: Make nullable via SQL; placeholder until patient completes profile
+      sex: 'rather-not-say',          // TODO: Make nullable via SQL; placeholder until patient completes profile
+      email: user.email,
       is_guest: false,
     });
 
     if (insertError) {
-      // Non-blocking: patient insert may fail due to RLS (missing DOB constraint, etc.).
-      // The user can still proceed; admin can complete the patient record later.
-      console.warn('Patient row insert skipped (non-blocking):', insertError.message);
+      console.warn('Patient row insert failed:', insertError.message);
     }
   }
 

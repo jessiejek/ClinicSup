@@ -161,6 +161,11 @@ Run in this order:
 **Step 3 (RLS hardening):** `SUPABASE_REQUIRED_PUBLIC_DOCTOR_SCHEDULE_RLS_FIX.sql`
 - Replaces `USING (true)` policies with active-doctor-only policies
 
+**Step 4 (patient self-profile fix):** `SUPABASE_REQUIRED_PATIENT_SELF_PROFILE_RLS_FIX.sql`
+- Makes `date_of_birth`/`sex` nullable on patients table
+- Ensures GRANTs and RLS policies for self-service
+- Enables social-login patients to create their patients row
+
 ---
 
 ### Step 1 UX Improvement
@@ -247,7 +252,10 @@ Warnings: All pre-existing (SCSS budgets + NG8107/NG8102 in doctor-consultation.
 # 3. RLS hardening (active-doctor policies)
 # Run SUPABASE_REQUIRED_PUBLIC_DOCTOR_SCHEDULE_RLS_FIX.sql
 
-# 4. Commit frontend (when user says go)
+# 4. Patient self-profile (nullable DOB/sex)
+# Run SUPABASE_REQUIRED_PATIENT_SELF_PROFILE_RLS_FIX.sql
+
+# 5. Commit frontend (when user says go)
 cd "Z:\CLINIC\clinic_fe_supabase_phase2_booking_full"
 git add .
 git commit -m "fix: booking availability - GRANTs, RLS, ambiguous column, service UX, auto-select date"

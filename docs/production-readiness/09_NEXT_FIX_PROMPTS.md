@@ -11,12 +11,14 @@ Use this file as the source of truth for this area. Future agents should read th
 - **P0 #1: Run `SUPABASE_RUN_GET_AVAILABLE_SLOTS_FIX.sql`** — fixes 42702 ambiguous column error
 - **P0 #2: Run `SUPABASE_RUN_BOOKING_AVAILABILITY_FIX.sql`** — GRANTs + locale-independent RPCs
 - **P0 #3: Run `SUPABASE_REQUIRED_PUBLIC_DOCTOR_SCHEDULE_RLS_FIX.sql`** — active-doctor-only policies
-- **P0 #4: Deploy remaining SQLs** — doctor invite table, schedule + service_ids columns
-- **P0 #5: Deploy `activate-doctor-invite` Edge Function**
-- **P0 #6: Commit and push all frontend changes**
-- **P0 #7: Live-test patient booking full flow** (Step 1 service UX, Step 2 auto-date, Step 3 slots)
-- **P0 #8: Live-test Staff walk-in date selection**
-- **P0 #9: Live-test Admin walk-in date selection**
+- **P0 #4: Run `SUPABASE_REQUIRED_PATIENT_SELF_PROFILE_RLS_FIX.sql`** — make date_of_birth/sex nullable on patients table
+- **P0 #5: Deploy remaining SQLs** — doctor invite table, schedule + service_ids columns
+- **P0 #6: Deploy `activate-doctor-invite` Edge Function**
+- **P0 #7: Commit and push all frontend changes**
+- **P0 #8: Live-test patient booking full flow** (social login → ensurePatientRecord → create_booking)
+- **P0 #9: Live-test Staff walk-in date selection**
+- **P0 #10: Live-test Admin walk-in date selection**
+- **P0 #11: Verify social-login patient has patients row after login**
 - **P1: Full Doctor Portal QA**
 
 ---

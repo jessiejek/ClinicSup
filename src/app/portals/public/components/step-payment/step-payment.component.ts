@@ -149,6 +149,9 @@ export class StepPaymentComponent {
     this.isSubmitting = true;
 
     try {
+      // Ensure the logged-in patient has a patients row so current_patient_id() resolves
+      await this.authState.ensurePatientRecord();
+
       const booking = await firstValueFrom(this.bookingService.createBooking(payload));
       this.wizardService.patchState({
         bookingId: booking.id,
