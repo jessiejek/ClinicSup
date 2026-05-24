@@ -131,6 +131,19 @@
 
 .btn-social--facebook {
   margin-bottom: 0;
+  background: #1877F2;
+  color: #ffffff;
+  border: none;
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.01em;
+}
+
+.btn-social--facebook:hover {
+  background: #166FE5;
+}
+
+.btn-social--facebook:active {
+  background: #135CBE;
 }
 
 .btn-social--facebook .btn-social__icon {
@@ -140,9 +153,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: var(--font-bold);
-  background: #1877f2;
-  color: white;
+  font-weight: 700;
+  font-size: 13px;
+  background: #ffffff;
+  color: #1877F2;
   line-height: 1;
 }
 
