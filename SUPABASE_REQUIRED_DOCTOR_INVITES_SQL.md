@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS public.doctor_invites (
     slot_capacity         INT NOT NULL DEFAULT 1,
     daily_patient_limit   INT NULL,
     schedule              JSONB NOT NULL DEFAULT '[]'::jsonb,
+    service_ids           JSONB NOT NULL DEFAULT '[]'::jsonb,
 
     status                TEXT NOT NULL DEFAULT 'pending'
                           CHECK (status IN ('pending', 'accepted', 'revoked')),

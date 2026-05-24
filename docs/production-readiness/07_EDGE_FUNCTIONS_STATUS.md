@@ -93,9 +93,13 @@ Same auth pattern as `create-staff`. Additionally:
 - `schedule` JSONB column must exist on `doctor_invites` (ALTER TABLE from `SUPABASE_REQUIRED_DOCTOR_PORTAL_SCHEDULE_FIX_SQL.md`)
 - `SUPABASE_SERVICE_ROLE_KEY` secret must be set (or `SERVICE_ROLE_KEY` as fallback)
 
-### Schedule Creation (new in latest update)
+### Schedule Creation
 
 After upserting the `doctors` row, the Edge Function now reads `invite.schedule` (JSONB array of `{ dayOfWeek, startTime, endTime }`) and inserts corresponding rows into `public.doctor_schedules`. This ensures the admin-set schedule survives the invite → activation flow. If the schedule array is empty or missing, no `doctor_schedules` rows are created (doctor can set them manually later).
+
+### Services Creation (new in latest update)
+
+After creating `doctor_schedules`, the Edge Function now reads `invite.service_ids` (JSONB array of UUID strings) and inserts corresponding rows into `public.doctor_services` using `.upsert({ onConflict: 'doctor_id, service_id', ignoreDuplicates: true })`. This ensures the admin-selected services are linked to the activated doctor. If `service_ids` is empty or missing, no `doctor_services` rows are created.
 
 ## Git vs Deployed State Comparison
 

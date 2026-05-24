@@ -147,20 +147,26 @@ Migrate admin-settings.service.ts from MockDataService to Supabase.
 
 ---
 
-## Prompt 7: Run Schedule ALTER TABLE SQL
+## Prompt 7: Run Schedule + Services ALTER TABLE SQLs
 
 **Prompt before deploying doctor_invites table:**
 
 ```
 Open Supabase Dashboard SQL Editor for project czswgpjjanllkmmwhmdh.
-Copy the SQL from SUPABASE_REQUIRED_DOCTOR_PORTAL_SCHEDULE_FIX_SQL.md.
-Run it.
-Verify: SELECT column_name FROM information_schema.columns WHERE table_name='doctor_invites' AND column_name='schedule';
+
+1. Copy the SQL from SUPABASE_REQUIRED_DOCTOR_PORTAL_SCHEDULE_FIX_SQL.md -- adds schedule column
+2. Copy the SQL from SUPABASE_REQUIRED_DOCTOR_INVITE_SERVICES_FIX_SQL.md Section A -- adds service_ids column
+3. Run both sequentially
+4. Verify:
+   SELECT column_name FROM information_schema.columns
+   WHERE table_name='doctor_invites' AND column_name IN ('schedule','service_ids');
+5. Run Section B from SUPABASE_REQUIRED_DOCTOR_INVITE_SERVICES_FIX_SQL.md
+   to link existing "Choco Cheese" doctor to General Consultation service
 ```
 
 ## Prompt 8: Deploy Doctor Invite SQL
 
-**Prompt after schedule column is added:**
+**Prompt after schedule + service_ids columns are added:**
 
 ```
 Open Supabase Dashboard SQL Editor for project czswgpjjanllkmmwhmdh.
@@ -177,6 +183,29 @@ Verify indexes: SELECT indexname FROM pg_indexes WHERE tablename = 'doctor_invit
 ```
 cd "Z:\CLINIC\clinicbooking-be"
 supabase functions deploy activate-doctor-invite
+```
+
+## Prompt 12: Manual SQL for Existing "Choco Cheese" Doctor
+
+**Prompt if Choco Cheese was created before the fix:**
+
+```
+Run in Supabase SQL Editor:
+
+INSERT INTO public.doctor_services (doctor_id, service_id)
+SELECT d.id, s.id
+FROM public.doctors d
+CROSS JOIN public.services s
+WHERE d.full_name = 'Choco Cheese'
+  AND s.name = 'General Consultation'
+ON CONFLICT (doctor_id, service_id) DO NOTHING;
+
+Verify:
+SELECT d.full_name, s.name AS service_name
+FROM public.doctor_services ds
+JOIN public.doctors d ON d.id = ds.doctor_id
+JOIN public.services s ON s.id = ds.service_id
+WHERE d.full_name = 'Choco Cheese';
 ```
 
 ## Prompt 9: Commit All Frontend Changes

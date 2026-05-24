@@ -128,6 +128,7 @@ export interface CreateDoctorInviteDto {
   slotDurationMinutes: number;
   slotCapacity: number;
   dailyPatientLimit: number | null;
+  serviceIds: string[];
   schedule?: Array<{
     dayOfWeek: string;
     startTime: string;
@@ -270,6 +271,7 @@ export class AdminDoctorsService {
       slot_duration_minutes: dto.slotDurationMinutes,
       slot_capacity: dto.slotCapacity,
       daily_patient_limit: dto.dailyPatientLimit ?? null,
+      service_ids: dto.serviceIds,
       schedule: dto.schedule ?? null,
       status: 'pending',
       invited_by: invitedBy,

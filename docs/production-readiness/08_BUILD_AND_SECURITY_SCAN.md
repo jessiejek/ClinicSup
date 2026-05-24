@@ -9,15 +9,18 @@ Use this file as the source of truth for this area. Future agents should read th
 ## npm run build Result
 
 ```
-Build at: 2026-05-24T12:12:58.774Z
-Hash: 57f7d304faeb30a0
-Time: 22056ms
+Build at: 2026-05-24T12:34:05.228Z
+Hash: 5ec26e21fdd42a06
+Time: 23675ms
 Errors: 0
 Warnings: All pre-existing (SCSS budgets exceeded; Ionic pseudo-class selectors)
 ```
 
-**Doctor form chunk:** `2684.90ab8c024d78b188.js` (18.64 kB)
+**Doctor form chunk:** `2684.e25923a82684625c.js` (19.70 kB) *
+**Doctor form chunk (inline):** `7763.92e5854a5ca2491a.js` (11.32 kB) *
 **Staff page chunk:** `3028.ebecce10ab37cc03.js` (17.64 kB)
+
+*Doctor form now two chunks due to AdminServicesService lazy import
 
 ---
 

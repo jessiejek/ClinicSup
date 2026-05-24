@@ -1,4 +1,4 @@
-import { NgIf } from '@angular/common';
+import { NgFor, NgIf } from '@angular/common';
 import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -19,13 +19,14 @@ import {
   DoctorSummary,
   UpsertSchedulesDto
 } from '../services/admin-doctors.service';
+import { AdminServicesService, ManagedService } from '../services/admin-services.service';
 
 const DAY_NAMES: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 @Component({
   selector: 'app-admin-doctor-form-page',
   standalone: true,
-  imports: [NgIf, ReactiveFormsModule, IonSpinner, AvatarComponent, EmptyStateComponent, DoctorScheduleFormComponent],
+  imports: [NgFor, NgIf, ReactiveFormsModule, IonSpinner, AvatarComponent, EmptyStateComponent, DoctorScheduleFormComponent],
   template: `
     <section class="page-shell">
       <div class="page-shell__header">
@@ -121,6 +122,33 @@ const DAY_NAMES: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'F
 
             <textarea class="textarea" formControlName="bio" placeholder="Doctor bio"></textarea>
 
+                        <!-- Services (create mode only) -->
+            <ng-container *ngIf="!isEditMode">
+              <div class="section-heading">Services</div>
+              <div class="doctor-form__services">
+                <p class="form-field__hint">Select the services this doctor will offer.</p>
+                <div class="services-list">
+                  <label
+                    *ngFor="let service of availableServices"
+                    class="service-checkbox"
+                    [class.service-checkbox--selected]="selectedServiceIds.has(service.id)"
+                  >
+                    <input
+                      type="checkbox"
+                      [checked]="selectedServiceIds.has(service.id)"
+                      (change)="toggleService(service.id)"
+                    />
+                    <div class="service-checkbox__content">
+                      <span class="service-checkbox__name">{{ service.name }}</span>
+                      <span class="service-checkbox__desc">{{ service.description || service.category }}</span>
+                      <span class="service-checkbox__fee">\u20B1{{ service.price }}</span>
+                    </div>
+                  </label>
+                </div>
+                <p *ngIf="availableServices.length === 0" class="form-field__hint">No active services. Create services first in the Services page.</p>
+              </div>
+            </ng-container>
+
             <div class="section-heading">Working Days</div>
             <app-doctor-schedule-form [(value)]="scheduleDraft"></app-doctor-schedule-form>
 
@@ -148,6 +176,7 @@ const DAY_NAMES: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'F
 export class DoctorFormPage implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly adminDoctorsService = inject(AdminDoctorsService);
+  private readonly adminServicesService = inject(AdminServicesService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly toastController = inject(ToastController);
@@ -160,6 +189,8 @@ export class DoctorFormPage implements OnInit {
   doctorId: string | null = null;
   currentDoctor: DoctorSummary | null = null;
   scheduleDraft: DoctorScheduleDraft[] = this.defaultScheduleDraft();
+  availableServices: ManagedService[] = [];
+  selectedServiceIds: Set<string> = new Set();
 
   form = this.fb.group({
     fullName: ['', [Validators.required, Validators.minLength(2)]],
@@ -314,7 +345,8 @@ export class DoctorFormPage implements OnInit {
             dayOfWeek: row.dayOfWeek,
             startTime: row.startTime,
             endTime: row.endTime
-          }))
+          })),
+        serviceIds: Array.from(this.selectedServiceIds)
       };
 
       this.adminDoctorsService.createDoctorInvite(invitePayload)
@@ -342,7 +374,15 @@ export class DoctorFormPage implements OnInit {
     }
   }
 
-  cancel(): void {
+  toggleService(serviceId: string): void {
+    if (this.selectedServiceIds.has(serviceId)) {
+      this.selectedServiceIds.delete(serviceId);
+    } else {
+      this.selectedServiceIds.add(serviceId);
+    }
+  }
+
+    cancel(): void {
     void this.router.navigate(['/admin/doctors']);
   }
 

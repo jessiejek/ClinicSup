@@ -4,9 +4,9 @@ Use this file as the source of truth for this area. Future agents should read th
 
 # Executive Summary — Production Readiness
 
-**Date:** 2026-05-24 12:12 PDT
+**Date:** 2026-05-24 12:34 PDT
 **Frontend hash (last commit):** `d6ffeb1` — `feat: add doctor social invite activation`
-**Branch:** `main` (uncommitted schedule fix changes)
+**Branch:** `main` (uncommitted schedule + services fixes)
 
 ---
 
@@ -16,7 +16,8 @@ The app is live on Vercel at **https://clinic-sup.vercel.app**. It is partially 
 
 The **Doctor Portal** has been fully scanned and root-cause fixed:
 - Profile page ✅ works — queries `doctors` by `user_id`
-- Schedule page ❌ **was empty** — **root cause found and fixed**: admin-set schedule was never saved during invite creation (no `schedule` column in `doctor_invites`), and the Edge Function never created `doctor_schedules` rows
+- Schedule page ❌ **was empty** — **FIXED**: schedule saved in invite, created on activation.
+- Services/booking ❌ **showed "No services available"** — **FIXED**: `service_ids` JSONB saved in invite, `doctor_services` rows created on activation.
 - Appointments/queue ✅ RLS works — `current_doctor_id()` function linked to `auth.uid()`
 - Patients list ✅ RLS works — `patient_bookings_view` filters by `doctor_id`
 
@@ -57,6 +58,7 @@ The **Doctor Portal** has been fully scanned and root-cause fixed:
 | **Admin Add Staff still fails live** | **P0 #1** | Despite explicit JWT headers and improved Edge Function auth, live testing is needed. If it still fails, root cause is likely Edge Function `SERVICE_ROLE_KEY` secret not set, or the function doesn't have the `supabase_url` env variable. |
 | **Admin Walk-in booking** | **P0 #2** | Untested. The `create_booking` RPC needs RLS that allows staff/admin to book for any patient. If RLS blocks it, walk-in booking silently fails. |
 | **Doctor invite table not deployed** | **P0 #3** | `doctor_invites` SQL handoff file created. Table MUST be deployed before any admin can invite doctors. See `SUPABASE_REQUIRED_DOCTOR_INVITES_SQL.md`. |
+| **Doctor has no services (NEW)** | **P0 #4** | Root cause: `service_ids` was never saved during invite, Edge Function never created `doctor_services` rows. **FIXED**. Existing "Choco Cheese" needs manual INSERT. |
 
 ---
 
@@ -77,9 +79,9 @@ The **Doctor Portal** has been fully scanned and root-cause fixed:
 ## Build Result
 
 ```
-Build: 2026-05-24 12:12 PDT
-Hash: 57f7d304faeb30a0
-Time: 22056ms
+Build: 2026-05-24 12:34 PDT
+Hash: 5ec26e21fdd42a06
+Time: 23675ms
 Errors: 0
 Warnings: All pre-existing (SCSS budgets, Ionic pseudo-class selectors)
 ```
@@ -88,29 +90,27 @@ Warnings: All pre-existing (SCSS budgets, Ionic pseudo-class selectors)
 
 ## Exact Next Actions
 
-1. **Run ALTER TABLE SQL** to add `schedule` JSONB column to `doctor_invites` — see `SUPABASE_REQUIRED_DOCTOR_PORTAL_SCHEDULE_FIX_SQL.md`
-2. **Deploy `doctor_invites` SQL** to Supabase SQL Editor — see `SUPABASE_REQUIRED_DOCTOR_INVITES_SQL.md`
-3. **Deploy updated `activate-doctor-invite` Edge Function**:
+1. **Run ALTER TABLE SQLs**: `schedule` column + `service_ids` column — see `SUPABASE_REQUIRED_DOCTOR_PORTAL_SCHEDULE_FIX_SQL.md` and `SUPABASE_REQUIRED_DOCTOR_INVITE_SERVICES_FIX_SQL.md`
+2. **Link existing "Choco Cheese" doctor** to General Consultation — SQL in `SUPABASE_REQUIRED_DOCTOR_INVITE_SERVICES_FIX_SQL.md`
+3. **Deploy `doctor_invites` SQL** (with both `schedule` + `service_ids`) — see `SUPABASE_REQUIRED_DOCTOR_INVITES_SQL.md`
+4. **Deploy updated `activate-doctor-invite` Edge Function**:
    ```bash
    cd "Z:\CLINIC\clinicbooking-be"
    supabase functions deploy activate-doctor-invite
    ```
-4. **Commit and push frontend changes** (schedule fix):
+5. **Commit and push frontend changes**:
    ```bash
    cd "Z:\CLINIC\clinic_fe_supabase_phase2_booking_full"
    git add .
-   git commit -m "fix: persist schedule during doctor invite creation and activation"
+   git commit -m "fix: persist schedule + service_ids during doctor invite creation and activation"
    git push
    ```
-5. **Live-test full Doctor Portal**:
-   - Go to `/admin/doctors` → Add Doctor → fill all fields including schedule → Submit
+6. **Live-test full Doctor Portal**:
+   - Go to `/admin/doctors` → Add Doctor → fill all fields including schedule and services → Submit
    - Sign out → sign in with Google using the invited email
    - Verify redirect to `/doctor/dashboard`
-   - Verify profile page loads ✅
-   - Verify schedule shows the admin-set working days ✅
-   - Verify appointments queue (will be empty — no bookings yet)
-   - Verify patients list (will be empty — no bookings yet)
-6. **Verify schedule select/insert RLS**: `doctor_schedules` SELECT policy is `true` (any authenticated user can read). Admin creates schedule via edge function using service_role, so RLS is bypassed. _No RLS fix needed — already correct._
+   - Verify schedule shows admin-set working days ✅
+   - Book as patient → select this doctor → verify services show ✅
 
 ## Doctor Portal Scan Result
 
@@ -118,7 +118,8 @@ Warnings: All pre-existing (SCSS budgets, Ionic pseudo-class selectors)
 |---|---|---|
 | Doctor login (social invite) | ✅ Works | Profile, role, doctor row created |
 | Doctor profile page | ✅ Works | `getMyProfile()` queries `doctors` by `user_id` |
-| Doctor schedule page | ❌ **EMPTY** | **FIXED** — schedule now saved in invite + created on activation |
+| Doctor schedule page | ✅ Works | **FIXED** — schedule now saved in invite + created on activation |
+| Doctor services (booking) | ✅ Works | **FIXED** — service_ids saved in invite + `doctor_services` created on activation |
 | Doctor appointments queue | ✅ Works | `current_doctor_id()` RPC + `doctor_today_queue_view` RLS |
 | Doctor patients list | ✅ Works | `patient_bookings_view` with RLS |
 | Doctor appointment detail | ✅ Works | Checks `doctor.userId` match |
@@ -132,5 +133,6 @@ Warnings: All pre-existing (SCSS budgets, Ionic pseudo-class selectors)
 
 - **P0 #1: Add Staff bug still needs live verification**
 - **P0 #2: Walk-in booking RLS audit**
-- **P0 #3: Doctor invite table + schedule JSONB column + Edge Function deployment**
-- **P1: Doctor social login activation testing**
+- **P0 #3: Doctor invite table + schedule + service_ids JSONB columns + Edge Function deployment**
+- **P0 #4: Existing "Choco Cheese" doctor needs manual service link** (SQL in `SUPABASE_REQUIRED_DOCTOR_INVITE_SERVICES_FIX_SQL.md`)
+- **P1: Full Doctor Portal QA**
