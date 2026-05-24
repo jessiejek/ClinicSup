@@ -1,8 +1,10 @@
 import { Component } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-auth-layout',
   standalone: true,
+  imports: [RouterLink],
   template: `
     <div class="auth-wrapper">
       <aside class="auth-left" aria-hidden="false">
@@ -18,6 +20,7 @@ import { Component } from '@angular/core';
       <div class="auth-right">
         <div class="auth-mobile-brand">Dr. Grace E. Gavino Medical Clinic</div>
         <div class="auth-form-container">
+          <a routerLink="/public" class="auth-back-link">← Back</a>
           <ng-content></ng-content>
         </div>
       </div>

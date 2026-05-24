@@ -99,6 +99,21 @@
   padding: var(--space-8);
 }
 
+.auth-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--clinic-text-muted);
+  text-decoration: none;
+  margin-bottom: var(--space-6);
+  transition: color var(--transition-fast);
+}
+
+.auth-back-link:hover {
+  color: var(--ion-color-primary);
+}
+
 .auth-form-container {
   width: 100%;
   max-width: 440px;
