@@ -138,6 +138,7 @@ $$;
 
 -- Add missing columns to booking_service_items (if not exist)
 ALTER TABLE public.booking_service_items ADD COLUMN IF NOT EXISTS service_name TEXT;
+ALTER TABLE public.booking_service_items ADD COLUMN IF NOT EXISTS service_name_snapshot TEXT;
 ALTER TABLE public.booking_service_items ADD COLUMN IF NOT EXISTS quantity INT NOT NULL DEFAULT 1;
 ALTER TABLE public.booking_service_items ADD COLUMN IF NOT EXISTS price NUMERIC(10,2) NOT NULL DEFAULT 0;
 
@@ -255,8 +256,8 @@ BEGIN
     -- Create booking_service_items
     FOR v_service IN SELECT s.id, s.name, s.price FROM public.services s WHERE s.id = ANY(p_service_ids)
     LOOP
-        INSERT INTO public.booking_service_items (booking_id, service_id, service_name, quantity, price)
-        VALUES (v_booking_id, v_service.id, v_service.name, 1, v_service.price);
+        INSERT INTO public.booking_service_items (booking_id, service_id, service_name, service_name_snapshot, quantity, price)
+        VALUES (v_booking_id, v_service.id, v_service.name, v_service.name, 1, v_service.price);
     END LOOP;
 
     -- Return result
