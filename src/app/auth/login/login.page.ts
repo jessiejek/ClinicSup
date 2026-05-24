@@ -97,7 +97,7 @@ export class LoginPage {
   onFacebookLogin(): void {
     this.authState.clearError();
     this.authService.loginWithFacebook().subscribe({
-      error: (err) => { void this.presentToast(err.message || 'Facebook login failed.'); }
+      error: () => { /* Redirect is happening */ }
     });
   }
 
