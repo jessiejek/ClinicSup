@@ -60,6 +60,15 @@ export class AdminPatientsService {
     return from(this.createPatientAsync(dto));
   }
 
+  /**
+   * Creates a guest patient (walk-in) with no auth user link.
+   * Sets user_id = null and is_guest = true.
+   * Used by staff walk-in registration flow.
+   */
+  createGuestPatient(dto: CreatePatientRequest): Observable<PatientDetail> {
+    return from(this.createGuestPatientAsync(dto));
+  }
+
   registerPatientAccount(dto: PatientAccountRegistrationRequest): Observable<string> {
     // Deferred: Supabase admin auth user creation needs a secure Edge Function.
     // For now, return a placeholder error to prevent silent failures.
@@ -140,6 +149,41 @@ export class AdminPatientsService {
         contact_email: dto.email ?? null,
         address: dto.address ?? null,
         is_guest: false,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapPatientDetailFromRow(data as PatientRow);
+  }
+
+  /**
+   * Creates a guest patient (walk-in) with no auth user link.
+   * Sets user_id = null and is_guest = true.
+   * No profiles or user_roles row is created.
+   */
+  private async createGuestPatientAsync(dto: CreatePatientRequest): Promise<PatientDetail> {
+    // Guest walk-in patient: no auth.users row, no profiles row, no user_roles row.
+    // patient_code generated client-side until DB-side auto-generation is added.
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const patientCode = `WALK-${dateStr}-${rand}`;
+
+    const { data, error } = await this.supabase
+      .from('patients')
+      .insert({
+        patient_code: patientCode,
+        first_name: dto.firstName,
+        middle_name: dto.middleName ?? null,
+        last_name: dto.lastName,
+        date_of_birth: dto.dateOfBirth ?? null,
+        sex: dto.sex ?? null,
+        contact_number: dto.contactNumber ?? null,
+        contact_email: dto.email ?? null,
+        address: dto.address ?? null,
+        user_id: null,
+        is_guest: true,
       })
       .select()
       .single();

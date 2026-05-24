@@ -887,14 +887,14 @@ export class StaffWalkInPage implements OnInit {
     this.isSavingPatient = true;
 
     try {
-      const patient = await firstValueFrom(this.adminPatientsService.createPatient(dto));
+      const patient = await firstValueFrom(this.adminPatientsService.createGuestPatient(dto));
       this.selectedPatient = mapCreatedPatient(patient);
       this.searchResults = [];
       this.searchErrorMessage = null;
       this.showQuickRegister = false;
       this.searchControl.setValue('', { emitEvent: false });
       this.cancelQuickRegister();
-      await this.presentToast('Patient created successfully.', 'success');
+      await this.presentToast('Guest patient created successfully. Patient may link an online account later.', 'success');
       this.refreshCurrentStep();
     } catch (error) {
       await this.presentToast(extractApiErrorMessage(error, 'Failed to create patient.'), 'danger');
