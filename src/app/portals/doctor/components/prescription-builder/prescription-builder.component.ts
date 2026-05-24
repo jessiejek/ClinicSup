@@ -11,8 +11,8 @@ import {
 } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MockDataService } from '../../../../core/services/mock-data.service';
-import { MockDrug, PrescriptionItem } from '../../../../core/models';
+import { PrescriptionItem } from '../../../../core/models';
+import { PRESCRIPTION_DRUG_LIST } from './prescription-drug-list';
 import {
   MEDICATION_FREQUENCY_MASTERS,
   MEDICATION_ROUTE_MASTERS,
@@ -181,7 +181,7 @@ export class PrescriptionBuilderComponent implements OnChanges {
   @Output() itemsChange = new EventEmitter<PrescriptionItem[]>();
 
   private readonly fb = inject(FormBuilder);
-  private readonly mockData = inject(MockDataService);
+
   private readonly destroyRef = inject(DestroyRef);
   private readonly modalCtrl = inject(ModalController);
 
@@ -198,7 +198,7 @@ export class PrescriptionBuilderComponent implements OnChanges {
   );
   readonly dosageFormOptions = ['Tablet', 'Capsule', 'Syrup', 'Injection', 'Cream', 'Drops', 'Others'];
 
-  suggestions: MockDrug[] = [];
+  suggestions: Array<{ medicineName: string; genericName?: string }> = [];
   activeSuggestionIndex = -1;
 
   get itemControls(): FormArray {
@@ -375,7 +375,7 @@ export class PrescriptionBuilderComponent implements OnChanges {
     return description ? `${code} - ${description}` : code;
   }
 
-  applySuggestion(index: number, drug: MockDrug): void {
+  applySuggestion(index: number, drug: { medicineName: string; genericName?: string }): void {
     const group = this.itemControls.at(index);
     if (!group || this.locked) {
       return;
@@ -496,13 +496,12 @@ export class PrescriptionBuilderComponent implements OnChanges {
     return value || fallback;
   }
 
-  private lookupDrugs(query: string): MockDrug[] {
+  private lookupDrugs(query: string): Array<{ medicineName: string; genericName?: string }> {
     const needle = query.trim().toLowerCase();
     if (!needle) {
       return [];
     }
-    return this.mockData
-      .getMockDrugList()
+    return PRESCRIPTION_DRUG_LIST
       .filter((drug) =>
         [drug.medicineName, drug.genericName ?? ''].join(' ').toLowerCase().includes(needle)
       )

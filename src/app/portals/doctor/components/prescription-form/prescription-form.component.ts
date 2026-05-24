@@ -1,13 +1,12 @@
 import { NgFor, NgIf } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { MockDataService } from '../../../../core/services/mock-data.service';
-import { PrescriptionItem, MockDrug } from '../../../../core/models';
+import { PrescriptionItem } from '../../../../core/models';
 import {
   MEDICATION_ROUTE_MASTERS,
   MEDICATION_FREQUENCY_MASTERS,
-  MEDICATION_UOM_MASTERS,
 } from '../prescription-builder/prescription-masters';
+import { PRESCRIPTION_DRUG_LIST } from '../prescription-builder/prescription-drug-list';
 
 @Component({
   selector: 'app-prescription-form',
@@ -124,7 +123,7 @@ export class PrescriptionFormComponent implements OnChanges {
   @Output() itemsChange = new EventEmitter<PrescriptionItem[]>();
 
   private readonly fb = inject(FormBuilder);
-  private readonly mockData = inject(MockDataService);
+
 
   readonly form = this.fb.group({ medicineName: [''], strength: [''], dosage: [''], route: [''], frequency: [''], duration: [''], quantity: [1], instructions: [''] });
 
@@ -144,7 +143,7 @@ export class PrescriptionFormComponent implements OnChanges {
   routeFilter = '';
   freqFilter = '';
   instFilter = '';
-  allDrugs: MockDrug[] = [];
+
 
   readonly instructionOptions = [
     'Take after meals',
@@ -166,7 +165,6 @@ export class PrescriptionFormComponent implements OnChanges {
   ];
 
   constructor() {
-    this.allDrugs = this.mockData.getMockDrugList();
     // Auto-generate instructions from other fields
     let autoGen = true;
     this.form.valueChanges.subscribe((v) => {
@@ -180,9 +178,9 @@ export class PrescriptionFormComponent implements OnChanges {
     });
   }
 
-  get filteredDrugs(): MockDrug[] {
+  get filteredDrugs(): Array<{ medicineName: string; genericName?: string }> {
     const q = (this.form.get('medicineName')?.value || '').toLowerCase();
-    return q ? this.allDrugs.filter((d) => [d.medicineName, d.genericName].join(' ').toLowerCase().includes(q)).slice(0, 6) : [];
+    return q ? PRESCRIPTION_DRUG_LIST.filter((d) => [d.medicineName, d.genericName].join(' ').toLowerCase().includes(q)).slice(0, 6) : [];
   }
 
   get dosageOptionsFiltered(): string[] {
@@ -215,7 +213,7 @@ export class PrescriptionFormComponent implements OnChanges {
   hideInst() { setTimeout(() => this.showInst = false, 200); }
   filterDrugs() { this.showDrugSuggestions = true; }
 
-  selectDrug(d: MockDrug) {
+  selectDrug(d: { medicineName: string; genericName?: string }) {
     this.form.patchValue({ medicineName: d.medicineName });
     this.showDrugSuggestions = false;
   }
