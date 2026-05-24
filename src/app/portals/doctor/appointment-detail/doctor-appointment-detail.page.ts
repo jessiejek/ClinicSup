@@ -6,7 +6,6 @@ import { map, switchMap } from 'rxjs/operators';
 import { Booking, Patient, Service } from '../../../core/models';
 import { AuthStateService } from '../../../core/services/auth-state.service';
 import { BookingService } from '../../../core/services/booking.service';
-import { MockDataService } from '../../../core/services/mock-data.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { PatientMediaPanelComponent } from '../../../shared/components/patient-media-panel/patient-media-panel.component';
@@ -164,7 +163,6 @@ export class DoctorAppointmentDetailPage implements OnInit {
   private readonly bookingService = inject(BookingService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly mockData = inject(MockDataService);
 
   readonly detail$ = combineLatest([
     this.route.paramMap.pipe(map((paramMap) => paramMap.get('id') ?? '')),
@@ -182,7 +180,7 @@ export class DoctorAppointmentDetailPage implements OnInit {
           }
 
           const patient = buildPatientFromBooking(booking);
-          const service = this.mockData.getServiceById(booking.serviceId) ?? buildFallbackService(booking);
+          const service = buildFallbackService(booking);
           return { booking, patient, service };
         })
       );

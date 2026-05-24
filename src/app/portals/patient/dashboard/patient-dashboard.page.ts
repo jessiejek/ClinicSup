@@ -5,12 +5,12 @@ import { IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { calendarOutline, checkmarkCircleOutline, medkitOutline, receiptOutline } from 'ionicons/icons';
 import { catchError, combineLatest, map, of, switchMap } from 'rxjs';
-import { AuthUser, Booking, Consultation, Doctor, Patient, Prescription, Service } from '../../../core/models';
+import { AuthUser, Booking, Consultation, Doctor, Patient, Prescription } from '../../../core/models';
 import { AuthStateService } from '../../../core/services/auth-state.service';
 import { BookingService } from '../../../core/services/booking.service';
+import { ClinicSettingsService } from '../../../core/services/clinic-settings.service';
 import { DoctorStateService } from '../../../core/services/doctor-state.service';
 import { MedicalRecordsService } from '../../../core/services/medical-records.service';
-import { MockDataService } from '../../../core/services/mock-data.service';
 import { BannerComponent } from '../../../shared/components/banner/banner.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { DoctorCardComponent } from '../../public/components/doctor-card/doctor-card.component';
@@ -29,7 +29,6 @@ interface DashboardVm {
   doctors: Doctor[];
   latestBooking?: Booking;
   latestBookingDoctor?: Doctor;
-  latestBookingService?: Service;
   recentConsultations: Array<{ consultation: Consultation; doctor?: Doctor }>;
   recentPrescriptions: Array<{ prescription: Prescription; doctor?: Doctor }>;
   showEmailWarning: boolean;
@@ -138,7 +137,6 @@ interface DashboardVm {
         <app-upcoming-appointment-card
           [booking]="vm.latestBooking"
           [doctor]="vm.latestBookingDoctor"
-          [service]="vm.latestBookingService"
           [canSubmitProof]="canSubmitProof(vm.latestBooking)"
           [canCancel]="false"
           (viewDetails)="openBooking($event)"
@@ -220,10 +218,10 @@ export class PatientDashboardPage implements OnInit {
 
   private readonly authState = inject(AuthStateService);
   private readonly bookingService = inject(BookingService);
+  private readonly clinicSettings = inject(ClinicSettingsService);
   private readonly doctorState = inject(DoctorStateService);
   private readonly medicalRecords = inject(MedicalRecordsService);
   private readonly router = inject(Router);
-  private readonly mockData = inject(MockDataService);
   private readonly patientService = inject(PatientService);
 
   readonly currentUser$ = this.authState.currentUser$;
@@ -266,7 +264,6 @@ export class PatientDashboardPage implements OnInit {
           doctors: doctors.slice(0, 3),
           latestBooking: undefined,
           latestBookingDoctor: undefined,
-          latestBookingService: undefined,
           recentConsultations: [],
           recentPrescriptions: [],
           showEmailWarning: false,
@@ -280,15 +277,19 @@ export class PatientDashboardPage implements OnInit {
 
       return combineLatest([
         this.medicalRecords.getConsultationsByPatientId(patient.id),
-        this.medicalRecords.getPrescriptionsByPatientId(patient.id)
+        this.medicalRecords.getPrescriptionsByPatientId(patient.id),
+        this.clinicSettings.settings$
       ]).pipe(
-        map(([consultations, prescriptions]) => {
+        map(([consultations, prescriptions, settings]) => {
+          // Build doctor lookup map from the already-loaded doctors array
+          const doctorMap = new Map<string, Doctor>();
+          for (const d of doctors) {
+            doctorMap.set(d.id, d);
+          }
+
           const latestBooking = upcomingBookings[0];
           const latestBookingDoctor = latestBooking
-            ? this.mockData.getDoctorById(latestBooking.doctorId)
-            : undefined;
-          const latestBookingService = latestBooking
-            ? this.mockData.getServiceById(latestBooking.serviceId)
+            ? doctorMap.get(latestBooking.doctorId)
             : undefined;
 
           return {
@@ -301,18 +302,17 @@ export class PatientDashboardPage implements OnInit {
           doctors: doctors.slice(0, 3),
           latestBooking,
           latestBookingDoctor,
-          latestBookingService,
             recentConsultations: consultations.slice(0, 2).map((consultation) => ({
               consultation,
-              doctor: this.mockData.getDoctorById(consultation.doctorId)
+              doctor: doctorMap.get(consultation.doctorId)
             })),
             recentPrescriptions: prescriptions.slice(0, 2).map((prescription) => ({
               prescription,
-              doctor: this.mockData.getDoctorById(prescription.doctorId)
+              doctor: doctorMap.get(prescription.doctorId)
             })),
             showEmailWarning: patient.isEmailVerified === false,
             showConsentWarning:
-              patient.consentVersion !== this.mockData.getClinicSettings().consentVersion,
+              patient.consentVersion !== settings.consentVersion,
             upcomingCount: upcomingBookings.length,
             pendingProofCount: pendingProofBookings.length,
             completedVisitCount: consultations.length,
