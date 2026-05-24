@@ -136,8 +136,10 @@ BEGIN
 END;
 $$;
 
--- Add missing service_name column to booking_service_items (if not exist)
+-- Add missing columns to booking_service_items (if not exist)
 ALTER TABLE public.booking_service_items ADD COLUMN IF NOT EXISTS service_name TEXT;
+ALTER TABLE public.booking_service_items ADD COLUMN IF NOT EXISTS quantity INT NOT NULL DEFAULT 1;
+ALTER TABLE public.booking_service_items ADD COLUMN IF NOT EXISTS price NUMERIC(10,2) NOT NULL DEFAULT 0;
 
 -- ============================================================================
 -- SECTION E3: Fix create_booking RPC to cast TEXT to enum types
