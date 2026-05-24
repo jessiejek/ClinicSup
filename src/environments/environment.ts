@@ -15,5 +15,9 @@ export const environment = {
   facebookAppId: '',
   facebookSdkVersion: 'v25.0',
 
-  useMockData: false
+  useMockData: false,
+
+  // Explicit site URL for OAuth redirects.
+  // For local dev, fall back to window.location.origin.
+  siteUrl: ''
 };

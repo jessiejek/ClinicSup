@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthError, Session, User } from '@supabase/supabase-js';
 import { Observable, catchError, from, map, of, switchMap, throwError } from 'rxjs';
+import { environment } from '../../../environments/environment';
 import { AuthUser, Role } from '../models';
 import { SupabaseService } from './supabase.service';
 import { TokenService } from './token.service';
@@ -144,10 +145,11 @@ export class AuthService {
   }
 
   private async loginWithGoogleAsync(): Promise<void> {
+    const redirectUrl = environment.siteUrl || window.location.origin;
     const { error } = await this.supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin
+        redirectTo: redirectUrl
       }
     });
 

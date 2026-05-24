@@ -15,5 +15,9 @@ export const environment = {
   facebookAppId: '',
   facebookSdkVersion: 'v25.0',
 
-  useMockData: false
+  useMockData: false,
+
+  // Explicit site URL for OAuth redirects.
+  // On Vercel this must be the production domain, not localhost.
+  siteUrl: 'https://clinic-sup.vercel.app'
 };
