@@ -20,6 +20,8 @@ Use this file as the source of truth for this area. Future agents should read th
 - **P0 #10: Live-test Admin walk-in date selection**
 - **P0 #11: Verify social-login patient has patients row after login**
 - **P1: Full Doctor Portal QA**
+- **P1: Run `SUPABASE_REQUIRED_STAFF_INVITES_SQL.md`** — create staff_invites table
+- **P1: Deploy `activate-staff-invite` Edge Function** — staff social-login activation
 
 ---
 

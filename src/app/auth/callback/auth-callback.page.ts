@@ -100,12 +100,36 @@ export class AuthCallbackPage implements OnInit {
           }
         } catch (activateErr: unknown) {
           console.warn('[AuthCallback] Doctor activation check failed (non-fatal):', activateErr);
+          // Continue with staff/patient flow
+        }
+
+        // ---- Staff Social Login Activation: check for pending staff invite ----
+        this.statusText = 'Checking for staff invitations...';
+        try {
+          const staffActivationResult = await this.tryActivateStaffInvite(accessToken);
+          if (staffActivationResult?.activated && staffActivationResult.role === 'staff') {
+            // Reload user profile with updated role
+            const refreshedSession = await this.supabase.auth.getSession();
+            if (refreshedSession.data.session?.user) {
+              const reloadedUser = await this.authService.loadAuthUser(
+                refreshedSession.data.session.user,
+                refreshedSession.data.session
+              );
+              this.authService.persistUser(reloadedUser);
+              this.authState.setUser(reloadedUser);
+              activeRole = 'Staff';
+              void this.router.navigate(['/staff/dashboard']);
+              return;
+            }
+          }
+        } catch (activateErr: unknown) {
+          console.warn('[AuthCallback] Staff activation check failed (non-fatal):', activateErr);
           // Continue with normal patient flow
         }
       }
 
-      // Persist and set user in state (if not already redirected as doctor)
-      if (activeRole !== 'Doctor') {
+      // Persist and set user in state (if not already redirected as doctor/staff)
+      if (activeRole !== 'Doctor' && activeRole !== 'Staff') {
         this.authService.persistUser(authUser);
         this.authState.setUser(authUser);
         this.authService.navigateByRole(authUser);
@@ -131,6 +155,24 @@ export class AuthCallbackPage implements OnInit {
 
     if (funcError) {
       console.warn('[AuthCallback] activate-doctor-invite invocation error:', funcError);
+      return null;
+    }
+
+    return funcData as { activated: boolean; role: string | null } | null;
+  }
+
+  private async tryActivateStaffInvite(accessToken: string): Promise<{ activated: boolean; role: string | null } | null> {
+    const { data: funcData, error: funcError } = await this.supabase.functions.invoke(
+      'activate-staff-invite',
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (funcError) {
+      console.warn('[AuthCallback] activate-staff-invite invocation error:', funcError);
       return null;
     }
 

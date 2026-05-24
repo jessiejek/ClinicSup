@@ -207,3 +207,9 @@
   background: #fff7ed;
   color: #9a3412;
 }
+
+/* Invited status (staff invites) */
+.badge--invited {
+  background: var(--color-primary-50);
+  color: var(--color-primary-700);
+}

@@ -161,4 +161,6 @@ Warnings: All pre-existing (SCSS budgets + NG8107/NG8102 in doctor-consultation.
 - **P0 #9: Live-test Staff walk-in date selection**
 - **P0 #10: Live-test Admin walk-in date selection**
 - **P0 #11: Verify social-login patient has patients row after login**
+- **P1: Deploy staff_invites table** — `SUPABASE_REQUIRED_STAFF_INVITES_SQL.md`
+- **P1: Deploy `activate-staff-invite` Edge Function** — mirrors `activate-doctor-invite`
 - **P1: Full Doctor Portal QA**
