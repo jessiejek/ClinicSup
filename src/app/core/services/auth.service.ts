@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthError, Session, User } from '@supabase/supabase-js';
-import { Observable, catchError, from, map, of, throwError } from 'rxjs';
+import { Observable, catchError, from, map, of, switchMap, throwError } from 'rxjs';
 import { AuthUser, Role } from '../models';
 import { SupabaseService } from './supabase.service';
 import { TokenService } from './token.service';
@@ -32,8 +32,10 @@ export class AuthService {
     return from(this.loginAsync(email, password));
   }
 
-  loginWithGoogle(_idToken: string): Observable<AuthUser> {
-    return throwError(() => new Error('Google sign-in is deferred until Supabase OAuth is wired.'));
+  loginWithGoogle(): Observable<never> {
+    return from(this.loginWithGoogleAsync()).pipe(
+      switchMap(() => throwError(() => new Error('Redirecting to Google...')))
+    );
   }
 
   loginWithFacebook(_accessToken: string, _userId: string): Observable<AuthUser> {
@@ -141,6 +143,20 @@ export class AuthService {
     return this.loadAuthUser(data.user, data.session);
   }
 
+  private async loginWithGoogleAsync(): Promise<void> {
+    const { error } = await this.supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+    // The page will redirect to Google, then back to the app with the OAuth session.
+  }
+
   private async registerPatientAsync(
     firstName: string,
     middleName: string | undefined,
@@ -220,22 +236,31 @@ export class AuthService {
   }
 
   private async loadAuthUser(user: User, session: Session | null): Promise<AuthUser> {
-    const [profile, role] = await Promise.all([
-      this.loadProfile(user),
-      this.loadPrimaryRole(user.id)
-    ]);
+    const profile = await this.loadProfile(user);
+    const resolvedProfile = profile ?? await this.ensureProfileRow(user);
+
+    let role: Role;
+    try {
+      role = await this.loadPrimaryRole(user.id);
+    } catch {
+      role = await this.ensureRole(user);
+    }
+
+    // If patient role, ensure a patients row exists
+    if (role === 'Patient') {
+      await this.ensurePatientRow(user, resolvedProfile);
+    }
 
     const authUser: AuthUser = {
       id: user.id,
       fullName:
-        profile?.full_name ||
+        resolvedProfile?.full_name ||
         readStringMetadata(user, 'full_name') ||
         user.email ||
         'Clinic User',
-      email: profile?.email || user.email || '',
+      email: resolvedProfile?.email || user.email || '',
       role,
-      avatarUrl: profile?.avatar_url ?? undefined,
-      // Keep false during Supabase migration so users do not get forced into the old set-password flow.
+      avatarUrl: resolvedProfile?.avatar_url ?? undefined,
       isFirstLogin: false
     };
 
@@ -243,6 +268,94 @@ export class AuthService {
     this.persistUser(authUser);
 
     return authUser;
+  }
+
+  private async ensureProfileRow(user: User): Promise<ProfileRow> {
+    const fullName = readStringMetadata(user, 'full_name') ||
+      [readStringMetadata(user, 'first_name'), readStringMetadata(user, 'last_name')]
+        .filter(Boolean)
+        .join(' ') ||
+      user.email ||
+      'Clinic User';
+
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .upsert({
+        id: user.id,
+        full_name: fullName,
+        email: user.email,
+        avatar_url: user.user_metadata?.['avatar_url'] ?? user.user_metadata?.['picture'] ?? null,
+        is_first_login: true,
+        is_active: true,
+      }, { onConflict: 'id' })
+      .select('id, full_name, email, avatar_url, is_first_login, is_active')
+      .single();
+
+    if (error) throw error;
+    return data as ProfileRow;
+  }
+
+  private async ensureRole(user: User): Promise<Role> {
+    const roleErrorMsg = 'Your account has no app role yet. Ask an admin to assign a role.';
+
+    // First check if role exists (might have been created by another request)
+    const { data: existingRoles } = await this.supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+
+    const existingRole = (existingRoles as UserRoleRow[] | null)?.[0]?.role;
+    if (existingRole) {
+      return mapSupabaseRoleToAngularRole(existingRole);
+    }
+
+    // No role exists — insert default 'patient'
+    const { error } = await this.supabase
+      .from('user_roles')
+      .insert({ user_id: user.id, role: 'patient' });
+
+    if (error) {
+      // Role insert may fail if user_roles RLS blocks anon inserts.
+      // In that case, an admin needs to assign the role manually.
+      console.error('Failed to auto-assign patient role:', error);
+      return 'Patient';
+    }
+
+    return 'Patient';
+  }
+
+  private async ensurePatientRow(user: User, profile: ProfileRow): Promise<void> {
+    // Check if patient already exists linked to this user
+    const { data: existingByUser } = await this.supabase
+      .from('patients')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existingByUser) return;
+
+    // Check by email as fallback
+    const { data: existingByEmail } = user.email
+      ? await this.supabase.from('patients').select('id').eq('contact_email', user.email).maybeSingle()
+      : { data: null };
+
+    if (existingByEmail) {
+      await this.supabase.from('patients').update({ user_id: user.id }).eq('id', existingByEmail.id);
+      return;
+    }
+
+    // Create minimal patient row
+    const [firstName, ...lastParts] = (profile.full_name || user.email || 'New Patient').split(' ');
+    const lastName = lastParts.join(' ') || '';
+
+    await this.supabase.from('patients').insert({
+      user_id: user.id,
+      first_name: firstName,
+      last_name: lastName,
+      contact_email: user.email,
+      is_guest: false,
+    });
+    // If insert fails (e.g., RLS), the user will see an auth error on next login.
   }
 
   private async loadProfile(user: User): Promise<ProfileRow | null> {

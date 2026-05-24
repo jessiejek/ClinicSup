@@ -69,40 +69,24 @@
       <hr />
     </div>
 
-    <div class="google-signin">
-      <div #googleButton class="google-signin__button" *ngIf="canUseGoogleLogin && !googleSdkError"></div>
+    <div class="social-buttons">
       <button
-        *ngIf="!canUseGoogleLogin || googleSdkError"
         type="button"
         class="btn-social"
-        (click)="onGoogleFallbackClick()"
-        [disabled]="googleLoading || (isLoading$ | async) === true"
+        (click)="onGoogleLogin()"
+        [disabled]="(isLoading$ | async) === true"
       >
-        {{ googleSdkError ? 'Retry Google Sign-In' : 'Continue with Google' }}
+        Continue with Google
       </button>
-      <div class="google-status" *ngIf="googleLoading">
-        <ion-spinner name="crescent" style="width: 16px; height: 16px"></ion-spinner>
-        <span>Finishing Google sign-in...</span>
-      </div>
-      <p class="google-status google-status--error" *ngIf="googleSdkError">
-        {{ googleSdkError }}
-      </p>
-    </div>
 
-    <div class="facebook-signin">
       <button
         type="button"
         class="btn-social btn-social--facebook"
-        (click)="onFacebookLoginClick()"
-        [disabled]="facebookLoading || (isLoading$ | async) === true"
+        disabled
       >
         <span class="btn-social__icon" aria-hidden="true">f</span>
-        {{ facebookLoading ? 'Finishing Facebook sign-in...' : 'Continue with Facebook' }}
+        Facebook (coming soon)
       </button>
-
-      <p class="google-status google-status--error" *ngIf="facebookSdkError">
-        {{ facebookSdkError }}
-      </p>
     </div>
 
     <p class="register-hint">
@@ -116,7 +100,7 @@
 
     <div class="dev-credentials">
       <button type="button" class="dev-credentials__toggle" (click)="devExpanded = !devExpanded">
-        Quick Login (Dev Only) {{ devExpanded ? 'â–¼' : 'â–¶' }}
+        Quick Login (Dev Only) {{ devExpanded ? '&#9650;' : '&#9660;' }}
       </button>
       <div *ngIf="devExpanded" class="dev-credentials__body">
         <button type="button" class="dev-chip" (click)="fillCreds('patient@gavino.clinic', 'Patient@123456')">

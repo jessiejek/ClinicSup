@@ -55,11 +55,11 @@ export class AuthStateService {
     );
   }
 
-  loginWithGoogle(idToken: string): Observable<AuthUser> {
+  loginWithGoogle(): Observable<AuthUser> {
     this.loadingSubject.next(true);
     this.errorSubject.next(null);
 
-    return this.authService.loginWithGoogle(idToken).pipe(
+    return this.authService.loginWithGoogle().pipe(
       tap((user) => {
         this.setUser(user);
         this.authService.navigateByRole(user);

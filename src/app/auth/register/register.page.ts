@@ -383,7 +383,7 @@ export class RegisterPage implements AfterViewInit {
       return;
     }
     this.googleLoading = true;
-    this.authState.loginWithGoogle(response.credential).pipe(
+    this.authState.loginWithGoogle().pipe(
       finalize(() => { this.googleLoading = false; })
     ).subscribe({ error: () => undefined });
   }
