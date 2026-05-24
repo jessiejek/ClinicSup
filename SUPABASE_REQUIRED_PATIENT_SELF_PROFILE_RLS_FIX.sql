@@ -123,6 +123,19 @@ ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
+-- Make service_id nullable (bookings table has this column from a different migration;
+-- service linkage is through booking_service_items)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'bookings' AND column_name = 'service_id'
+    ) THEN
+        ALTER TABLE public.bookings ALTER COLUMN service_id DROP NOT NULL;
+    END IF;
+END;
+$$;
+
 -- ============================================================================
 -- SECTION E3: Fix create_booking RPC to cast TEXT to enum types
 -- The create_booking RPC inserts TEXT values into booking_status, payment_mode,
