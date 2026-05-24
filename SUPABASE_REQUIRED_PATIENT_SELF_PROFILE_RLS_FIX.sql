@@ -104,6 +104,26 @@ $$;
 ALTER TABLE public.patients DROP CONSTRAINT IF EXISTS patients_sex_check;
 
 -- ============================================================================
+-- SECTION E2: Add missing bookings columns (if bookings table pre-existed)
+-- The bookings table may have been created before phase-02-booking-workflow.sql
+-- ran, missing columns like total_amount, final_amount, payment_mode, etc.
+-- ============================================================================
+
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS queue_number INT;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS payment_mode TEXT NOT NULL DEFAULT 'PayAtClinic';
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'Unpaid';
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS total_amount NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS final_amount NUMERIC(10,2);
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS created_by_user_id UUID REFERENCES auth.users(id);
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS is_walk_in BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS is_professional_fee_waived BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS checked_in_at TIMESTAMPTZ;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS doctor_completed_at TIMESTAMPTZ;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+-- ============================================================================
 -- SECTION F: Verify create_booking has self-booking support
 -- (showing the patient-resolve logic; the full RPC is in Phase 2 SQL)
 -- ============================================================================
