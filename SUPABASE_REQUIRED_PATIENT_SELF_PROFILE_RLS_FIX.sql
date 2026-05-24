@@ -136,6 +136,9 @@ BEGIN
 END;
 $$;
 
+-- Add missing service_name column to booking_service_items (if not exist)
+ALTER TABLE public.booking_service_items ADD COLUMN IF NOT EXISTS service_name TEXT;
+
 -- ============================================================================
 -- SECTION E3: Fix create_booking RPC to cast TEXT to enum types
 -- The create_booking RPC inserts TEXT values into booking_status, payment_mode,
