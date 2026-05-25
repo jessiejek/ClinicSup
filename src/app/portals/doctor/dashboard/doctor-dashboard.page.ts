@@ -4,9 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { IonSpinner, ToastController } from '@ionic/angular/standalone';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, forkJoin, of } from 'rxjs';
+import { catchError, forkJoin, of, filter, take } from 'rxjs';
 import { finalize, switchMap } from 'rxjs/operators';
 import { AvailabilityStatus, Booking, Doctor, DoctorDayStatus, DoctorSchedule } from '../../../core/models';
+import { AuthStateService } from '../../../core/services/auth-state.service';
 import { BookingService } from '../../../core/services/booking.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
@@ -121,6 +122,7 @@ import { DoctorService } from '../services/doctor.service';
   styleUrl: './doctor-dashboard.page.scss'
 })
 export class DoctorDashboardPage implements OnInit {
+  private readonly authState = inject(AuthStateService);
   private readonly doctorService = inject(DoctorService);
   private readonly bookingService = inject(BookingService);
   private readonly router = inject(Router);
@@ -138,6 +140,16 @@ export class DoctorDashboardPage implements OnInit {
 
   ngOnInit(): void {
     this.setGreeting();
+    this.authState.currentUser$
+      .pipe(
+        filter((user): user is NonNullable<typeof user> => Boolean(user)),
+        take(1),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => this.loadDashboard());
+  }
+
+  ionViewWillEnter(): void {
     this.loadDashboard();
   }
 
