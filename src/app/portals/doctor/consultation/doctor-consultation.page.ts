@@ -168,20 +168,23 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
                   <span class="cvh__tag-label">Payment</span>
                   <span class="cvh__tag-value">{{ vm.booking.paymentMode || '--' }} &middot; <app-status-badge [status]="vm.booking.paymentStatus || 'Unpaid'"></app-status-badge></span>
                 </div>
+                <div class="cvh__tag" *ngIf="vm.allergies.length > 0">
+                  <span class="cvh__tag-label">Allergies</span>
+                  <span class="cvh__tag-value">{{ vm.allergies.length }} recorded</span>
+                </div>
+                <div class="cvh__tag" *ngIf="existingConditions(vm).length > 0">
+                  <span class="cvh__tag-label">Conditions</span>
+                  <span class="cvh__tag-value">{{ existingConditions(vm).slice(0,2).join(', ') }}{{ existingConditions(vm).length > 2 ? '...' : '' }}</span>
+                </div>
+                <div class="cvh__tag" *ngIf="lastVisitDate(vm) as lv">
+                  <span class="cvh__tag-label">Last Visit</span>
+                  <span class="cvh__tag-value">{{ lv | date:'MMM d' }}</span>
+                </div>
               </div>
             </div>
           </div>
 
           <div class="cr-body cr-body--view">
-            <app-consultation-overview
-              [patient]="vm.patient"
-              [consultation]="vm.consultation"
-              [existingPrescription]="vm.existingPrescription"
-              [allergies]="vm.allergies"
-              [followUps]="vm.followUps"
-              [recentConsultations]="vm.recentConsultations"
-            ></app-consultation-overview>
-
             <app-consultation-summary
               [vm]="vm"
             ></app-consultation-summary>
@@ -601,6 +604,24 @@ export class DoctorConsultationPage {
     }
 
     return 'complete';
+  }
+
+  existingConditions(vm: ConsultationPageVm): string[] {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const c of vm.recentConsultations) {
+      for (const d of c.diagnoses) {
+        if (!seen.has(d.description)) {
+          seen.add(d.description);
+          result.push(d.description);
+        }
+      }
+    }
+    return result;
+  }
+
+  lastVisitDate(vm: ConsultationPageVm): string | null {
+    return vm.recentConsultations[0]?.consultationDate || null;
   }
 
   calcAge(dob: string): number {
