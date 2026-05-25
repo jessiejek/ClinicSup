@@ -9,6 +9,7 @@ import { finalize, switchMap } from 'rxjs/operators';
 import { AvailabilityStatus, Booking, Doctor, DoctorDayStatus, DoctorSchedule } from '../../../core/models';
 import { AuthStateService } from '../../../core/services/auth-state.service';
 import { BookingService } from '../../../core/services/booking.service';
+import { ClinicDashboardRealtimeService } from '../../../core/services/clinic-dashboard-realtime.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
@@ -125,6 +126,7 @@ export class DoctorDashboardPage implements OnInit {
   private readonly authState = inject(AuthStateService);
   private readonly doctorService = inject(DoctorService);
   private readonly bookingService = inject(BookingService);
+  private readonly realtime = inject(ClinicDashboardRealtimeService);
   private readonly router = inject(Router);
   private readonly toastCtrl = inject(ToastController);
   private readonly destroyRef = inject(DestroyRef);
@@ -147,6 +149,23 @@ export class DoctorDashboardPage implements OnInit {
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe(() => this.loadDashboard());
+
+    // Realtime: auto-refresh dashboard on booking events
+    this.realtime.events$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((event) => {
+        if ([
+          'BookingCreated',
+          'BookingCancelled',
+          'PatientCheckedIn',
+          'PatientCheckInUndone',
+          'DoctorCompletedConsultation',
+          'PaymentCompleted',
+          'PaymentWaived'
+        ].includes(event.eventName)) {
+          this.loadDashboard();
+        }
+      });
   }
 
   ionViewWillEnter(): void {
