@@ -14,6 +14,19 @@
 @import '@ionic/angular/css/flex-utils.css';
 @import '@ionic/angular/css/display.css';
 
+/* ── iOS PWA Safe Area ──────────────────────────────── */
+html {
+  /* Safe-area padding for body content behind notch/home indicator */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* When Ionic content takes over, reset html padding so the layout
+   components manage safe-area themselves */
+ion-app, ion-content {
+  margin-top: 0;
+}
+
 :root {
   /* PRIMARY — Brand Purple (Extracted from Signage) */
   --ion-color-primary: #5d3e8e;
