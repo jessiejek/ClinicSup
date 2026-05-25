@@ -154,7 +154,7 @@ export class DoctorService {
       .from('doctor_day_statuses')
       .select('*')
       .eq('doctor_id', doctorId)
-      .eq('date', today)
+      .eq('target_date', today)
       .maybeSingle();
 
     if (error) throw error;
@@ -169,10 +169,10 @@ export class DoctorService {
       .from('doctor_day_statuses')
       .upsert({
         doctor_id: doctorId,
-        date: dto.date,
+        target_date: dto.date,
         status: dto.status,
         running_late_minutes: dto.runningLateMinutes,
-      }, { onConflict: 'doctor_id,date' })
+      }, { onConflict: 'doctor_id,target_date' })
       .select()
       .single();
 
@@ -290,7 +290,7 @@ function mapDoctorDayStatusRow(row: Record<string, unknown>): DoctorDayStatus {
   return {
     id: trimString(row['id']) ?? '',
     doctorId: trimString(row['doctor_id']) ?? '',
-    date: trimString(row['date']) ?? '',
+    date: trimString(row['target_date']) ?? '',
     status: (trimString(row['status']) as AvailabilityStatus) ?? 'Available',
     runningLateMinutes: normalizeNumOrNull(row['running_late_minutes']) ?? undefined,
   };

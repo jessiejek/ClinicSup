@@ -179,7 +179,7 @@ export class DoctorStateService {
       .from('doctor_day_statuses')
       .select('*')
       .eq('doctor_id', doctorId)
-      .eq('date', today)
+      .eq('target_date', today)
       .maybeSingle();
 
     if (error) throw error;
@@ -200,11 +200,11 @@ export class DoctorStateService {
       .upsert(
         {
           doctor_id: doctorId,
-          date: toLocalIsoDate(),
+          target_date: toLocalIsoDate(),
           status,
           running_late_minutes: runningLateMinutes ?? null,
         },
-        { onConflict: 'doctor_id,date' }
+        { onConflict: 'doctor_id,target_date' }
       );
 
     if (error) throw error;
