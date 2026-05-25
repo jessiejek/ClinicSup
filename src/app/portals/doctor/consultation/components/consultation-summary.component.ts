@@ -432,34 +432,36 @@ import { Diagnosis, LabRequest, PrescriptionItem, VitalSigns } from '../../../..
        RESPONSIVE
        ═══════════════════════════════════════════════════════════ */
 
-    /* 1440px+ desktop: default grid above is fine */
+    /* ──────────────────────────────────────────────────────
+       1440px+ desktop: two-column grid (default, set above)
+       ────────────────────────────────────────────────────── */
 
-    /* 1366px small laptop: keep grid, slightly tighter */
-    @media (max-width: 1400px) {
-      .cs-grid { gap: var(--space-3); }
-    }
-
-    /* 1024px tablet landscape: single column */
-    @media (max-width: 1024px) {
+    /* 1025px – 1439px small laptop: single-column stack,
+       vitals 4-col row, triad 3-col row */
+    @media (max-width: 1439px) {
       .cs-grid {
         grid-template-columns: 1fr;
         gap: var(--space-4);
       }
+      .cs-vitals-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+
+    /* 769px – 1024px tablet landscape: vitals narrow to 3-col */
+    @media (max-width: 1024px) {
       .cs-vitals-grid { grid-template-columns: repeat(3, 1fr); }
     }
 
-    /* 768px tablet: wider vitals grid */
+    /* 481px – 768px tablet portrait: vitals 2-col, triad stacks */
     @media (max-width: 768px) {
       .cs-vitals-grid { grid-template-columns: repeat(2, 1fr); }
       .cs-triad { grid-template-columns: 1fr; }
       .cs-card__body { padding: 12px 14px; }
     }
 
-    /* 390px mobile: stack everything */
+    /* ≤480px mobile: tighter spacing */
     @media (max-width: 480px) {
       .cs-grid { gap: var(--space-3); }
-      .cs-vitals-grid { grid-template-columns: repeat(2, 1fr); }
-      .cs-triad { grid-template-columns: 1fr; gap: var(--space-3); }
+      .cs-triad { gap: var(--space-3); }
       .cs-soap__content { padding: 6px 10px; }
       .cs-card__body { padding: 10px 12px; }
       .cs-text { font-size: var(--text-sm); }
