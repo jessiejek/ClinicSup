@@ -19,5 +19,10 @@ export const environment = {
 
   // Explicit site URL for OAuth redirects.
   // For local dev, fall back to window.location.origin.
-  siteUrl: ''
+  siteUrl: '',
+
+  // VAPID public key for Web Push. Generate via:
+  //   npx web-push generate-vapid-keys
+  // Leave empty to skip web push (in-app Realtime notifications still work).
+  vapidKey: 'BMJf90oxjKHvMY9J7pRHfpprVCaqoL0few-R-7nWaB6MvUKSFcfqN2e-27U9DHU5LBCeF-EtOMpjZtBT6eEdlwo'
 };

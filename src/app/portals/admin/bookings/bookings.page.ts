@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Booking, BookingStatus, Doctor, Patient } from '../../../core/models';
 import { BookingService } from '../../../core/services/booking.service';
+import { ClinicDashboardRealtimeService } from '../../../core/services/clinic-dashboard-realtime.service';
 import { DoctorStateService } from '../../../core/services/doctor-state.service';
 import { PatientStateService } from '../../../core/services/patient-state.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
@@ -203,6 +204,7 @@ export class BookingsPage implements OnInit {
   private readonly patientState = inject(PatientStateService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly realtime = inject(ClinicDashboardRealtimeService);
 
   bookings: Booking[] = [];
   doctors: Doctor[] = [];
@@ -245,6 +247,23 @@ export class BookingsPage implements OnInit {
       .getPatients()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((patients) => (this.patients = patients));
+
+    this.realtime.events$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((event) => {
+        const name = event.eventName;
+        if (
+          name === 'BookingCreated' ||
+          name === 'BookingCancelled' ||
+          name === 'PatientCheckedIn' ||
+          name === 'PatientCheckInUndone' ||
+          name === 'DoctorCompletedConsultation' ||
+          name === 'PaymentCompleted' ||
+          name === 'PaymentWaived'
+        ) {
+          this.fetchBookings();
+        }
+      });
   }
 
   private fetchBookings(): void {

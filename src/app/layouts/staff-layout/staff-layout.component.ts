@@ -6,6 +6,7 @@ import { NavItem } from '../../core/models';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { ClinicSettingsService } from '../../core/services/clinic-settings.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { RealtimeInitService } from '../../core/services/realtime-init.service';
 import { SidebarComponent } from '../../portals/admin/components/sidebar/sidebar.component';
 import { TopbarComponent } from '../../portals/admin/components/topbar/topbar.component';
 
@@ -57,18 +58,25 @@ export class StaffLayoutComponent implements OnInit {
   private readonly notificationService = inject(NotificationService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  private readonly route = inject(ActivatedRoute);
   private readonly clinicSettingsService = inject(ClinicSettingsService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly realtimeInit = inject(RealtimeInitService);
 
   readonly currentUser = this.authState.currentUser;
   readonly unreadCount = this.notificationService.unreadCount;
-    {
-      section: 'TOOLS',
-      label: 'Doctor Status',
-      route: '/staff/doctor-status',
-      icon: 'medical-outline'
-    },
+
+  clinicName = '';
+  portalLabel = 'Staff Portal';
+  portalTitle = 'Dashboard';
+  pageTitle = 'Dashboard';
+  isSidebarOpen = false;
+
+  readonly navItems: NavItem[] = [
+    { section: 'CORE', label: 'Dashboard', route: '/staff/dashboard', icon: 'grid-outline' },
+    { section: 'CORE', label: 'Bookings', route: '/staff/bookings', icon: 'calendar-outline' },
+    { section: 'CORE', label: 'Payments', route: '/staff/payments', icon: 'cash-outline' },
+    { section: 'CORE', label: 'Patients', route: '/staff/patients', icon: 'people-outline' },
+    { section: 'TOOLS', label: 'Doctor Status', route: '/staff/doctor-status', icon: 'medical-outline' },
     { section: 'ACCOUNT', label: 'My Profile', route: '/staff/profile', icon: 'person-outline' }
   ];
 
@@ -84,13 +92,17 @@ export class StaffLayoutComponent implements OnInit {
       .subscribe(() => this.updatePageTitle());
   }
 
+  closeSidebar(): void {
+    this.isSidebarOpen = false;
+  }
+
   logout(): void {
     this.authState.logout();
   }
 
   private updatePageTitle(): void {
-    const route = this.getDeepestChild(this.route);
-    this.pageTitle = (route.snapshot.data['title'] as string | undefined) ?? this.portalTitle;
+    const deepest = this.getDeepestChild(this.route);
+    this.pageTitle = (deepest.snapshot.data['title'] as string | undefined) ?? this.portalTitle;
   }
 
   private getDeepestChild(route: ActivatedRoute): ActivatedRoute {

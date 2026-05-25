@@ -19,5 +19,8 @@ export const environment = {
 
   // Explicit site URL for OAuth redirects.
   // On Vercel this must be the production domain, not localhost.
-  siteUrl: 'https://clinic-sup.vercel.app'
+  siteUrl: 'https://clinic-sup.vercel.app',
+
+  // VAPID public key for Web Push.
+  vapidKey: 'BMJf90oxjKHvMY9J7pRHfpprVCaqoL0few-R-7nWaB6MvUKSFcfqN2e-27U9DHU5LBCeF-EtOMpjZtBT6eEdlwo'
 };

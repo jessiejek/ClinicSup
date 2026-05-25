@@ -1,7 +1,8 @@
 import { DatePipe, NgFor, NgIf } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ToastController } from '@ionic/angular/standalone';
 import { Booking } from '../../../core/models';
 import {
@@ -9,6 +10,7 @@ import {
   PagedResult,
   StaffBookingsFilterParams,
 } from '../../../core/services/booking.service';
+import { ClinicDashboardRealtimeService } from '../../../core/services/clinic-dashboard-realtime.service';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
@@ -229,6 +231,8 @@ export class StaffBookingsPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly toastCtrl = inject(ToastController);
+  private readonly realtime = inject(ClinicDashboardRealtimeService);
+  private readonly destroyRef = inject(DestroyRef);
 
   doctors: Array<{ id: string; fullName: string }> = [];
   bookings: Booking[] = [];
@@ -273,6 +277,23 @@ export class StaffBookingsPage implements OnInit {
     });
 
     this.loadBookings();
+
+    this.realtime.events$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((event) => {
+        const name = event.eventName;
+        if (
+          name === 'BookingCreated' ||
+          name === 'BookingCancelled' ||
+          name === 'PatientCheckedIn' ||
+          name === 'PatientCheckInUndone' ||
+          name === 'DoctorCompletedConsultation' ||
+          name === 'PaymentCompleted' ||
+          name === 'PaymentWaived'
+        ) {
+          this.loadBookings();
+        }
+      });
   }
 
   onDateChanged(): void {

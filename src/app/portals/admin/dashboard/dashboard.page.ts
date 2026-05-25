@@ -1,7 +1,9 @@
 import { AsyncPipe, CurrencyPipe, DatePipe, NgFor, NgIf } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SupabaseService } from '../../../core/services/supabase.service';
+import { ClinicDashboardRealtimeService } from '../../../core/services/clinic-dashboard-realtime.service';
 import { TodayAppointmentsTableComponent } from '../components/today-appointments-table/today-appointments-table.component';
 import { StatCardComponent } from '../components/stat-card/stat-card.component';
 
@@ -85,6 +87,8 @@ import { StatCardComponent } from '../components/stat-card/stat-card.component';
 export class DashboardPage implements OnInit {
   private readonly supabase = inject(SupabaseService);
   private readonly router = inject(Router);
+  private readonly realtime = inject(ClinicDashboardRealtimeService);
+  private readonly destroyRef = inject(DestroyRef);
 
   bookings: any[] = [];
   doctors: any[] = [];
@@ -110,6 +114,22 @@ export class DashboardPage implements OnInit {
 
   ngOnInit(): void {
     this.loadDashboard();
+
+    this.realtime.events$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((event) => {
+        const name = event.eventName;
+        if (
+          name === 'BookingCreated' ||
+          name === 'BookingCancelled' ||
+          name === 'PatientCheckedIn' ||
+          name === 'DoctorCompletedConsultation' ||
+          name === 'PaymentCompleted' ||
+          name === 'PaymentWaived'
+        ) {
+          this.loadDashboard();
+        }
+      });
   }
 
   private async loadDashboard(): Promise<void> {

@@ -7,6 +7,7 @@ import { AuthStateService } from '../../core/services/auth-state.service';
 import { BookingService } from '../../core/services/booking.service';
 import { ClinicSettingsService } from '../../core/services/clinic-settings.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { RealtimeInitService } from '../../core/services/realtime-init.service';
 import { SidebarComponent } from '../../portals/admin/components/sidebar/sidebar.component';
 import { TopbarComponent } from '../../portals/admin/components/topbar/topbar.component';
 
@@ -61,6 +62,7 @@ export class AdminLayoutComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly clinicSettingsService = inject(ClinicSettingsService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly realtimeInit = inject(RealtimeInitService);
 
   readonly currentUser = this.authState.currentUser;
   readonly unreadCount = this.notificationService.unreadCount;

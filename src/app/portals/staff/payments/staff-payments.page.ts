@@ -1,6 +1,7 @@
 import { DecimalPipe, DatePipe, NgFor, NgIf } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ToastController } from '@ionic/angular/standalone';
 import {
   BookingService,
@@ -8,6 +9,7 @@ import {
   PagedResult,
   StaffForPaymentItem
 } from '../../../core/services/booking.service';
+import { ClinicDashboardRealtimeService } from '../../../core/services/clinic-dashboard-realtime.service';
 import { ReceiptData } from '../../../core/models';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component';
@@ -225,6 +227,8 @@ interface CollectPaymentMethodOption {
 export class StaffPaymentsPage implements OnInit {
   private readonly bookingService = inject(BookingService);
   private readonly toastCtrl = inject(ToastController);
+  private readonly realtime = inject(ClinicDashboardRealtimeService);
+  private readonly destroyRef = inject(DestroyRef);
 
   items: StaffForPaymentItem[] = [];
   isLoading = false;
@@ -255,6 +259,18 @@ export class StaffPaymentsPage implements OnInit {
 
   ngOnInit(): void {
     this.loadQueue();
+
+    this.realtime.events$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((event) => {
+        const name = event.eventName;
+        if (
+          name === 'PaymentCompleted' ||
+          name === 'PaymentWaived'
+        ) {
+          this.loadQueue();
+        }
+      });
   }
 
   previousPage(): void {

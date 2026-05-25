@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, combineLatest, from, map, of, switchMap } from 'rxjs';
 import { Notification } from '../models';
 import { AuthStateService } from './auth-state.service';
+import { PushNotificationService, InAppNotification } from './push-notification.service';
 import { SupabaseService } from './supabase.service';
 
 interface NotificationRow {
@@ -31,10 +32,24 @@ function mapRows(rows: NotificationRow[]): Notification[] {
   return rows.map(rowToNotification);
 }
 
+/** Map Supabase Realtime notification to the app's Notification model. */
+function liveToLegacyNotification(n: InAppNotification): Notification {
+  return {
+    id: n.id,
+    userId: n.userId,
+    title: n.title,
+    message: n.message,
+    isRead: n.isRead,
+    createdAt: n.createdAt,
+    navigateTo: n.navigateTo
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
   private readonly supabase = inject(SupabaseService);
   private readonly authState = inject(AuthStateService);
+  private readonly pushNotificationService = inject(PushNotificationService);
   private readonly notificationsSubject = new BehaviorSubject<Notification[]>([]);
   private readonly loadingSubject = new BehaviorSubject(false);
   private readonly tableMissing = new BehaviorSubject<boolean>(false);
@@ -72,6 +87,25 @@ export class NotificationService {
       })
     ).subscribe((notifications) => {
       this.notificationsSubject.next(notifications);
+    });
+
+    // Bridge Realtime-delivered notifications into the same stream.
+    // These arrive instantly via PushNotificationService's Realtime subscription
+    // and are merged on top of the polled result.
+    this.pushNotificationService.notifications$.subscribe((live) => {
+      const liveMapped = live.map(liveToLegacyNotification);
+      const current = this.notificationsSubject.value;
+
+      // Dedupe by id: live entries override polled ones
+      const liveIds = new Set(liveMapped.map((n) => n.id));
+      const merged = [
+        ...liveMapped,
+        ...current.filter((n) => !liveIds.has(n.id))
+      ].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      this.notificationsSubject.next(merged);
     });
   }
 

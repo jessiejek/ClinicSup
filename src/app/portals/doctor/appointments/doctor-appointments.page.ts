@@ -1,5 +1,6 @@
 import { DatePipe, NgFor, NgIf } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import {
@@ -18,6 +19,7 @@ import {
   DoctorCompleteBookingRequest,
   DoctorTodaySummary
 } from '../../../core/services/booking.service';
+import { ClinicDashboardRealtimeService } from '../../../core/services/clinic-dashboard-realtime.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
@@ -128,7 +130,7 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
                 <td><app-status-badge [status]="booking.paymentStatus"></app-status-badge></td>
                 <td>
                   <div class="action-row">
-                    <button type="button" class="btn-ghost" (click)="view(booking)">View</button>
+                    <button type="button" class="btn-ghost" (click)="view(booking.id)">View</button>
                     <button
                       *ngIf="canStartConsultation(booking)"
                       type="button"
@@ -161,7 +163,7 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
                   {{ booking.queueNumber !== null ? '#' + booking.queueNumber : booking.id }}
                 </div>
               </div>
-              <button type="button" class="btn-ghost" (click)="view(booking)">View</button>
+              <button type="button" class="btn-ghost" (click)="view(booking.id)">View</button>
             </div>
 
             <div class="mobile-card__row">
@@ -262,8 +264,10 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
 })
 export class DoctorAppointmentsPage implements OnInit {
   private readonly bookingService = inject(BookingService);
+  private readonly realtime = inject(ClinicDashboardRealtimeService);
   private readonly router = inject(Router);
   private readonly toastCtrl = inject(ToastController);
+  private readonly destroyRef = inject(DestroyRef);
 
   summary: DoctorTodaySummary | null = null;
   isLoading = false;
@@ -323,6 +327,21 @@ export class DoctorAppointmentsPage implements OnInit {
 
   ngOnInit(): void {
     this.loadSummary();
+
+    // Realtime: auto-refresh on booking changes
+    this.realtime.events$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((event) => {
+        if ([
+          'BookingCreated',
+          'BookingCancelled',
+          'PatientCheckedIn',
+          'PatientCheckInUndone',
+          'DoctorCompletedConsultation'
+        ].includes(event.eventName)) {
+          this.loadSummary();
+        }
+      });
   }
 
   loadSummary(): void {
