@@ -929,11 +929,7 @@ export class StaffWalkInPage implements OnInit {
     try {
       const booking = await firstValueFrom(this.bookingService.createWalkIn(payload));
       await this.presentToast('Walk-in booking created successfully.', 'success');
-      if (booking?.id) {
-        await this.router.navigate(['/staff/bookings', booking.id]);
-      } else {
-        await this.router.navigate(['/staff/bookings']);
-      }
+      await this.router.navigate(['/staff/bookings']);
     } catch (error) {
       await this.presentToast(extractApiErrorMessage(error, 'Failed to create walk-in booking.'), 'danger');
     } finally {
@@ -1125,7 +1121,8 @@ export class StaffWalkInPage implements OnInit {
             return;
           }
 
-          this.slots = slots.map((slot) => mapAvailableSlot(slot));
+          const dateStr = this.bookingForm.controls.appointmentDate.value;
+          this.slots = slots.map((slot) => mapAvailableSlot(slot, dateStr));
         },
         error: async (error) => {
           if (token !== this.slotsRequestToken) {
@@ -1199,7 +1196,7 @@ function mapCreatedPatient(patient: PatientDetail): WalkInPatient {
   };
 }
 
-function mapAvailableSlot(slot: AvailableSlot): TimeSlot {
+function mapAvailableSlot(slot: AvailableSlot, appointmentDate?: string | null): TimeSlot {
   const time = trimText(slot.time || slot.slotStartTime) || '';
   const endTime = trimText(slot.endTime || slot.slotEndTime) || '';
   const bookedCount = typeof slot.bookedCount === 'number' ? slot.bookedCount : 0;
@@ -1207,11 +1204,44 @@ function mapAvailableSlot(slot: AvailableSlot): TimeSlot {
   const isAvailable = typeof slot.isAvailable === 'boolean' ? slot.isAvailable : typeof slot.IsAvailable === 'boolean' ? slot.IsAvailable : true;
   const isFull = capacity > 0 ? bookedCount >= capacity : false;
 
+  // Mark past-time slots as disabled (only for today's date)
+  const isPastTime = time && appointmentDate ? isSlotTimeInPast(time, appointmentDate) : false;
+
+  let status: 'available' | 'full' | 'disabled' | 'pending';
+  if (isPastTime) {
+    status = 'disabled';
+  } else if (!isAvailable) {
+    status = 'disabled';
+  } else if (isFull) {
+    status = 'full';
+  } else {
+    status = 'available';
+  }
+
   return {
     time,
     endTime,
-    status: isAvailable ? (isFull ? 'full' : 'available') : 'disabled'
+    status
   };
+}
+
+function isSlotTimeInPast(slotTime: string, appointmentDate: string): boolean {
+  // Only compare against current time if the appointment is for today
+  const now = new Date();
+  const todayStr = toLocalIsoDate(now);
+
+  if (appointmentDate !== todayStr) {
+    return false;
+  }
+
+  const [hours, minutes] = slotTime.split(':').map(Number);
+  if (isNaN(hours) || isNaN(minutes)) {
+    return false;
+  }
+
+  const slotMinutes = hours * 60 + minutes;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return slotMinutes <= nowMinutes;
 }
 
 function buildPatientName(firstName?: string | null, middleName?: string | null, lastName?: string | null): string {
