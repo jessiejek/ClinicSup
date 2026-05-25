@@ -44,173 +44,171 @@ export class ClinicDashboardRealtimeService {
   /** Public observable for dashboard events. */
   readonly events$: Observable<ClinicDashboardEvent> = this.eventsSubject.asObservable();
 
-  /** Snapshot of the latest event (for debugging / reactive checks). */
-  private lastEvent: ClinicDashboardEvent | null = null;
-
   constructor() {
-    // Connect / disconnect when auth state changes
     this.authState.currentUser$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((user) => {
         if (user) {
+          console.log('[Realtime] User logged in — connecting channels');
           this.ensureConnected();
         } else {
+          console.log('[Realtime] User logged out — disconnecting channels');
           this.disconnect();
         }
       });
   }
 
-  // ── Lifecycle ─────────────────────────────────────
-
-  /**
-   * Subscribe to all relevant Postgres tables via Supabase Realtime.
-   * Idempotent — safe to call multiple times.
-   */
   ensureConnected(): void {
     if (this.subscribed) return;
     this.subscribed = true;
+    console.log('[Realtime] Creating channels...');
+
+    const subSink = (name: string, channel: RealtimeChannel) => {
+      channel.subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`[Realtime] ✅ Channel "${name}" subscribed`);
+        } else {
+          console.warn(`[Realtime] ⚠️ Channel "${name}" status: ${status}`, err ?? '');
+        }
+      });
+      return channel;
+    };
 
     // ── bookings table ────────────────────────────────
     this.channels.push(
-      this.supabase.client
-        .channel('realtime-bookings')
-        .on(
-          'postgres_changes' as any,
-          { event: 'INSERT', schema: 'public', table: 'bookings' },
-          (payload: any) => {
-            const row = payload.new ?? {};
-            this.emit('BookingCreated', {
-              bookingId: row.id,
-              patientId: row.patient_id,
-              doctorId: row.doctor_id,
-              status: row.status,
-              paymentStatus: row.payment_status,
-              timestamp: row.created_at ?? row.updated_at
-            });
-          }
-        )
-        .on(
-          'postgres_changes' as any,
-          { event: 'UPDATE', schema: 'public', table: 'bookings' },
-          (payload: any) => {
-            const row = payload.new ?? {};
-            const prev = payload.old ?? {};
-
-            // Status transitions
-            if (row.status === 'Cancelled' && prev.status !== 'Cancelled') {
-              this.emit('BookingCancelled', {
-                bookingId: row.id, patientId: row.patient_id,
-                doctorId: row.doctor_id, status: row.status, timestamp: row.updated_at
-              });
-            } else if (row.status === 'CheckedIn' && prev.status !== 'CheckedIn') {
-              this.emit('PatientCheckedIn', {
-                bookingId: row.id, patientId: row.patient_id,
-                doctorId: row.doctor_id, status: row.status, timestamp: row.updated_at
-              });
-            } else if (row.status === 'Completed' && prev.status !== 'Completed') {
-              this.emit('DoctorCompletedConsultation', {
-                bookingId: row.id, patientId: row.patient_id,
-                doctorId: row.doctor_id, status: row.status,
-                finalAmount: row.final_amount,
-                isProfessionalFeeWaived: row.is_professional_fee_waived,
-                timestamp: row.updated_at
-              });
-            } else if (prev.status === 'CheckedIn' && row.status !== 'CheckedIn') {
-              this.emit('PatientCheckInUndone', {
-                bookingId: row.id, patientId: row.patient_id,
-                doctorId: row.doctor_id, status: row.status, timestamp: row.updated_at
+      subSink(
+        'realtime-bookings',
+        this.supabase.client
+          .channel('realtime-bookings')
+          .on(
+            'postgres_changes' as any,
+            { event: 'INSERT', schema: 'public', table: 'bookings' },
+            (payload: any) => {
+              const row = payload.new ?? {};
+              console.log('[Realtime] 🔵 Booking INSERT', row.id, row.status);
+              this.emit('BookingCreated', {
+                bookingId: row.id,
+                patientId: row.patient_id,
+                doctorId: row.doctor_id,
+                status: row.status,
+                paymentStatus: row.payment_status,
+                timestamp: row.created_at ?? row.updated_at
               });
             }
+          )
+          .on(
+            'postgres_changes' as any,
+            { event: 'UPDATE', schema: 'public', table: 'bookings' },
+            (payload: any) => {
+              const row = payload.new ?? {};
+              const prev = payload.old ?? {};
+              console.log('[Realtime] 🟡 Booking UPDATE', row.id, row.status, 'was', prev.status);
 
-            // Payment status changes
-            if (row.payment_status !== prev.payment_status) {
-              if (row.payment_status === 'Paid') {
-                this.emit('PaymentCompleted', {
+              if (row.status === 'Cancelled' && prev.status !== 'Cancelled') {
+                this.emit('BookingCancelled', {
                   bookingId: row.id, patientId: row.patient_id,
-                  paymentStatus: row.payment_status, timestamp: row.updated_at
+                  doctorId: row.doctor_id, status: row.status, timestamp: row.updated_at
                 });
-              } else if (row.payment_status === 'Waived') {
-                this.emit('PaymentWaived', {
+              } else if (row.status === 'CheckedIn' && prev.status !== 'CheckedIn') {
+                this.emit('PatientCheckedIn', {
                   bookingId: row.id, patientId: row.patient_id,
-                  paymentStatus: row.payment_status, timestamp: row.updated_at
+                  doctorId: row.doctor_id, status: row.status, timestamp: row.updated_at
+                });
+              } else if (row.status === 'Completed' && prev.status !== 'Completed') {
+                this.emit('DoctorCompletedConsultation', {
+                  bookingId: row.id, patientId: row.patient_id,
+                  doctorId: row.doctor_id, status: row.status,
+                  finalAmount: row.final_amount,
+                  isProfessionalFeeWaived: row.is_professional_fee_waived,
+                  timestamp: row.updated_at
+                });
+              } else if (prev.status === 'CheckedIn' && row.status !== 'CheckedIn') {
+                this.emit('PatientCheckInUndone', {
+                  bookingId: row.id, patientId: row.patient_id,
+                  doctorId: row.doctor_id, status: row.status, timestamp: row.updated_at
                 });
               }
+
+              if (row.payment_status !== prev.payment_status) {
+                if (row.payment_status === 'Paid') {
+                  this.emit('PaymentCompleted', {
+                    bookingId: row.id, patientId: row.patient_id,
+                    paymentStatus: row.payment_status, timestamp: row.updated_at
+                  });
+                } else if (row.payment_status === 'Waived') {
+                  this.emit('PaymentWaived', {
+                    bookingId: row.id, patientId: row.patient_id,
+                    paymentStatus: row.payment_status, timestamp: row.updated_at
+                  });
+                }
+              }
             }
-          }
-        )
-        .subscribe()
+          )
+      )
     );
 
-    // ── doctor_schedules table ────────────────────────
+    // ── doctor tables ─────────────────────────────────
     this.channels.push(
-      this.supabase.client
-        .channel('realtime-doctor-schedules')
-        .on(
-          'postgres_changes' as any,
-          { event: '*', schema: 'public', table: 'doctor_schedules' },
-          () => this.emit('DoctorScheduleUpdated', { timestamp: new Date().toISOString() })
-        )
-        .subscribe()
+      subSink(
+        'realtime-doctor-schedules',
+        this.supabase.client
+          .channel('realtime-doctor-schedules')
+          .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'doctor_schedules' },
+            () => this.emit('DoctorScheduleUpdated', { timestamp: new Date().toISOString() }))
+      )
     );
 
-    // ── doctor_services table ──────────────────────────
     this.channels.push(
-      this.supabase.client
-        .channel('realtime-doctor-services')
-        .on(
-          'postgres_changes' as any,
-          { event: '*', schema: 'public', table: 'doctor_services' },
-          () => this.emit('DoctorServicesUpdated', { timestamp: new Date().toISOString() })
-        )
-        .subscribe()
+      subSink(
+        'realtime-doctor-services',
+        this.supabase.client
+          .channel('realtime-doctor-services')
+          .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'doctor_services' },
+            () => this.emit('DoctorServicesUpdated', { timestamp: new Date().toISOString() }))
+      )
     );
 
-    // ── doctor_day_statuses table ──────────────────────
     this.channels.push(
-      this.supabase.client
-        .channel('realtime-doctor-day-statuses')
-        .on(
-          'postgres_changes' as any,
-          { event: '*', schema: 'public', table: 'doctor_day_statuses' },
-          () => this.emit('DoctorScheduleUpdated', { timestamp: new Date().toISOString() })
-        )
-        .subscribe()
+      subSink(
+        'realtime-doctor-day-statuses',
+        this.supabase.client
+          .channel('realtime-doctor-day-statuses')
+          .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'doctor_day_statuses' },
+            () => this.emit('DoctorScheduleUpdated', { timestamp: new Date().toISOString() }))
+      )
     );
 
     // ── patients table ─────────────────────────────────
     this.channels.push(
-      this.supabase.client
-        .channel('realtime-patients')
-        .on(
-          'postgres_changes' as any,
-          { event: 'UPDATE', schema: 'public', table: 'patients' },
-          (payload: any) => {
-            const row = payload.new ?? {};
-            this.emit('PatientProfileUpdated', {
-              patientId: row.id, timestamp: row.updated_at
-            });
-          }
-        )
-        .subscribe()
+      subSink(
+        'realtime-patients',
+        this.supabase.client
+          .channel('realtime-patients')
+          .on('postgres_changes' as any, { event: 'UPDATE', schema: 'public', table: 'patients' },
+            (payload: any) => {
+              const row = payload.new ?? {};
+              this.emit('PatientProfileUpdated', {
+                patientId: row.id, timestamp: row.updated_at
+              });
+            })
+      )
     );
+
+    console.log('[Realtime] All channels created');
   }
 
-  /**
-   * Disconnect all Realtime channels.
-   */
   disconnect(): void {
     this.subscribed = false;
     for (const channel of this.channels) {
       this.supabase.client.removeChannel(channel);
     }
     this.channels = [];
+    console.log('[Realtime] All channels disconnected');
   }
-
-  // ── Helpers ─────────────────────────────────────────
 
   private emit(eventName: ClinicDashboardEventName, partial?: Partial<ClinicDashboardEvent>): void {
     const event: ClinicDashboardEvent = { eventName, ...partial };
-    this.lastEvent = event;
+    console.log('[Realtime] 🔔 Emit event:', eventName, event.bookingId ?? '');
     this.eventsSubject.next(event);
   }
 }
