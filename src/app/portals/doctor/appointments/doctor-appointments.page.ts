@@ -359,12 +359,8 @@ export class DoctorAppointmentsPage implements OnInit {
     });
   }
 
-  view(booking: Booking): void {
-    if (booking.status === 'Completed') {
-      void this.router.navigate(['/doctor/consultation', booking.id]);
-    } else {
-      void this.router.navigate(['/doctor/appointments', booking.id]);
-    }
+  view(bookingId: string): void {
+    void this.router.navigate(['/doctor/appointments', bookingId]);
   }
 
   consult(bookingId: string): void {
