@@ -77,14 +77,25 @@ export class AuthCallbackPage implements OnInit {
         data.session
       );
 
-      // ---- Doctor Social Login Activation: check for pending doctor invite ----
+      // ---- Social Login Activation: check for pending doctor or staff invite ----
+      // Run both checks in parallel to minimize delay (each Edge Function cold-starts)
       let activeRole = authUser.role;
       if (activeRole === 'Patient') {
-        this.statusText = 'Checking for doctor invitations...';
+        this.statusText = 'Checking for invitations...';
         try {
-          const activationResult = await this.tryActivateDoctorInvite(accessToken);
-          if (activationResult?.activated && activationResult.role === 'doctor') {
-            // Reload user profile with updated role
+          const [doctorResult, staffResult] = await Promise.all([
+            this.tryActivateDoctorInvite(accessToken).catch((e: unknown) => {
+              console.warn('[AuthCallback] Doctor activation check failed:', e);
+              return null;
+            }),
+            this.tryActivateStaffInvite(accessToken).catch((e: unknown) => {
+              console.warn('[AuthCallback] Staff activation check failed:', e);
+              return null;
+            }),
+          ]);
+
+          // Doctor invite has priority (checked first)
+          if (doctorResult?.activated && doctorResult.role === 'doctor') {
             const refreshedSession = await this.supabase.auth.getSession();
             if (refreshedSession.data.session?.user) {
               const reloadedUser = await this.authService.loadAuthUser(
@@ -98,17 +109,9 @@ export class AuthCallbackPage implements OnInit {
               return;
             }
           }
-        } catch (activateErr: unknown) {
-          console.warn('[AuthCallback] Doctor activation check failed (non-fatal):', activateErr);
-          // Continue with staff/patient flow
-        }
 
-        // ---- Staff Social Login Activation: check for pending staff invite ----
-        this.statusText = 'Checking for staff invitations...';
-        try {
-          const staffActivationResult = await this.tryActivateStaffInvite(accessToken);
-          if (staffActivationResult?.activated && staffActivationResult.role === 'staff') {
-            // Reload user profile with updated role
+          // Staff invite checked second
+          if (staffResult?.activated && staffResult.role === 'staff') {
             const refreshedSession = await this.supabase.auth.getSession();
             if (refreshedSession.data.session?.user) {
               const reloadedUser = await this.authService.loadAuthUser(
@@ -123,8 +126,7 @@ export class AuthCallbackPage implements OnInit {
             }
           }
         } catch (activateErr: unknown) {
-          console.warn('[AuthCallback] Staff activation check failed (non-fatal):', activateErr);
-          // Continue with normal patient flow
+          console.warn('[AuthCallback] Both activation checks failed (non-fatal):', activateErr);
         }
       }
 
