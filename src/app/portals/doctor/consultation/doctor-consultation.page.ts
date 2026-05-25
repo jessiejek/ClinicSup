@@ -124,61 +124,65 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
         <!-- ===== VIEW MODE: Completed consultation, compact header + summary body ===== -->
         <ng-container *ngIf="isCompletedConsultation(vm) && !isAmendMode; else editMode">
           <div class="cvh">
-            <div class="cvh__row">
-              <a class="cvh__back" routerLink="/doctor/appointments">&larr; Back to Appointments</a>
-              <div class="cvh__badge"><app-status-badge [status]="vm.booking.status"></app-status-badge></div>
-              <button class="cr-btn cr-btn--secondary" (click)="enterAmendMode()">
-                <span class="btn-icon">&#9998;</span> Modify
-              </button>
+            <div class="cvh__top">
+              <a class="cvh__back" routerLink="/doctor/appointments">&larr; 2222Back to Appointments</a>
+              <div class="cvh__actions">
+                <div class="cvh__badge"><app-status-badge [status]="vm.booking.status"></app-status-badge></div>
+                <button class="cr-btn cr-btn--secondary cvh__modify" (click)="enterAmendMode()">
+                  <span class="btn-icon">&#9998;</span> Modify
+                </button>
+              </div>
             </div>
             <div class="cvh__main">
-              <div class="cvh__avatar">
-                {{ (vm.patient.firstName?.charAt(0) || '?') }}{{ (vm.patient.lastName?.charAt(0) || '') }}
+              <div class="cvh__identity">
+                <div class="cvh__avatar">
+                  {{ (vm.patient.firstName?.charAt(0) || '?') }}{{ (vm.patient.lastName?.charAt(0) || '') }}
+                </div>
+                <div class="cvh__patient">
+                  <strong>{{ vm.patient.firstName }} {{ vm.patient.lastName }}</strong>
+                  <span>{{ vm.patient.sex || '--' }} &middot; {{ vm.patient.dateOfBirth ? (calcAge(vm.patient.dateOfBirth) + ' yrs') : '--' }}</span>
+                  <span class="cvh__patient-line">{{ vm.booking.serviceNames?.join(', ') || vm.booking.serviceName || 'Service' }}</span>
+                </div>
               </div>
-              <div class="cvh__patient">
-                <strong>{{ vm.patient.firstName }} {{ vm.patient.lastName }}</strong>
-                <span>{{ vm.patient.sex || '--' }} &middot; {{ vm.patient.dateOfBirth ? (calcAge(vm.patient.dateOfBirth) + ' yrs') : '--' }}</span>
-              </div>
-              <div class="cvh__meta">
-                <div class="cvh__tag">
-                  <span class="cvh__tag-label">Booking ID</span>
-                  <span class="cvh__tag-value">{{ vm.booking.id.slice(0, 8) }}...</span>
-                </div>
-                <div class="cvh__tag">
-                  <span class="cvh__tag-label">Date</span>
-                  <span class="cvh__tag-value">{{ vm.booking.appointmentDate | date:'MMM d, y' }}</span>
-                </div>
-                <div class="cvh__tag">
-                  <span class="cvh__tag-label">Time</span>
-                  <span class="cvh__tag-value">{{ vm.booking.slotStartTime }} - {{ vm.booking.slotEndTime }}</span>
-                </div>
-                <div class="cvh__tag">
-                  <span class="cvh__tag-label">Queue</span>
-                  <span class="cvh__tag-value">#{{ vm.booking.queueNumber ?? '--' }}</span>
-                </div>
-                <div class="cvh__tag">
-                  <span class="cvh__tag-label">Service</span>
-                  <span class="cvh__tag-value">{{ vm.booking.serviceNames?.join(', ') || vm.booking.serviceName || 'Service' }}</span>
-                </div>
-                <div class="cvh__tag">
-                  <span class="cvh__tag-label">Fee</span>
-                  <span class="cvh__tag-value">PHP {{ vm.booking.consultationFeeSnapshot ?? vm.booking.totalFee ?? 0 }}</span>
-                </div>
-                <div class="cvh__tag">
-                  <span class="cvh__tag-label">Payment</span>
-                  <span class="cvh__tag-value">{{ vm.booking.paymentMode || '--' }} &middot; <app-status-badge [status]="vm.booking.paymentStatus || 'Unpaid'"></app-status-badge></span>
-                </div>
-                <div class="cvh__tag" *ngIf="vm.allergies.length > 0">
-                  <span class="cvh__tag-label">Allergies</span>
-                  <span class="cvh__tag-value">{{ vm.allergies.length }} recorded</span>
-                </div>
-                <div class="cvh__tag" *ngIf="existingConditions(vm).length > 0">
-                  <span class="cvh__tag-label">Conditions</span>
-                  <span class="cvh__tag-value">{{ existingConditions(vm).slice(0,2).join(', ') }}{{ existingConditions(vm).length > 2 ? '...' : '' }}</span>
-                </div>
-                <div class="cvh__tag" *ngIf="lastVisitDate(vm) as lv">
-                  <span class="cvh__tag-label">Last Visit</span>
-                  <span class="cvh__tag-value">{{ lv | date:'MMM d' }}</span>
+              <div class="cvh__meta-cluster">
+                <div class="cvh__meta-label">Visit Metadata</div>
+                <div class="cvh__meta">
+                  <div class="cvh__tag">
+                    <span class="cvh__tag-label">Booking ID</span>
+                    <span class="cvh__tag-value">{{ vm.booking.id.slice(0, 8) }}...</span>
+                  </div>
+                  <div class="cvh__tag">
+                    <span class="cvh__tag-label">Date</span>
+                    <span class="cvh__tag-value">{{ vm.booking.appointmentDate | date:'MMM d, y' }}</span>
+                  </div>
+                  <div class="cvh__tag">
+                    <span class="cvh__tag-label">Time</span>
+                    <span class="cvh__tag-value">{{ vm.booking.slotStartTime }} - {{ vm.booking.slotEndTime }}</span>
+                  </div>
+                  <div class="cvh__tag">
+                    <span class="cvh__tag-label">Queue</span>
+                    <span class="cvh__tag-value">#{{ vm.booking.queueNumber ?? '--' }}</span>
+                  </div>
+                  <div class="cvh__tag">
+                    <span class="cvh__tag-label">Fee</span>
+                    <span class="cvh__tag-value">PHP {{ vm.booking.consultationFeeSnapshot ?? vm.booking.totalFee ?? 0 }}</span>
+                  </div>
+                  <div class="cvh__tag">
+                    <span class="cvh__tag-label">Payment</span>
+                    <span class="cvh__tag-value">{{ vm.booking.paymentMode || '--' }} &middot; <app-status-badge [status]="vm.booking.paymentStatus || 'Unpaid'"></app-status-badge></span>
+                  </div>
+                  <div class="cvh__tag" *ngIf="vm.allergies.length > 0">
+                    <span class="cvh__tag-label">Allergies</span>
+                    <span class="cvh__tag-value">{{ vm.allergies.length }} recorded</span>
+                  </div>
+                  <div class="cvh__tag" *ngIf="existingConditions(vm).length > 0">
+                    <span class="cvh__tag-label">Conditions</span>
+                    <span class="cvh__tag-value">{{ existingConditions(vm).slice(0,2).join(', ') }}{{ existingConditions(vm).length > 2 ? '...' : '' }}</span>
+                  </div>
+                  <div class="cvh__tag" *ngIf="lastVisitDate(vm) as lv">
+                    <span class="cvh__tag-label">Last Visit</span>
+                    <span class="cvh__tag-value">{{ lv | date:'MMM d' }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -186,6 +190,7 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
 
           <div class="cr-body cr-body--view">
             <app-consultation-summary
+              class="cr-summary-fill"
               [vm]="vm"
             ></app-consultation-summary>
           </div>
