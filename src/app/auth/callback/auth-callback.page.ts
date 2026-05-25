@@ -69,8 +69,6 @@ export class AuthCallbackPage implements OnInit {
 
       this.statusText = 'Loading your account...';
 
-      const accessToken = data.session.access_token;
-
       // loadAuthUser creates profile, assigns role (defaults to Patient), creates patient row
       const authUser = await this.authService.loadAuthUser(
         data.session.user,
@@ -78,55 +76,44 @@ export class AuthCallbackPage implements OnInit {
       );
 
       // ---- Social Login Activation: check for pending doctor or staff invite ----
-      // Run both checks in parallel to minimize delay (each Edge Function cold-starts)
+      // Uses a single database RPC (no cold-start Edge Functions)
       let activeRole = authUser.role;
       if (activeRole === 'Patient') {
         this.statusText = 'Checking for invitations...';
         try {
-          const [doctorResult, staffResult] = await Promise.all([
-            this.tryActivateDoctorInvite(accessToken).catch((e: unknown) => {
-              console.warn('[AuthCallback] Doctor activation check failed:', e);
-              return null;
-            }),
-            this.tryActivateStaffInvite(accessToken).catch((e: unknown) => {
-              console.warn('[AuthCallback] Staff activation check failed:', e);
-              return null;
-            }),
-          ]);
+          const { data: inviteResult, error: inviteError } = await this.supabase.rpc(
+            'check_and_activate_invites'
+          );
 
-          // Doctor invite has priority (checked first)
-          if (doctorResult?.activated && doctorResult.role === 'doctor') {
-            const refreshedSession = await this.supabase.auth.getSession();
-            if (refreshedSession.data.session?.user) {
-              const reloadedUser = await this.authService.loadAuthUser(
-                refreshedSession.data.session.user,
-                refreshedSession.data.session
-              );
-              this.authService.persistUser(reloadedUser);
-              this.authState.setUser(reloadedUser);
-              activeRole = 'Doctor';
-              void this.router.navigate(['/doctor/dashboard']);
-              return;
-            }
-          }
+          if (inviteError) {
+            console.warn('[AuthCallback] Invite check RPC failed:', inviteError);
+          } else if (inviteResult) {
+            const result = inviteResult as {
+              doctor_activated: boolean;
+              staff_activated: boolean;
+              role: string | null;
+            };
 
-          // Staff invite checked second
-          if (staffResult?.activated && staffResult.role === 'staff') {
-            const refreshedSession = await this.supabase.auth.getSession();
-            if (refreshedSession.data.session?.user) {
-              const reloadedUser = await this.authService.loadAuthUser(
-                refreshedSession.data.session.user,
-                refreshedSession.data.session
-              );
-              this.authService.persistUser(reloadedUser);
-              this.authState.setUser(reloadedUser);
-              activeRole = 'Staff';
-              void this.router.navigate(['/staff/dashboard']);
-              return;
+            if (result.doctor_activated || result.staff_activated) {
+              // Reload user with updated role
+              const refreshedSession = await this.supabase.auth.getSession();
+              if (refreshedSession.data.session?.user) {
+                const reloadedUser = await this.authService.loadAuthUser(
+                  refreshedSession.data.session.user,
+                  refreshedSession.data.session
+                );
+                this.authService.persistUser(reloadedUser);
+                this.authState.setUser(reloadedUser);
+                activeRole = result.role === 'Doctor' ? 'Doctor' : 'Staff';
+                void this.router.navigate(
+                  result.role === 'Doctor' ? ['/doctor/dashboard'] : ['/staff/dashboard']
+                );
+                return;
+              }
             }
           }
         } catch (activateErr: unknown) {
-          console.warn('[AuthCallback] Both activation checks failed (non-fatal):', activateErr);
+          console.warn('[AuthCallback] Invite activation check failed (non-fatal):', activateErr);
         }
       }
 
@@ -145,39 +132,4 @@ export class AuthCallbackPage implements OnInit {
     }
   }
 
-  private async tryActivateDoctorInvite(accessToken: string): Promise<{ activated: boolean; role: string | null } | null> {
-    const { data: funcData, error: funcError } = await this.supabase.functions.invoke(
-      'activate-doctor-invite',
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    if (funcError) {
-      console.warn('[AuthCallback] activate-doctor-invite invocation error:', funcError);
-      return null;
-    }
-
-    return funcData as { activated: boolean; role: string | null } | null;
-  }
-
-  private async tryActivateStaffInvite(accessToken: string): Promise<{ activated: boolean; role: string | null } | null> {
-    const { data: funcData, error: funcError } = await this.supabase.functions.invoke(
-      'activate-staff-invite',
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    if (funcError) {
-      console.warn('[AuthCallback] activate-staff-invite invocation error:', funcError);
-      return null;
-    }
-
-    return funcData as { activated: boolean; role: string | null } | null;
-  }
 }
