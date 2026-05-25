@@ -7,7 +7,6 @@ import { addIcons } from 'ionicons';
 import { cashOutline } from 'ionicons/icons';
 import { Booking, Doctor, Patient } from '../../../core/models';
 import { BookingService } from '../../../core/services/booking.service';
-import { ClinicDashboardRealtimeService } from '../../../core/services/clinic-dashboard-realtime.service';
 import { DoctorStateService } from '../../../core/services/doctor-state.service';
 import { PatientStateService } from '../../../core/services/patient-state.service';
 import { QueueTableComponent } from '../components/queue-table/queue-table.component';
@@ -102,7 +101,6 @@ import { QueueTableComponent } from '../components/queue-table/queue-table.compo
 })
 export class StaffDashboardPage implements OnInit {
   private readonly bookingService = inject(BookingService);
-  private readonly realtime = inject(ClinicDashboardRealtimeService);
   private readonly doctorState = inject(DoctorStateService);
   private readonly patientState = inject(PatientStateService);
   private readonly router = inject(Router);
@@ -142,18 +140,14 @@ export class StaffDashboardPage implements OnInit {
   }
 
   ngOnInit(): void {
-    this.bookingService
-      .getTodaysBookings()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((bookings) => (this.todaysBookings = bookings));
-    this.doctorState
-      .getDoctors()
+    this.doctorState.doctors$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((doctors) => (this.doctors = doctors));
-    this.patientState
-      .getPatients()
+
+    this.patientState.patients$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((patients) => (this.patients = patients));
+
     this.bookingService.isLoading$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((bookingsLoading) => {
       this.bookingsLoading = bookingsLoading;
     });
@@ -164,24 +158,11 @@ export class StaffDashboardPage implements OnInit {
       this.patientsLoading = patientsLoading;
     });
 
-    void this.realtime.ensureConnected();
-    this.realtime.events$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => {
-        if (
-          [
-            'BookingCreated',
-            'BookingCancelled',
-            'PatientCheckedIn',
-            'PatientCheckInUndone',
-            'DoctorCompletedConsultation',
-            'PaymentCompleted',
-            'PaymentWaived'
-          ].includes(event.eventName)
-        ) {
-          this.refreshDashboardBookings();
-        }
-      });
+    this.refreshDashboardData();
+  }
+
+  ionViewWillEnter(): void {
+    this.refreshDashboardData();
   }
 
   goToPaymentQueue(): void {
@@ -207,6 +188,26 @@ export class StaffDashboardPage implements OnInit {
   }
 
   private refreshDashboardBookings(): void {
-    this.bookingService.getTodaysBookings();
+    this.loadTodaysBookings();
+  }
+
+  private refreshDashboardData(): void {
+    this.loadTodaysBookings();
+    this.doctorState.refresh();
+    this.patientState.refresh();
+  }
+
+  private loadTodaysBookings(): void {
+    this.bookingService
+      .getStaffTodayBookings({ page: 1, pageSize: 500 })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          this.todaysBookings = result.items;
+        },
+        error: () => {
+          this.todaysBookings = [];
+        }
+      });
   }
 }

@@ -1,9 +1,11 @@
 import { AsyncPipe, DatePipe, NgFor, NgIf } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { Observable, catchError, forkJoin, from, map, of, switchMap } from 'rxjs';
+import { Observable, catchError, forkJoin, firstValueFrom, from, map, of, switchMap } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { IonLabel, IonSegment, IonSegmentButton, ModalController } from '@ionic/angular/standalone';
+import { MedicalRecordsService } from '../../../core/services/medical-records.service';
+import { BookingService, ConsultationRecordResponse } from '../../../core/services/booking.service';
 import { PatientClinicalHistoryDto, PatientClinicalHistoryPatientDto, PatientClinicalHistorySummaryDto } from '../../../core/models/patient-clinical-history.models';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
@@ -25,7 +27,7 @@ type ClinicalTab = 'timeline' | 'consultations' | 'prescriptions' | 'labs' | 'do
     <ng-container *ngIf="history$ | async as history; else loadingTpl">
       <app-page-header
         [title]="history.patient.fullName"
-        [subtitle]="'Patient Code: ' + history.patient.patientCode"
+        [subtitle]="'Patient Code: ' + history.patient.patientCode + ' • Viewing: ' + activeTabHeading"
         [showBackButton]="true"
         defaultBackHref="/doctor/patients"
       ></app-page-header>
@@ -57,15 +59,22 @@ type ClinicalTab = 'timeline' | 'consultations' | 'prescriptions' | 'labs' | 'do
       </div>
 
       <section class="clinic-card tab-card">
-        <ion-segment [(ngModel)]="activeTab">
-          <ion-segment-button value="timeline"><ion-label>Timeline</ion-label></ion-segment-button>
-          <ion-segment-button value="appointments"><ion-label>Appointments</ion-label></ion-segment-button>
-          <ion-segment-button value="consultations"><ion-label>Consultations</ion-label></ion-segment-button>
-          <ion-segment-button value="prescriptions"><ion-label>Prescriptions</ion-label></ion-segment-button>
-          <ion-segment-button value="labs"><ion-label>Lab Results</ion-label></ion-segment-button>
-          <ion-segment-button value="documents"><ion-label>Documents</ion-label></ion-segment-button>
-          <ion-segment-button value="vaccinations"><ion-label>Vaccinations</ion-label></ion-segment-button>
+        <ion-segment [value]="activeTab" (ionChange)="onTabChange($event)">
+          <ion-segment-button value="timeline" [class.segment-button-checked]="activeTab === 'timeline'"><ion-label>Timeline</ion-label></ion-segment-button>
+          <ion-segment-button value="appointments" [class.segment-button-checked]="activeTab === 'appointments'"><ion-label>Appointments</ion-label></ion-segment-button>
+          <ion-segment-button value="consultations" [class.segment-button-checked]="activeTab === 'consultations'"><ion-label>Consultations</ion-label></ion-segment-button>
+          <ion-segment-button value="prescriptions" [class.segment-button-checked]="activeTab === 'prescriptions'"><ion-label>Prescriptions</ion-label></ion-segment-button>
+          <ion-segment-button value="labs" [class.segment-button-checked]="activeTab === 'labs'"><ion-label>Lab Results</ion-label></ion-segment-button>
+          <ion-segment-button value="documents" [class.segment-button-checked]="activeTab === 'documents'"><ion-label>Documents</ion-label></ion-segment-button>
+          <ion-segment-button value="vaccinations" [class.segment-button-checked]="activeTab === 'vaccinations'"><ion-label>Vaccinations</ion-label></ion-segment-button>
         </ion-segment>
+      </section>
+
+      <section class="clinical-section clinical-section--heading">
+        <div class="clinical-section__heading">
+          <h2>{{ activeTabHeading }}</h2>
+          <p>{{ activeTabDescription }}</p>
+        </div>
       </section>
 
       <section *ngIf="activeTab === 'timeline'" class="clinical-section">
@@ -210,6 +219,8 @@ type ClinicalTab = 'timeline' | 'consultations' | 'prescriptions' | 'labs' | 'do
 })
 export class DoctorPatientDetailPage {
   private readonly supabase = inject(SupabaseService).client;
+  private readonly medicalRecords = inject(MedicalRecordsService);
+  private readonly bookingService = inject(BookingService);
   private readonly route = inject(ActivatedRoute);
   private readonly modalCtrl = inject(ModalController);
 
@@ -243,6 +254,61 @@ export class DoctorPatientDetailPage {
     window.location.reload();
   }
 
+  onTabChange(event: CustomEvent): void {
+    const nextTab = event.detail?.value;
+    if (
+      nextTab === 'timeline' ||
+      nextTab === 'appointments' ||
+      nextTab === 'consultations' ||
+      nextTab === 'prescriptions' ||
+      nextTab === 'labs' ||
+      nextTab === 'documents' ||
+      nextTab === 'vaccinations'
+    ) {
+      this.activeTab = nextTab;
+    }
+  }
+
+  get activeTabHeading(): string {
+    switch (this.activeTab) {
+      case 'appointments':
+        return 'Appointments';
+      case 'consultations':
+        return 'Consultations';
+      case 'prescriptions':
+        return 'Prescription';
+      case 'labs':
+        return 'Lab Results';
+      case 'documents':
+        return 'Documents';
+      case 'vaccinations':
+        return 'Vaccinations';
+      case 'timeline':
+      default:
+        return 'Timeline';
+    }
+  }
+
+  get activeTabDescription(): string {
+    switch (this.activeTab) {
+      case 'appointments':
+        return 'All booking dates and visit status for this patient.';
+      case 'consultations':
+        return 'Completed doctor notes, diagnoses, and consultation history.';
+      case 'prescriptions':
+        return 'Medication orders and instructions recorded during consultations.';
+      case 'labs':
+        return 'Lab requests and result attachments linked to this patient.';
+      case 'documents':
+        return 'Uploaded documents and supporting files.';
+      case 'vaccinations':
+        return 'Recorded immunizations and dose history.';
+      case 'timeline':
+      default:
+        return "A chronological view of the patient's clinical activity.";
+    }
+  }
+
   viewFile(fileUrl: string, displayName: string): void {
     // Use signed URL from Supabase storage
     // If fileUrl looks like a storage path, create signed URL
@@ -270,27 +336,61 @@ export class DoctorPatientDetailPage {
       email: trimStr(patientRow?.contact_email),
     };
 
-    // Load bookings for this patient
-    const { data: bookingRows, error: bookingError } = await this.supabase
+    const [bookingRowsResult, recordState] = await Promise.all([
+      this.supabase
       .from('patient_bookings_view')
       .select('*')
       .eq('patient_id', patientId)
       .order('appointment_date', { ascending: false })
-      .limit(50);
+      .limit(50),
+      firstValueFrom(
+        forkJoin({
+          consultations: this.medicalRecords.getConsultationsByPatientId(patientId),
+          prescriptions: this.medicalRecords.getPrescriptionsByPatientId(patientId),
+          labResults: this.medicalRecords.getLabResultsByPatientId(patientId),
+          vaccinations: this.medicalRecords.getVaccinationsByPatientId(patientId),
+          followUps: this.medicalRecords.getFollowUpsByPatientId(patientId)
+        })
+      )
+    ]);
 
+    const { data: bookingRows, error: bookingError } = bookingRowsResult;
     if (bookingError) throw bookingError;
 
     const bookings = (bookingRows ?? []) as Record<string, unknown>[];
+    const consultations = recordState.consultations;
+    const prescriptions = dedupePrescriptionEntries([
+      ...recordState.prescriptions
+        .map((item) => ({
+          prescriptionDate: item.issuedAt,
+          notes: item.notes,
+          items: item.items.map((entry) => ({
+            medicationName: entry.medicineName,
+            strength: entry.strength,
+            dosage: entry.sig,
+            route: entry.route ?? entry.routeDescription,
+            frequency: entry.frequency ?? entry.frequencyCode,
+            duration: entry.duration,
+            quantity: entry.quantity == null ? null : String(entry.quantity),
+            instructions: entry.instructions
+          }))
+        }))
+        .filter((item) => item.items.length > 0),
+      ...await this.loadPrescriptionsFromConsultationRecords(bookings)
+    ]);
+    const labResults = recordState.labResults;
+    const vaccinations = recordState.vaccinations;
+    const followUps = recordState.followUps;
 
     const summary: PatientClinicalHistorySummaryDto = {
       totalAppointments: bookings.length,
-      completedConsultations: bookings.filter((b) => trimStr(b['booking_status']) === 'Completed').length,
-      activePrescriptions: 0,
-      labResultsCount: 0,
+      completedConsultations: consultations.length || bookings.filter((b) => trimStr(b['booking_status']) === 'Completed').length,
+      activePrescriptions: prescriptions.length,
+      labResultsCount: labResults.length,
       documentsCount: 0,
-      vaccinationsCount: 0,
+      vaccinationsCount: vaccinations.length,
       lastVisitDate: bookings.length > 0 ? trimStr(bookings[0]['appointment_date']) : undefined,
-      nextAppointmentDate: undefined,
+      nextAppointmentDate: bookings.find((b) => ['Confirmed', 'CheckedIn'].includes(trimStr(b['booking_status']) ?? ''))?.['appointment_date'] as string | undefined,
     };
 
     // Build timeline and subsections from booking data (other sections deferred)
@@ -322,14 +422,144 @@ export class DoctorPatientDetailPage {
       summary,
       timeline,
       appointments,
-      consultations: [],
+      consultations: consultations.map((consultation) => ({
+        bookingId: consultation.bookingId,
+        consultationId: consultation.id,
+        appointmentDate: consultation.consultationDate,
+        appointmentTime: consultation.consultationTime ?? '',
+        doctorName: bookings.find((booking) => trimStr(booking['booking_id']) === consultation.bookingId)?.['doctor_name'] as string || 'Doctor',
+        generalNotes: consultation.generalNotes,
+        vitalSigns: consultation.vitalSigns ?? null,
+        soap: consultation as unknown as Record<string, string | null> | null,
+        diagnosesSummary: consultation.diagnoses.map((diagnosis) => diagnosis.description).join(', '),
+        diagnoses: consultation.diagnoses.map((diagnosis) => ({
+          id: diagnosis.id,
+          diagnosisText: diagnosis.description,
+          diagnosisCode: diagnosis.code || diagnosis.icd10Code,
+          isPrimary: diagnosis.type === 'Primary',
+          notes: undefined
+        })),
+        prescription: consultation.prescriptions?.[0] ?? null,
+        labOrders: consultation.labRequests?.map((request) => ({
+          id: request.id,
+          notes: request.reason,
+          items: []
+        })) ?? [],
+        followUp: consultation.followUpDate ? { followUpDate: consultation.followUpDate } : null,
+      })),
       documents: [],
-      labResults: [],
-      vaccinations: [],
-      followUps: [],
-      prescriptions: [],
+      labResults: labResults.map((item) => ({
+        id: item.id,
+        bookingId: item.consultationId ?? null,
+        consultationId: item.consultationId ?? null,
+        resultTitle: item.fileName,
+        resultText: item.notes,
+        fileUrl: null,
+        fileName: item.fileName,
+        fileContentType: null,
+        createdAt: item.resultDate
+      })),
+      vaccinations: vaccinations.map((item) => ({
+        id: item.id,
+        vaccineName: item.vaccineName,
+        administeredDate: item.dateGiven,
+        doseNumber: item.doseNumber == null ? undefined : String(item.doseNumber),
+        manufacturer: item.brandName,
+        lotNumber: item.lotNumber,
+        status: 'Recorded',
+        source: 'supabase',
+        nextDueDate: item.nextDoseDate,
+        notes: item.remarks
+      })),
+      followUps: followUps.map((item) => ({
+        followUpDate: item.followUpDate,
+        instructions: item.reason,
+        reason: item.reason
+      })),
+      prescriptions,
     };
   }
+
+  private async loadPrescriptionsFromConsultationRecords(
+    bookings: Record<string, unknown>[]
+  ): Promise<PatientClinicalHistoryDto['prescriptions']> {
+    const bookingIds = bookings
+      .map((booking) => trimStr(booking['booking_id']) ?? '')
+      .filter((bookingId): bookingId is string => Boolean(bookingId));
+
+    if (bookingIds.length === 0) {
+      return [];
+    }
+
+    const consultationRecords = await firstValueFrom(
+      forkJoin(
+        bookingIds.map((bookingId) =>
+          this.bookingService.fetchConsultationRecordByBookingId(bookingId).pipe(
+            catchError(() => of(null))
+          )
+        )
+      )
+    );
+
+    return consultationRecords
+      .filter((record): record is ConsultationRecordResponse => Boolean(record?.prescription))
+      .map((record) => {
+        const bookingDate = trimStr(
+          bookings.find((booking) => trimStr(booking['booking_id']) === record.bookingId)?.['appointment_date']
+        );
+
+        return {
+        prescriptionDate: bookingDate ?? record.followUp?.followUpDate ?? record.bookingId,
+        notes: record.prescription?.notes ?? record.generalNotes ?? null,
+        items: (record.prescription?.items ?? []).map((item) => ({
+          medicationName: item.medicationName,
+          strength: item.strength,
+          dosage: item.dosage,
+          route: item.route,
+          frequency: item.frequency,
+          duration: item.duration,
+          quantity: item.quantity,
+          instructions: item.instructions
+        }))
+        };
+      })
+      .filter((prescription) => prescription.items.length > 0);
+  }
+}
+
+function dedupePrescriptionEntries(
+  prescriptions: PatientClinicalHistoryDto['prescriptions']
+): PatientClinicalHistoryDto['prescriptions'] {
+  const seen = new Set<string>();
+  const result: PatientClinicalHistoryDto['prescriptions'] = [];
+
+  for (const prescription of prescriptions) {
+    if (!prescription.items.length) {
+      continue;
+    }
+
+    const key = [
+      prescription.prescriptionDate ?? '',
+      prescription.notes ?? '',
+      ...prescription.items.map((item) => [
+        item.medicationName,
+        item.strength ?? '',
+        item.dosage ?? '',
+        item.frequency ?? '',
+        item.duration ?? '',
+        item.instructions ?? ''
+      ].join('|'))
+    ].join('||');
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    result.push(prescription);
+  }
+
+  return result;
 }
 
 function trimStr(value: unknown): string | undefined {
