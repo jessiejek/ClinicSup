@@ -112,16 +112,16 @@ export class AuthService {
     // Do not redirect to set-password; Supabase Auth already owns password state.
     switch (user.role) {
       case 'Admin':
-        void this.router.navigate(['/admin/dashboard']);
+        void this.router.navigate(['/admin']);
         break;
       case 'Staff':
-        void this.router.navigate(['/staff/dashboard']);
+        void this.router.navigate(['/staff']);
         break;
       case 'Doctor':
-        void this.router.navigate(['/doctor/dashboard']);
+        void this.router.navigate(['/doctor']);
         break;
       case 'Patient':
-        void this.router.navigate(['/patient/dashboard']);
+        void this.router.navigate(['/patient']);
         break;
       default:
         void this.router.navigate(['/auth/login']);
@@ -267,7 +267,9 @@ export class AuthService {
 
     // If patient role, ensure a patients row exists
     if (role === 'Patient') {
-      await this.ensurePatientRow(user, resolvedProfile);
+      void this.ensurePatientRow(user, resolvedProfile).catch((error: unknown) => {
+        console.warn('Patient row sync failed during login (non-blocking):', error);
+      });
     }
 
     const authUser: AuthUser = {
