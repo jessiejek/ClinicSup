@@ -44,7 +44,8 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
               </div>
             </div>
             <div class="pim">
-              <span class="pid">{{ p.latestDate }} {{ p.latestTime }}</span>
+              <span class="pid">{{ formatLatestVisitDate(p.latestDate) }}</span>
+              <span class="pid pid--time" *ngIf="formatLatestVisitTime(p.latestTime) as latestTime">{{ latestTime }}</span>
             </div>
           </div>
         </div>
@@ -94,6 +95,27 @@ export class DoctorPatientsPage {
     this.router.navigate(['/doctor/appointments', bookingId]);
   }
 
+  formatLatestVisitDate(dateStr: string): string {
+    if (!dateStr) {
+      return 'No prior visit';
+    }
+
+    const date = new Date(`${dateStr}T12:00:00`);
+    if (Number.isNaN(date.getTime())) {
+      return dateStr;
+    }
+
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(date);
+  }
+
+  formatLatestVisitTime(timeStr?: string | null): string {
+    return formatTime24To12(timeStr);
+  }
+
   private loadPatients(): void {
     this.loading = true;
     this.bookingService.getDoctorPatients().pipe(
@@ -102,4 +124,21 @@ export class DoctorPatientsPage {
       this.patients = patients || [];
     });
   }
+}
+
+function formatTime24To12(value?: string | null): string {
+  const time = value?.trim();
+  if (!time) {
+    return '';
+  }
+
+  const parts = time.split(':').map((part) => Number(part));
+  if (parts.length < 2 || parts.some((part) => Number.isNaN(part))) {
+    return time;
+  }
+
+  const [hours, minutes] = parts;
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12;
+  return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
 }

@@ -24,7 +24,7 @@ import { StatusBadgeComponent } from '../../../../shared/components/status-badge
       <div class="booking-card__details">
         <div>
           <span>Date</span>
-          <strong>{{ booking.appointmentDate | date : 'MMM d, y' }}</strong>
+          <strong>{{ booking.appointmentDate | date : 'MMMM d, y (EEE)' }}</strong>
         </div>
         <div>
           <span>Time</span>

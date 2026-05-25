@@ -43,7 +43,7 @@ import { IonBadge, IonInput, IonItem, IonLabel, IonSelect, IonSelectOption, IonT
         </div>
 
         <article class="record-item" *ngFor="let prescription of prescriptions">
-          <strong>{{ prescription.issuedAt | date : 'MMM d, y' }}</strong>
+          <strong>{{ prescription.issuedAt | date : 'MMMM d, y (EEE)' }}</strong>
           <p>{{ prescription.items.length }} medicine(s) • {{ prescription.status }}</p>
         </article>
         <p *ngIf="prescriptions.length === 0" class="muted-copy">No prescriptions recorded.</p>
@@ -94,7 +94,7 @@ import { IonBadge, IonInput, IonItem, IonLabel, IonSelect, IonSelectOption, IonT
 
         <article class="record-item" *ngFor="let labResult of labResults">
           <strong>{{ labResult.fileName }}</strong>
-          <p>{{ labResult.resultDate | date : 'MMM d, y' }} • {{ labResult.notes || 'No notes' }}</p>
+          <p>{{ labResult.resultDate | date : 'MMMM d, y (EEE)' }} • {{ labResult.notes || 'No notes' }}</p>
         </article>
         <p *ngIf="labResults.length === 0" class="muted-copy">No lab results recorded.</p>
 
@@ -123,7 +123,7 @@ import { IonBadge, IonInput, IonItem, IonLabel, IonSelect, IonSelectOption, IonT
 
         <article class="record-item" *ngFor="let vaccination of vaccinations">
           <strong>{{ vaccination.vaccineName }}</strong>
-          <p>{{ vaccination.dateGiven | date : 'MMM d, y' }} • {{ vaccination.doseNumber || 'Dose n/a' }}</p>
+          <p>{{ vaccination.dateGiven | date : 'MMMM d, y (EEE)' }} • {{ vaccination.doseNumber || 'Dose n/a' }}</p>
         </article>
         <p *ngIf="vaccinations.length === 0" class="muted-copy">No vaccination records.</p>
 
@@ -152,7 +152,7 @@ import { IonBadge, IonInput, IonItem, IonLabel, IonSelect, IonSelectOption, IonT
           <p>Pending follow-up reminders.</p>
         </div>
         <article class="record-item" *ngFor="let followUp of followUps">
-          <strong>{{ followUp.followUpDate | date : 'MMM d, y' }}</strong>
+          <strong>{{ followUp.followUpDate | date : 'MMMM d, y (EEE)' }}</strong>
           <p>{{ followUp.reason }} • {{ followUp.status }}</p>
         </article>
         <p *ngIf="followUps.length === 0" class="muted-copy">No follow-ups scheduled.</p>

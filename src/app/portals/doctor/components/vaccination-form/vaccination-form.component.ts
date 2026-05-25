@@ -136,11 +136,11 @@ export interface VaccinationFormDraft {
         <div class="vf-item" *ngFor="let v of addedVaccinations; let i = index">
           <div class="vf-item-info">
             <strong>{{ v.vaccineName }}</strong>
-            <span>{{ v.administeredDate | date:'MMM d, y' }} &middot; {{ v.status }}</span>
+            <span>{{ v.administeredDate | date:'MMMM d, y (EEE)' }} &middot; {{ v.status }}</span>
             <span class="vf-item-detail" *ngIf="v.doseNumber">Dose: {{ v.doseNumber }}</span>
             <span class="vf-item-detail" *ngIf="v.manufacturer">{{ v.manufacturer }}</span>
             <span class="vf-item-detail" *ngIf="v.lotNumber">Lot: {{ v.lotNumber }}</span>
-            <span class="vf-item-detail" *ngIf="v.nextDueDate">Next due: {{ v.nextDueDate | date:'MMM d, y' }}</span>
+            <span class="vf-item-detail" *ngIf="v.nextDueDate">Next due: {{ v.nextDueDate | date:'MMMM d, y (EEE)' }}</span>
           </div>
           <div class="vf-item-acts">
             <button type="button" (click)="editVaccination(i)">Edit</button>

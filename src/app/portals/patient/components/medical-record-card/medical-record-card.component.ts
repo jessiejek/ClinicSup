@@ -11,7 +11,7 @@ import { StatusBadgeComponent } from '../../../../shared/components/status-badge
     <article class="record-card clinic-card">
       <div class="record-card__header">
         <div>
-          <div class="record-card__date">{{ consultation.consultationDate | date : 'MMM d, y' }}</div>
+          <div class="record-card__date">{{ consultation.consultationDate | date : 'MMMM d, y (EEE)' }}</div>
           <h3>{{ doctor?.fullName || 'Doctor' }}</h3>
         </div>
         <app-status-badge [status]="recordStatus"></app-status-badge>

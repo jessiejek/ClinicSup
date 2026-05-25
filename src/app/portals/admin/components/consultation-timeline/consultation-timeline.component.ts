@@ -15,7 +15,7 @@ import { StatusBadgeComponent } from '../../../../shared/components/status-badge
       </div>
 
       <article class="timeline-item" *ngFor="let consultation of consultations">
-        <div class="timeline-item__date">{{ consultation.consultationDate | date : 'MMM d, y' }}</div>
+        <div class="timeline-item__date">{{ consultation.consultationDate | date : 'MMMM d, y (EEE)' }}</div>
         <div class="timeline-item__body">
           <div class="timeline-item__top">
             <strong>{{ consultation.chiefComplaint }}</strong>

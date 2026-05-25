@@ -48,7 +48,7 @@ import { EmptyStateComponent } from '../../../shared/components/empty-state/empt
                 <h3>{{ v.vaccineName }}</h3>
                 <span class="vac-card__source">{{ formatSource(v.source) }}</span>
               </div>
-              <div class="vac-card__date">{{ v.administeredDate | date:'MMM d, y' }}</div>
+              <div class="vac-card__date">{{ v.administeredDate | date:'MMMM d, y (EEE)' }}</div>
             </div>
 
             <div class="vac-card__grid">
@@ -78,11 +78,11 @@ import { EmptyStateComponent } from '../../../shared/components/empty-state/empt
               </div>
               <div *ngIf="v.nextDueDate">
                 <span>Next Due Date</span>
-                <p>{{ v.nextDueDate | date:'MMM d, y' }}</p>
+                <p>{{ v.nextDueDate | date:'MMMM d, y (EEE)' }}</p>
               </div>
               <div *ngIf="v.expirationDate">
                 <span>Expiration</span>
-                <p>{{ v.expirationDate | date:'MMM d, y' }}</p>
+                <p>{{ v.expirationDate | date:'MMMM d, y (EEE)' }}</p>
               </div>
             </div>
 
@@ -98,7 +98,7 @@ import { EmptyStateComponent } from '../../../shared/components/empty-state/empt
             </div>
 
             <div class="vac-card__meta">
-              <span>Recorded {{ v.createdAt | date:'MMM d, y, h:mm a' }}</span>
+              <span>Recorded {{ v.createdAt | date:'MMMM d, y (EEE) h:mm a' }}</span>
             </div>
           </article>
         </ng-container>

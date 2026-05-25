@@ -64,7 +64,7 @@ type EntityFilter = 'All' | AuditLog['entityType'];
           </thead>
           <tbody>
             <tr *ngFor="let log of filteredLogs">
-              <td class="data-mono">{{ log.performedAt | date : 'MMM d, y h:mm a' }}</td>
+              <td class="data-mono">{{ log.performedAt | date : 'MMMM d, y (EEE) h:mm a' }}</td>
               <td>
                 <span class="entity-badge" [ngClass]="'entity-badge--' + log.entityType.toLowerCase()">
                   {{ log.entityType }}

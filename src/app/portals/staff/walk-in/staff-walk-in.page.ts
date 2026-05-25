@@ -1268,7 +1268,8 @@ function formatLocalDateLabel(value: string): string {
 
   const date = new Date(year, month - 1, day);
   return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
+    weekday: 'short',
+    month: 'long',
     day: 'numeric',
     year: 'numeric'
   }).format(date);

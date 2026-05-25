@@ -84,7 +84,7 @@ type BookingFilter = 'all' | 'upcoming' | 'for-payment' | 'completed' | 'cancell
                 <td>{{ doctorName(booking) }}</td>
                 <td>{{ servicesLabel(booking) }}</td>
                 <td>
-                  <div>{{ booking.appointmentDate | date : 'MMM d, y' }}</div>
+                  <div>{{ booking.appointmentDate | date : 'MMMM d, y (EEE)' }}</div>
                   <div class="table-time">{{ formatTimeRange(booking) }}</div>
                 </td>
                 <td>{{ booking.queueNumber !== null ? '#' + booking.queueNumber : '-' }}</td>

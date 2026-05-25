@@ -94,7 +94,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         <div class="record-list clinic-card" *ngIf="vm.followUps.length > 0">
           <h3>Saved Follow-Ups</h3>
           <article class="record-item" *ngFor="let followUp of vm.followUps">
-            <strong>{{ followUp.followUpDate | date : 'MMM d, y' }}</strong>
+            <strong>{{ followUp.followUpDate | date : 'MMMM d, y (EEE)' }}</strong>
             <p>{{ followUp.reason }} &bull; {{ followUp.status }}</p>
           </article>
         </div>
@@ -112,7 +112,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         <section class="clinic-card side-card">
           <h3>Vaccinations</h3>
           <p *ngFor="let vaccination of vm.vaccinations">
-            {{ vaccination.vaccineName }} &bull; {{ vaccination.dateGiven | date : 'MMM d, y' }}
+            {{ vaccination.vaccineName }} &bull; {{ vaccination.dateGiven | date : 'MMMM d, y (EEE)' }}
           </p>
           <p *ngIf="vm.vaccinations.length === 0">No vaccinations on record.</p>
         </section>
@@ -120,7 +120,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         <section class="clinic-card side-card">
           <h3>Lab Results</h3>
           <p *ngFor="let result of vm.labResults">
-            {{ result.fileName }} &bull; {{ result.resultDate | date : 'MMM d, y' }}
+            {{ result.fileName }} &bull; {{ result.resultDate | date : 'MMMM d, y (EEE)' }}
           </p>
           <p *ngIf="vm.labResults.length === 0">No lab results on record.</p>
         </section>

@@ -54,13 +54,13 @@ import { PatientService } from '../services/patient.service';
             </div>
 
             <div class="summary-grid">
-              <div><span>Appointment Date</span><strong>{{ booking.appointmentDate | date : 'EEEE, MMMM d, y' }}</strong></div>
+              <div><span>Appointment Date</span><strong>{{ booking.appointmentDate | date : 'MMMM d, y (EEE)' }}</strong></div>
               <div><span>Time</span><strong>{{ timeRangeLabel }}</strong></div>
               <div><span>Queue Number</span><strong>{{ booking.queueNumber !== null ? '#' + booking.queueNumber : 'Not assigned' }}</strong></div>
               <div><span>Payment Mode</span><strong>{{ booking.paymentMode }}</strong></div>
               <div *ngIf="showAmountDue"><span>Amount Due</span><strong>PHP {{ booking.finalAmount }}</strong></div>
               <div *ngIf="isWaived"><span>Professional Fee</span><strong>Waived</strong></div>
-              <div><span>Created</span><strong>{{ booking.createdAt | date : 'MMM d, y h:mm a' }}</strong></div>
+              <div><span>Created</span><strong>{{ booking.createdAt | date : 'MMMM d, y (EEE) h:mm a' }}</strong></div>
             </div>
 
             <div class="clinic-card clinic-card--accent-green booking-summary__note">

@@ -83,7 +83,7 @@ type CollectPaymentMethod = 'Cash' | 'GCash' | 'Maya' | 'BankTransfer';
                     <span *ngIf="booking.patient?.sex">{{ booking.patient?.sex }}</span>
                     <span *ngIf="booking.patient?.sex && booking.patient?.dateOfBirth"> | </span>
                     <span *ngIf="booking.patient?.dateOfBirth">
-                      {{ booking.patient?.dateOfBirth | date : 'MMM d, y' }}
+                      {{ booking.patient?.dateOfBirth | date : 'MMMM d, y (EEE)' }}
                     </span>
                   </p>
                 </div>
@@ -105,7 +105,7 @@ type CollectPaymentMethod = 'Cash' | 'GCash' | 'Maya' | 'BankTransfer';
             <div class="detail-card-grid">
               <div class="clinic-card">
                 <div class="section-heading">Appointment Details</div>
-                <p><strong>Date:</strong> {{ booking.appointmentDate | date : 'MMM d, y' }}</p>
+                <p><strong>Date:</strong> {{ booking.appointmentDate | date : 'MMMM d, y (EEE)' }}</p>
                 <p><strong>Time:</strong> {{ timeRangeLabel }}</p>
                 <p><strong>Queue #:</strong> {{ queueLabel }}</p>
                 <div>
@@ -131,10 +131,10 @@ type CollectPaymentMethod = 'Cash' | 'GCash' | 'Maya' | 'BankTransfer';
                 </p>
                 <p *ngIf="booking.payment?.orNumber"><strong>OR Number:</strong> {{ booking.payment?.orNumber }}</p>
                 <p *ngIf="booking.payment?.verifiedAt">
-                  <strong>Paid At:</strong> {{ booking.payment?.verifiedAt | date : 'MMM d, y h:mm a' }}
+                  <strong>Paid At:</strong> {{ booking.payment?.verifiedAt | date : 'MMMM d, y (EEE) h:mm a' }}
                 </p>
                 <p *ngIf="booking.payment?.waivedAt">
-                  <strong>Waived At:</strong> {{ booking.payment?.waivedAt | date : 'MMM d, y h:mm a' }}
+                  <strong>Waived At:</strong> {{ booking.payment?.waivedAt | date : 'MMMM d, y (EEE) h:mm a' }}
                 </p>
                 <p *ngIf="booking.payment?.waivedReason">
                   <strong>Waive Reason:</strong> {{ booking.payment?.waivedReason }}

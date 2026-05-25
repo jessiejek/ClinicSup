@@ -33,7 +33,7 @@
     </div>
     <div class="detail-row" *ngIf="data.doctorCompletedAt">
       <span class="label">Doctor Completed</span>
-      <span class="value">{{ data.doctorCompletedAt | date : 'MMM d, y h:mm a' }}</span>
+      <span class="value">{{ data.doctorCompletedAt | date : 'MMMM d, y (EEE) h:mm a' }}</span>
     </div>
   </div>
 
@@ -64,7 +64,7 @@
     </div>
     <div class="detail-row mt-2" *ngIf="data.paidAt">
       <span class="label">Paid At</span>
-      <span class="value">{{ data.paidAt | date : 'MMM d, y h:mm a' }}</span>
+      <span class="value">{{ data.paidAt | date : 'MMMM d, y (EEE) h:mm a' }}</span>
     </div>
     <div class="detail-row mt-2" *ngIf="data.isWaived && data.waivedReason">
       <span class="label">Waived Reason</span>

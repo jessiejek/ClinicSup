@@ -31,7 +31,7 @@ import { PublicService } from '../../services/public.service';
 
           <div class="summary-row">
             <span>Date</span>
-            <strong>{{ vm.selectedDate | date : 'EEEE, MMMM d, yyyy' }}</strong>
+            <strong>{{ vm.selectedDate | date : 'MMMM d, y (EEE)' }}</strong>
           </div>
 
           <div class="summary-row">

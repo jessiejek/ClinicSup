@@ -54,7 +54,7 @@ import { PatientDocumentsService } from '../../../core/services/patient-document
           <article class="prescription-card clinic-card" *ngFor="let prescription of filteredPrescriptions">
             <div class="prescription-card__header">
               <div>
-                <div class="prescription-card__date">{{ prescription.appointmentDate | date : 'MMM d, y' }}</div>
+                <div class="prescription-card__date">{{ prescription.appointmentDate | date : 'MMMM d, y (EEE)' }}</div>
                 <h3>{{ prescription.doctorName }}</h3>
               </div>
               <div class="prescription-card__tag">{{ prescription.items.length }} medicine(s)</div>
@@ -84,7 +84,7 @@ import { PatientDocumentsService } from '../../../core/services/patient-document
             </div>
 
             <div class="prescription-card__meta">
-              <span>Created {{ prescription.createdAt | date : 'MMM d, y, h:mm a' }}</span>
+              <span>Created {{ prescription.createdAt | date : 'MMMM d, y (EEE) h:mm a' }}</span>
             </div>
 
             <div class="prescription-card__actions">

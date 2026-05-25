@@ -24,7 +24,7 @@ type StaffTodayStatus = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSho
   imports: [DatePipe, NgFor, NgIf, FormsModule, PageHeaderComponent, EmptyStateComponent, StatusBadgeComponent],
   template: `
     <app-page-header
-      [title]="'Bookings' + (selectedDate ? ' — ' + (selectedDate | date : 'MMM d, y') : '')"
+      [title]="'Bookings' + (selectedDate ? ' — ' + (selectedDate | date : 'MMMM d, y (EEE)') : '')"
       subtitle="View and manage patient bookings across all dates"
     ></app-page-header>
 
@@ -88,7 +88,7 @@ type StaffTodayStatus = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSho
                   <div class="doctor-services">{{ servicesLabel(booking) }}</div>
                 </td>
                 <td>
-                  <div>{{ booking.appointmentDate | date : 'MMM d, y' }}</div>
+                  <div>{{ booking.appointmentDate | date : 'MMMM d, y (EEE)' }}</div>
                   <div class="time-range">{{ timeRangeLabel(booking) }}</div>
                 </td>
                 <td class="col-queue">{{ booking.queueNumber !== null ? '#' + booking.queueNumber : '-' }}</td>
@@ -166,7 +166,7 @@ type StaffTodayStatus = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSho
           <div class="mobile-card__details">
             <div>
               <dt>Date</dt>
-              <dd>{{ booking.appointmentDate | date : 'MMM d, y' }}</dd>
+              <dd>{{ booking.appointmentDate | date : 'MMMM d, y (EEE)' }}</dd>
             </div>
             <div>
               <dt>Time</dt>

@@ -107,7 +107,7 @@ interface CollectPaymentMethodOption {
                   <div class="cd"><span class="cn">{{ doctorLabel(item) }}</span><span class="cs">{{ servicesLabel(item) }}</span></div>
                 </td>
                 <td>
-                  <div>{{ item.appointmentDate | date : 'MMM d, y' }}</div>
+                  <div>{{ item.appointmentDate | date : 'MMMM d, y (EEE)' }}</div>
                   <div class="data-mono">{{ item.slotStartTime }}</div>
                 </td>
                 <td class="qn"><strong>{{ queueLabel(item) }}</strong></td>
@@ -119,7 +119,7 @@ interface CollectPaymentMethodOption {
                 </td>
                 <td class="am">PHP {{ item.amountDue | number : '1.0-0' }}</td>
                 <td class="dc">
-                  {{ item.doctorCompletedAt ? (item.doctorCompletedAt | date : 'MMM d, y h:mm a') : '-' }}
+                  {{ item.doctorCompletedAt ? (item.doctorCompletedAt | date : 'MMMM d, y (EEE) h:mm a') : '-' }}
                 </td>
                 <td class="ac">
                   <ng-container *ngIf="canTakePaymentAction(item); else noDesktopAction">
@@ -149,9 +149,9 @@ interface CollectPaymentMethodOption {
             <dl class="mcd">
               <div><dt>Doctor</dt><dd>{{ doctorLabel(item) }}</dd></div>
               <div><dt>Services</dt><dd>{{ servicesLabel(item) }}</dd></div>
-              <div><dt>Date/Time</dt><dd>{{ item.appointmentDate | date : 'MMM d, y' }} {{ item.slotStartTime }}</dd></div>
+              <div><dt>Date/Time</dt><dd>{{ item.appointmentDate | date : 'MMMM d, y (EEE)' }} {{ item.slotStartTime }}</dd></div>
               <div><dt>Amount Due</dt><dd>PHP {{ item.amountDue | number : '1.0-0' }}</dd></div>
-              <div><dt>Completed</dt><dd>{{ item.doctorCompletedAt ? (item.doctorCompletedAt | date : 'MMM d, y h:mm a') : '-' }}</dd></div>
+              <div><dt>Completed</dt><dd>{{ item.doctorCompletedAt ? (item.doctorCompletedAt | date : 'MMMM d, y (EEE) h:mm a') : '-' }}</dd></div>
             </dl>
             <div class="mca">
               <ng-container *ngIf="canTakePaymentAction(item); else noMobileAction">

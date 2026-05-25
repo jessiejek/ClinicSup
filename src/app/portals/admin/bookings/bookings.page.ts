@@ -337,7 +337,7 @@ export class BookingsPage implements OnInit {
     return STATUS_LABELS[status] || status;
   }
 
-  /** Format date as "May 20, 2026 · 3:30PM" */
+  /** Format date as "May 20, 2026 (Wed) · 3:30 PM" */
   formatDateTime(dateStr: string, timeStr: string): string {
     if (!dateStr) return timeStr || '—';
     try {
@@ -347,7 +347,7 @@ export class BookingsPage implements OnInit {
       const day = parseInt(parts[2], 10);
       const year = parseInt(parts[0], 10);
       const date = new Date(year, month, day);
-      const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const formattedDate = date.toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' });
       // Format time — keep as-is if it already looks formatted, otherwise try to parse
       let formattedTime = '';
       if (timeStr && timeStr.includes(':')) {

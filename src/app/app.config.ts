@@ -1,4 +1,5 @@
 import { APP_INITIALIZER, ApplicationConfig } from '@angular/core';
+import { DATE_PIPE_DEFAULT_OPTIONS } from '@angular/common';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideRouter, RouteReuseStrategy } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -20,6 +21,10 @@ export const appConfig: ApplicationConfig = {
       multi: true,
       useFactory: initializeAuthSession,
       deps: [AuthStateService]
+    },
+    {
+      provide: DATE_PIPE_DEFAULT_OPTIONS,
+      useValue: { dateFormat: 'MMMM d, y (EEE)' }
     },
     provideIonicAngular(),
     provideHttpClient(withInterceptors([authInterceptor])),

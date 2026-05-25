@@ -153,7 +153,7 @@ type PatientMediaItem = PatientDocument | PatientLabResult;
               </div>
               <div class="gallery-card__info" (click)="openPreview(item)">
                 <div class="gallery-card__meta-row">
-                  <span class="gallery-card__date">{{ item.uploadedAt | date : 'MMM d, y' }}</span>
+                  <span class="gallery-card__date">{{ item.uploadedAt | date : 'MMMM d, y (EEE)' }}</span>
                   <span class="gallery-card__type-badge">{{ tagLabel(item) }}</span>
                 </div>
                 <h4>{{ displayTitle(item) }}</h4>
@@ -373,7 +373,7 @@ export class PatientMediaPanelComponent implements OnInit, OnChanges {
 
   formatBooking(booking: Booking): string {
     const date = new Date(`${booking.appointmentDate}T12:00:00`).toLocaleDateString('en-US', {
-      weekday: 'long',
+      weekday: 'short',
       month: 'long',
       day: 'numeric',
       year: 'numeric'

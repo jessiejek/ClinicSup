@@ -1,4 +1,4 @@
-import { AsyncPipe, NgIf } from '@angular/common';
+import { AsyncPipe, DatePipe, NgIf } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest, of } from 'rxjs';
@@ -21,7 +21,7 @@ interface ConsultationVm {
 @Component({
   standalone: true,
   selector: 'app-doctor-consultation-stub-page',
-  imports: [AsyncPipe, NgIf, PageHeaderComponent, EmptyStateComponent],
+imports: [AsyncPipe, DatePipe, NgIf, PageHeaderComponent, EmptyStateComponent],
   template: `
     <ng-container *ngIf="detail$ | async as detail; else notFound">
       <app-page-header
@@ -35,7 +35,7 @@ interface ConsultationVm {
         <div>
           <p class="section-label">Booking Summary</p>
           <h3>{{ detail.booking.id }}</h3>
-          <p>{{ detail.booking.appointmentDate }} {{ detail.booking.slotStartTime }}</p>
+          <p>{{ detail.booking.appointmentDate | date:'MMMM d, y (EEE)' }} {{ detail.booking.slotStartTime }}</p>
           <p>{{ detail.booking.status }} • {{ detail.booking.paymentStatus }}</p>
         </div>
         <div>

@@ -21,7 +21,7 @@ export type ConsultationHeaderMode = 'complete' | 'view' | 'amend';
       <div class="consultation-header__copy">
         <h2>{{ patientName }}</h2>
         <p>
-          Booking {{ booking.id }} &bull; {{ booking.appointmentDate | date : 'MMM d, y' }}
+          Booking {{ booking.id }} &bull; {{ booking.appointmentDate | date : 'MMMM d, y (EEE)' }}
           {{ booking.slotStartTime }} - {{ booking.slotEndTime }}
         </p>
       </div>

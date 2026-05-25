@@ -125,7 +125,7 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
         <ng-container *ngIf="isCompletedConsultation(vm) && !isAmendMode; else editMode">
           <div class="cvh">
             <div class="cvh__top">
-              <a class="cvh__back" routerLink="/doctor/appointments">&larr; 2222Back to Appointments</a>
+              <a class="cvh__back" routerLink="/doctor/appointments">&larr; Back to Appointments</a>
               <div class="cvh__actions">
                 <div class="cvh__badge"><app-status-badge [status]="vm.booking.status"></app-status-badge></div>
                 <button class="cr-btn cr-btn--secondary cvh__modify" (click)="enterAmendMode()">
@@ -148,12 +148,8 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
                 <div class="cvh__meta-label">Visit Metadata</div>
                 <div class="cvh__meta">
                   <div class="cvh__tag">
-                    <span class="cvh__tag-label">Booking ID</span>
-                    <span class="cvh__tag-value">{{ vm.booking.id.slice(0, 8) }}...</span>
-                  </div>
-                  <div class="cvh__tag">
                     <span class="cvh__tag-label">Date</span>
-                    <span class="cvh__tag-value">{{ vm.booking.appointmentDate | date:'MMM d, y' }}</span>
+                    <span class="cvh__tag-value">{{ vm.booking.appointmentDate | date:'MMMM d, y (EEE)' }}</span>
                   </div>
                   <div class="cvh__tag">
                     <span class="cvh__tag-label">Time</span>
@@ -202,7 +198,7 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
             <div class="cr-hdr">
               <div class="cr-hdr__left">
                 <h1 class="cr-hdr__title">Consultation Room</h1>
-                <p class="cr-hdr__sub">{{ vm.patient.firstName || 'Patient' }} {{ vm.patient.lastName || '' }} &middot; {{ vm.booking.appointmentDate | date:'MMM d, y' }} &middot; Queue #{{ vm.booking.queueNumber ?? '--' }}</p>
+                <p class="cr-hdr__sub">{{ vm.patient.firstName || 'Patient' }} {{ vm.patient.lastName || '' }} &middot; {{ vm.booking.appointmentDate | date:'MMMM d, y (EEE)' }} &middot; Queue #{{ vm.booking.queueNumber ?? '--' }}</p>
               </div>
               <div class="cr-hdr__right">
                 <app-status-badge [status]="vm.booking.status"></app-status-badge>

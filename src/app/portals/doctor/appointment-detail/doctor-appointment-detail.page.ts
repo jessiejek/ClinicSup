@@ -1,4 +1,4 @@
-import { AsyncPipe, CurrencyPipe, NgFor, NgIf } from '@angular/common';
+import { AsyncPipe, CurrencyPipe, DatePipe, NgFor, NgIf } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest, of } from 'rxjs';
@@ -17,6 +17,7 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
   imports: [
     AsyncPipe,
     CurrencyPipe,
+    DatePipe,
     NgFor,
     NgIf,
     PageHeaderComponent,
@@ -26,122 +27,149 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
   ],
   template: `
     <ng-container *ngIf="detail$ | async as detail; else notFound">
-      <app-page-header
-        title="Appointment Detail"
-        subtitle="Review the booking before starting consultation"
-        [showBackButton]="true"
-        defaultBackHref="/doctor/appointments"
-      ></app-page-header>
+      <section class="appointment-detail-page">
+        <app-page-header
+          title="Appointment Overview"
+          subtitle="Review the booking before starting consultation"
+          [showBackButton]="true"
+          defaultBackHref="/doctor/appointments"
+        ></app-page-header>
 
-      <section class="detail-grid">
-        <div class="detail-main">
-          <div class="clinic-card">
-            <div class="card-head">
-              <div>
-                <p class="section-label">Booking ID</p>
-                <h2>{{ detail.booking.id }}</h2>
+        <section class="detail-shell">
+          <section class="detail-hero clinic-card">
+            <div class="detail-hero__main">
+              <p class="section-label">Booking Snapshot</p>
+              <h2>{{ patientName(detail.patient) }}</h2>
+              <p class="detail-hero__sub">
+                {{ detail.booking.appointmentDate | date : 'MMMM d, y (EEE)' }} &middot;
+                {{ detail.booking.slotStartTime }} - {{ detail.booking.slotEndTime }} &middot;
+                Queue #{{ detail.booking.queueNumber ?? '-' }}
+              </p>
+              <div class="detail-hero__chips">
+                <span class="detail-chip detail-chip--status"><app-status-badge [status]="detail.booking.status"></app-status-badge></span>
+                <span class="detail-chip">Payment {{ detail.booking.paymentStatus || 'N/A' }}</span>
+                <span class="detail-chip">{{ detail.service.name }}</span>
+                <span class="detail-chip">{{ detail.service.category }}</span>
               </div>
-              <app-status-badge [status]="detail.booking.status"></app-status-badge>
             </div>
-          </div>
 
-          <div class="clinic-card">
-            <h3>Patient Info</h3>
-            <div class="info-grid">
-              <div><span>Patient</span><strong>{{ patientName(detail.patient) }}</strong></div>
-              <div><span>Code</span><strong>{{ detail.patient.patientCode }}</strong></div>
-              <div><span>Contact</span><strong>{{ detail.patient.contactNumber || 'N/A' }}</strong></div>
-              <div><span>Email</span><strong>{{ detail.patient.email || 'N/A' }}</strong></div>
+            <div class="detail-hero__meta">
+              <div class="detail-metric">
+                <span>Consultation Fee</span>
+                <strong>{{ detail.booking.consultationFeeSnapshot | currency:'PHP':'symbol-narrow':'1.0-0' }}</strong>
+              </div>
+              <div class="detail-metric">
+                <span>Service Fee</span>
+                <strong>{{ detail.booking.serviceFeeSnapshot | currency:'PHP':'symbol-narrow':'1.0-0' }}</strong>
+              </div>
+              <div class="detail-metric">
+                <span>Total Fee</span>
+                <strong>{{ detail.booking.totalFee | currency:'PHP':'symbol-narrow':'1.0-0' }}</strong>
+              </div>
             </div>
-          </div>
+          </section>
 
-          <div class="clinic-card">
-            <h3>Appointment Details</h3>
-            <div class="info-grid">
-              <div><span>Date</span><strong>{{ detail.booking.appointmentDate }}</strong></div>
-              <div><span>Time</span><strong>{{ detail.booking.slotStartTime }} - {{ detail.booking.slotEndTime }}</strong></div>
-              <div><span>Queue #</span><strong>{{ detail.booking.queueNumber ?? '-' }}</strong></div>
-              <div><span>Payment</span><strong>{{ detail.booking.paymentStatus }}</strong></div>
-            </div>
-          </div>
-
-          <div class="clinic-card">
-            <h3>Service Details</h3>
-            <div class="info-grid">
-              <div><span>Service</span><strong>{{ detail.service.name }}</strong></div>
-              <div><span>Category</span><strong>{{ detail.service.category }}</strong></div>
-              <div><span>Consultation Fee</span><strong>{{ detail.booking.consultationFeeSnapshot | currency:'PHP':'symbol-narrow':'1.0-0' }}</strong></div>
-              <div><span>Service Fee</span><strong>{{ detail.booking.serviceFeeSnapshot | currency:'PHP':'symbol-narrow':'1.0-0' }}</strong></div>
-            </div>
-          </div>
-
-          <div class="clinic-card">
-            <h3>Booking Timeline</h3>
-            <div class="timeline">
-              <article class="timeline-item" *ngFor="let step of timeline(detail.booking.status)">
-                <div class="timeline-dot" [class.timeline-dot--active]="step.active"></div>
-                <div>
-                  <strong>{{ step.label }}</strong>
-                  <p>{{ step.description }}</p>
+          <section class="detail-grid">
+            <div class="detail-main">
+              <div class="clinic-card detail-card">
+                <h3>Patient Info</h3>
+                <div class="info-grid">
+                  <div><span>Patient</span><strong>{{ patientName(detail.patient) }}</strong></div>
+                  <div><span>Code</span><strong>{{ detail.patient.patientCode }}</strong></div>
+                  <div><span>Contact</span><strong>{{ detail.patient.contactNumber || 'N/A' }}</strong></div>
+                  <div><span>Email</span><strong>{{ detail.patient.email || 'N/A' }}</strong></div>
                 </div>
-              </article>
+              </div>
+
+              <div class="clinic-card detail-card">
+                <h3>Appointment Details</h3>
+                <div class="info-grid">
+                  <div><span>Date</span><strong>{{ detail.booking.appointmentDate | date : 'MMMM d, y (EEE)' }}</strong></div>
+                  <div><span>Time</span><strong>{{ detail.booking.slotStartTime }} - {{ detail.booking.slotEndTime }}</strong></div>
+                  <div><span>Queue #</span><strong>{{ detail.booking.queueNumber ?? '-' }}</strong></div>
+                  <div><span>Payment</span><strong>{{ detail.booking.paymentStatus }}</strong></div>
+                </div>
+              </div>
+
+              <div class="clinic-card detail-card">
+                <h3>Service Details</h3>
+                <div class="info-grid">
+                  <div><span>Service</span><strong>{{ detail.service.name }}</strong></div>
+                  <div><span>Category</span><strong>{{ detail.service.category }}</strong></div>
+                  <div><span>Consultation Fee</span><strong>{{ detail.booking.consultationFeeSnapshot | currency:'PHP':'symbol-narrow':'1.0-0' }}</strong></div>
+                  <div><span>Service Fee</span><strong>{{ detail.booking.serviceFeeSnapshot | currency:'PHP':'symbol-narrow':'1.0-0' }}</strong></div>
+                </div>
+              </div>
+
+              <div class="clinic-card detail-card">
+                <h3>Booking Timeline</h3>
+                <div class="timeline">
+                  <article class="timeline-item" *ngFor="let step of timeline(detail.booking.status)">
+                    <div class="timeline-dot" [class.timeline-dot--active]="step.active"></div>
+                    <div>
+                      <strong>{{ step.label }}</strong>
+                      <p>{{ step.description }}</p>
+                    </div>
+                  </article>
+                </div>
+              </div>
+
+              <div class="clinic-card detail-card">
+                <h3>Doctor Notes</h3>
+                <p class="muted-text">Notes will be captured in the Phase 9 consultation workspace.</p>
+              </div>
+
+              <div class="clinic-card detail-card patient-uploads-section" *ngIf="detail.booking.patientId">
+                <h3>Patient Uploads</h3>
+                <p class="muted-text">All documents and lab results uploaded by this patient.</p>
+                <div class="patient-uploads-section__panels">
+                  <app-patient-media-panel
+                    kind="document"
+                    [patientId]="detail.booking.patientId"
+                    [filterByBooking]="false"
+                    [allowUpload]="false"
+                    heading="Documents"
+                    subheading="Referrals, certificates, prescriptions, and supporting files."
+                  ></app-patient-media-panel>
+                  <app-patient-media-panel
+                    kind="lab-result"
+                    [patientId]="detail.booking.patientId"
+                    [filterByBooking]="false"
+                    [allowUpload]="false"
+                    heading="Lab Results"
+                    subheading="Uploaded lab reports and test result files."
+                  ></app-patient-media-panel>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div class="clinic-card">
-            <h3>Doctor Notes</h3>
-            <p class="muted-text">Notes will be captured in the Phase 9 consultation workspace.</p>
-          </div>
+            <aside class="detail-side">
+              <div class="clinic-card action-card detail-card detail-card--sticky">
+                <button type="button" class="btn-primary" (click)="openConsultation(detail.booking.id)">
+                  {{ consultationActionLabel(detail.booking) }}
+                </button>
+                <button
+                  *ngIf="detail.booking.status === 'Completed'"
+                  type="button"
+                  class="btn-ghost"
+                  (click)="openConsultation(detail.booking.id, true)"
+                >
+                  Edit / Amend Consultation
+                </button>
+                <button type="button" class="btn-ghost" (click)="back()">Back to appointments</button>
+              </div>
 
-          <div class="clinic-card patient-uploads-section" *ngIf="detail.booking.patientId">
-            <h3>Patient Uploads</h3>
-            <p class="muted-text">All documents and lab results uploaded by this patient.</p>
-            <div class="patient-uploads-section__panels">
-              <app-patient-media-panel
-                kind="document"
-                [patientId]="detail.booking.patientId"
-                [filterByBooking]="false"
-                [allowUpload]="false"
-                heading="Documents"
-                subheading="Referrals, certificates, prescriptions, and supporting files."
-              ></app-patient-media-panel>
-              <app-patient-media-panel
-                kind="lab-result"
-                [patientId]="detail.booking.patientId"
-                [filterByBooking]="false"
-                [allowUpload]="false"
-                heading="Lab Results"
-                subheading="Uploaded lab reports and test result files."
-              ></app-patient-media-panel>
-            </div>
-          </div>
-        </div>
-
-        <aside class="detail-side">
-          <div class="clinic-card action-card">
-            <button type="button" class="btn-primary" (click)="openConsultation(detail.booking.id)">
-              {{ consultationActionLabel(detail.booking) }}
-            </button>
-            <button
-              *ngIf="detail.booking.status === 'Completed'"
-              type="button"
-              class="btn-ghost"
-              (click)="openConsultation(detail.booking.id, true)"
-            >
-              Edit / Amend Consultation
-            </button>
-            <button type="button" class="btn-ghost" (click)="back()">Back to appointments</button>
-          </div>
-
-          <div class="clinic-card">
-            <h3>Payment Summary</h3>
-            <div class="summary-list">
-              <div><span>Total Fee</span><strong>{{ detail.booking.totalFee | currency:'PHP':'symbol-narrow':'1.0-0' }}</strong></div>
-              <div><span>Status</span><strong>{{ detail.booking.paymentStatus }}</strong></div>
-              <div><span>Mode</span><strong>{{ detail.booking.paymentMode }}</strong></div>
-            </div>
-          </div>
-        </aside>
+              <div class="clinic-card detail-card">
+                <h3>Payment Summary</h3>
+                <div class="summary-list">
+                  <div><span>Total Fee</span><strong>{{ detail.booking.totalFee | currency:'PHP':'symbol-narrow':'1.0-0' }}</strong></div>
+                  <div><span>Status</span><strong>{{ detail.booking.paymentStatus }}</strong></div>
+                  <div><span>Mode</span><strong>{{ detail.booking.paymentMode }}</strong></div>
+                </div>
+              </div>
+            </aside>
+          </section>
+        </section>
       </section>
     </ng-container>
 

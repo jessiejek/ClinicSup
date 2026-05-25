@@ -31,7 +31,7 @@ import { StatusBadgeComponent } from '../../../../shared/components/status-badge
           <ion-icon name="calendar-outline"></ion-icon>
           <div>
             <span>Date</span>
-            <strong>{{ booking.appointmentDate | date : 'EEEE, MMMM d, y' }}</strong>
+            <strong>{{ booking.appointmentDate | date : 'MMMM d, y (EEE)' }}</strong>
           </div>
         </div>
         <div class="upcoming-card__detail">

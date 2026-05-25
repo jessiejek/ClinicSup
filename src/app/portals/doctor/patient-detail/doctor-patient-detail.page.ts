@@ -41,8 +41,8 @@ type ClinicalTab = 'timeline' | 'consultations' | 'prescriptions' | 'labs' | 'do
             <span *ngIf="history.patient.email">&middot; {{ history.patient.email }}</span>
           </div>
           <div class="patient-summary__dates">
-            <span *ngIf="history.summary.lastVisitDate">Last visit: {{ history.summary.lastVisitDate }}</span>
-            <span *ngIf="history.summary.nextAppointmentDate">Next appointment: {{ history.summary.nextAppointmentDate }}</span>
+            <span *ngIf="history.summary.lastVisitDate">Last visit: {{ history.summary.lastVisitDate | date:'MMMM d, y (EEE)' }}</span>
+            <span *ngIf="history.summary.nextAppointmentDate">Next appointment: {{ history.summary.nextAppointmentDate | date:'MMMM d, y (EEE)' }}</span>
           </div>
         </div>
       </div>
@@ -74,7 +74,7 @@ type ClinicalTab = 'timeline' | 'consultations' | 'prescriptions' | 'labs' | 'do
             <div class="timeline-dot" [class]="'dot-' + item.type.toLowerCase().replace(' ', '-')"></div>
             <div class="timeline-content">
               <div class="timeline-header">
-                <span class="timeline-date">{{ item.date }}</span>
+                <span class="timeline-date">{{ item.date | date:'MMMM d, y (EEE)' }}</span>
                 <span class="timeline-badge" [class]="'badge-' + item.type.toLowerCase().replace(' ', '-')">{{ item.type }}</span>
               </div>
               <div class="timeline-title">{{ item.title }}</div>
@@ -90,7 +90,7 @@ type ClinicalTab = 'timeline' | 'consultations' | 'prescriptions' | 'labs' | 'do
           <div class="apt-card clinic-card" *ngFor="let a of history.appointments">
             <div class="apt-card__header">
               <div>
-                <strong>{{ a.appointmentDate }}</strong>
+                <strong>{{ a.appointmentDate | date:'MMMM d, y (EEE)' }}</strong>
                 <span>{{ a.slotStartTime }} - {{ a.slotEndTime }}</span>
               </div>
               <div class="apt-card__right">
@@ -112,7 +112,7 @@ type ClinicalTab = 'timeline' | 'consultations' | 'prescriptions' | 'labs' | 'do
           <div class="consult-card clinic-card" *ngFor="let c of history.consultations">
             <div class="consult-card__header">
               <div>
-                <strong>{{ c.appointmentDate }}</strong> &middot; {{ c.appointmentTime }}
+                <strong>{{ c.appointmentDate | date:'MMMM d, y (EEE)' }}</strong> &middot; {{ c.appointmentTime }}
                 <p class="consult-card__doctor">{{ c.doctorName }}</p>
               </div>
               <a *ngIf="c.bookingId" class="btn-sm" [routerLink]="['/doctor/appointments', c.bookingId]">View</a>
@@ -122,7 +122,7 @@ type ClinicalTab = 'timeline' | 'consultations' | 'prescriptions' | 'labs' | 'do
             <div class="consult-card__footer" *ngIf="c.prescription || c.labOrders.length > 0 || c.followUp">
               <span *ngIf="c.prescription">{{ c.prescription['items']?.length || 0 }} medicine(s)</span>
               <span *ngIf="c.labOrders.length > 0">{{ c.labOrders.length }} lab order(s)</span>
-              <span *ngIf="c.followUp">Follow-up: {{ c.followUp['followUpDate'] }}</span>
+              <span *ngIf="c.followUp">Follow-up: {{ c.followUp['followUpDate'] | date:'MMMM d, y (EEE)' }}</span>
             </div>
           </div>
         </div>
@@ -131,7 +131,7 @@ type ClinicalTab = 'timeline' | 'consultations' | 'prescriptions' | 'labs' | 'do
       <section *ngIf="activeTab === 'prescriptions'" class="clinical-section">
         <div class="card-list" *ngIf="history.prescriptions.length > 0; else emptyPrescriptions">
           <div class="presc-card clinic-card" *ngFor="let p of history.prescriptions">
-            <div class="presc-card__header" *ngIf="p.prescriptionDate"><strong>{{ p.prescriptionDate }}</strong><span *ngIf="p.notes">{{ p.notes }}</span></div>
+            <div class="presc-card__header" *ngIf="p.prescriptionDate"><strong>{{ p.prescriptionDate | date:'MMMM d, y (EEE)' }}</strong><span *ngIf="p.notes">{{ p.notes }}</span></div>
             <div class="presc-item" *ngFor="let item of p.items">
               <div class="presc-item__name">{{ item.medicationName }}</div>
               <div class="presc-item__detail">
@@ -149,7 +149,7 @@ type ClinicalTab = 'timeline' | 'consultations' | 'prescriptions' | 'labs' | 'do
       <section *ngIf="activeTab === 'labs'" class="clinical-section">
         <div class="card-list" *ngIf="history.labResults.length > 0; else emptyLabs">
           <div class="doc-card clinic-card" *ngFor="let lr of history.labResults">
-            <div class="doc-card__header"><strong>{{ lr.resultTitle || 'Lab Result' }}</strong><span>{{ lr.createdAt | date:'MMM d, y' }}</span></div>
+            <div class="doc-card__header"><strong>{{ lr.resultTitle || 'Lab Result' }}</strong><span>{{ lr.createdAt | date:'MMMM d, y (EEE)' }}</span></div>
             <p *ngIf="lr.resultText">{{ lr.resultText }}</p>
             <button *ngIf="lr.fileUrl" class="btn-sm" (click)="viewFile(lr.fileUrl, lr.resultTitle || lr.fileName || 'lab-result')">View</button>
           </div>
@@ -159,7 +159,7 @@ type ClinicalTab = 'timeline' | 'consultations' | 'prescriptions' | 'labs' | 'do
       <section *ngIf="activeTab === 'documents'" class="clinical-section">
         <div class="card-list" *ngIf="history.documents.length > 0; else emptyDocuments">
           <div class="doc-card clinic-card" *ngFor="let d of history.documents">
-            <div class="doc-card__header"><strong>{{ d.title || d.documentType }}</strong><span>{{ d.createdAt | date:'MMM d, y' }}</span></div>
+            <div class="doc-card__header"><strong>{{ d.title || d.documentType }}</strong><span>{{ d.createdAt | date:'MMMM d, y (EEE)' }}</span></div>
             <p *ngIf="d.description">{{ d.description }}</p>
             <span class="doc-card__type">{{ d.documentType }}</span>
             <button *ngIf="d.fileUrl" class="btn-sm" (click)="viewFile(d.fileUrl, d.fileName || d.title || 'file')">View</button>
@@ -170,13 +170,13 @@ type ClinicalTab = 'timeline' | 'consultations' | 'prescriptions' | 'labs' | 'do
       <section *ngIf="activeTab === 'vaccinations'" class="clinical-section">
         <div class="card-list" *ngIf="history.vaccinations.length > 0; else emptyVaccinations">
           <div class="vac-card clinic-card" *ngFor="let v of history.vaccinations">
-            <div class="vac-card__header"><strong>{{ v.vaccineName }}</strong><span>{{ v.administeredDate }}</span></div>
+            <div class="vac-card__header"><strong>{{ v.vaccineName }}</strong><span>{{ v.administeredDate | date:'MMMM d, y (EEE)' }}</span></div>
             <div class="vac-card__meta">
               <span *ngIf="v.doseNumber">Dose: {{ v.doseNumber }}</span>
               <span *ngIf="v.manufacturer">{{ v.manufacturer }}</span>
               <span *ngIf="v.lotNumber">Lot: {{ v.lotNumber }}</span>
               <span>{{ v.status }}</span>
-              <span *ngIf="v.nextDueDate">Next: {{ v.nextDueDate }}</span>
+              <span *ngIf="v.nextDueDate">Next: {{ v.nextDueDate | date:'MMMM d, y (EEE)' }}</span>
             </div>
             <p *ngIf="v.notes" class="vac-card__notes">{{ v.notes }}</p>
           </div>

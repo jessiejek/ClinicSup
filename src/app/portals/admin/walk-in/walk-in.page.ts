@@ -1095,7 +1095,7 @@ function formatLocalDateLabel(value: string): string {
   if (!value) return 'No date selected';
   const [year, month, day] = value.split('-').map((part) => Number(part));
   if (!year || !month || !day) return value;
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(year, month - 1, day));
+  return new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(year, month - 1, day));
 }
 
 function formatPhpAmount(amount: number): string {

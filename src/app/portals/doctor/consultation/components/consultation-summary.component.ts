@@ -18,7 +18,7 @@ import { Diagnosis, LabRequest, PrescriptionItem, VitalSigns } from '../../../..
           </div>
           <div class="cs-record__meta">
             <span class="cs-record__chip cs-record__chip--soft" *ngIf="followUpDate">
-              Follow-up {{ followUpDate | date:'MMM d, y' }}
+              Follow-up {{ followUpDate | date:'MMMM d, y (EEE)' }}
             </span>
             <span class="cs-record__chip" *ngIf="prescriptionItems.length > 0">
               {{ prescriptionItems.length }} medication{{ prescriptionItems.length === 1 ? '' : 's' }}
@@ -220,7 +220,7 @@ import { Diagnosis, LabRequest, PrescriptionItem, VitalSigns } from '../../../..
               </div>
               <div class="cs-follow-up" *ngIf="followUpDate; else noFu">
                 <span class="cs-follow-up__label">Scheduled date</span>
-                <div class="cs-follow-up__date">{{ followUpDate | date:'MMM d, y' }}</div>
+                <div class="cs-follow-up__date">{{ followUpDate | date:'MMMM d, y (EEE)' }}</div>
               </div>
               <ng-template #noFu>
                 <div class="cs-empty-state cs-empty-state--compact">No follow-up date set.</div>
@@ -293,7 +293,7 @@ import { Diagnosis, LabRequest, PrescriptionItem, VitalSigns } from '../../../..
                 <tbody>
                   <tr *ngFor="let vax of vm.vaccinations">
                     <td>{{ vax.vaccineName }}</td>
-                    <td class="cs-tbl__muted">{{ vax.dateGiven | date:'MMM d, y' }}</td>
+                    <td class="cs-tbl__muted">{{ vax.dateGiven | date:'MMMM d, y (EEE)' }}</td>
                   </tr>
                 </tbody>
               </table>

@@ -3,7 +3,7 @@
 /* ─── Page container fills width, centered max-width ─── */
 .cr {
   display: grid;
-  gap: 18px;
+  gap: 14px;
   width: 100%;
   max-width: 1360px;
   margin: 0 auto;
@@ -59,12 +59,12 @@
 /* ===== View-mode header: compact appointment details bar ===== */
 .cvh {
   display: grid;
-  gap: 14px;
-  padding: 18px 18px 16px;
+  gap: 12px;
+  padding: 16px 16px 14px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.96));
   border: 1px solid #dbe3ee;
-  border-radius: 24px;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05), 0 2px 6px rgba(15, 23, 42, 0.03);
+  border-radius: 22px;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.045), 0 2px 6px rgba(15, 23, 42, 0.025);
 }
 
 .cvh__top {
@@ -85,17 +85,17 @@
 
 .cvh__main {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: 18px;
   flex-wrap: wrap;
 }
 .cvh__identity {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  min-width: 260px;
-  flex: 0 1 300px;
+  min-width: 280px;
+  flex: 0 1 320px;
 }
 .cvh__avatar {
   width: 46px; height: 46px; border-radius: 50%;
@@ -110,12 +110,12 @@
 .cvh__patient-line { color: #475569; font-weight: 600; }
 .cvh__meta-cluster {
   display: grid;
-  gap: 8px;
+  gap: 7px;
   flex: 1 1 560px;
   min-width: 0;
-  padding: 12px;
+  padding: 11px 12px;
   background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e3eaf3;
   border-radius: 18px;
 }
 .cvh__meta-label {
@@ -137,7 +137,7 @@
 
 .cvh__tag {
   display: inline-flex; align-items: center; gap: var(--space-1);
-  padding: 6px 10px; background: rgba(255, 255, 255, 0.92); border: 1px solid #d7e1ec;
+  padding: 5px 10px; background: rgba(255, 255, 255, 0.94); border: 1px solid #d7e1ec;
   border-radius: 999px; font-size: 0.72rem; white-space: nowrap; line-height: 1.4;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }

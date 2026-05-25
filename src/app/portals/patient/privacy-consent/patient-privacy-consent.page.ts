@@ -29,7 +29,7 @@ import { PatientService } from '../services/patient.service';
 
         <div class="consent-meta">
           <div><span>Consent Version</span><strong>{{ settings.consentVersion }}</strong></div>
-          <div><span>Last Updated</span><strong>{{ currentPatient.consentedAt ? (currentPatient.consentedAt | date : 'MMM d, y') : 'Not yet accepted' }}</strong></div>
+          <div><span>Last Updated</span><strong>{{ currentPatient.consentedAt ? (currentPatient.consentedAt | date : 'MMMM d, y (EEE)') : 'Not yet accepted' }}</strong></div>
         </div>
 
         <ion-item class="consent-checkbox" lines="none">

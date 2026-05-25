@@ -378,7 +378,7 @@ export class PatientMediaPreviewModalComponent implements OnInit {
     }
 
     const date = new Date(`${booking.appointmentDate}T12:00:00`).toLocaleDateString('en-US', {
-      weekday: 'long',
+      weekday: 'short',
       month: 'long',
       day: 'numeric',
       year: 'numeric'

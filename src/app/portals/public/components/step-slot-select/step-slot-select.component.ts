@@ -31,7 +31,7 @@ import { AvailableSlot, PublicService } from '../../services/public.service';
         </div>
 
         <ng-container *ngIf="!isLoading">
-          <h3 class="slot-heading">Available Slots for {{ selectedDate | date : 'MMMM d, yyyy' }}</h3>
+          <h3 class="slot-heading">Available Slots for {{ selectedDate | date : 'MMMM d, y (EEE)' }}</h3>
 
           <ng-container *ngIf="slots.length > 0; else noSlotsState">
             <div class="slot-chip-grid">

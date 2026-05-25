@@ -54,7 +54,7 @@ import { PatientDocumentsService } from '../../../core/services/patient-document
           <article class="record-card clinic-card" *ngFor="let record of filteredRecords">
             <div class="record-card__header">
               <div>
-                <div class="record-card__date">{{ record.appointmentDate | date : 'MMM d, y' }}</div>
+                <div class="record-card__date">{{ record.appointmentDate | date : 'MMMM d, y (EEE)' }}</div>
                 <h3>{{ record.doctorName }}</h3>
               </div>
               <div class="record-card__tag">Completed Consultation</div>
@@ -77,7 +77,7 @@ import { PatientDocumentsService } from '../../../core/services/patient-document
                 <span>Follow-up</span>
                 <p>
                   <ng-container *ngIf="record.followUpDate; else noFollowUpTpl">
-                    {{ record.followUpDate | date : 'MMM d, y' }}
+                    {{ record.followUpDate | date : 'MMMM d, y (EEE)' }}
                     <br />
                     {{ record.followUpInstructions || 'No instructions recorded.' }}
                   </ng-container>
@@ -90,8 +90,8 @@ import { PatientDocumentsService } from '../../../core/services/patient-document
             </div>
 
             <div class="record-card__meta">
-              <span>Created {{ record.createdAt | date : 'MMM d, y, h:mm a' }}</span>
-              <span>Updated {{ record.updatedAt | date : 'MMM d, y, h:mm a' }}</span>
+              <span>Created {{ record.createdAt | date : 'MMMM d, y (EEE) h:mm a' }}</span>
+              <span>Updated {{ record.updatedAt | date : 'MMMM d, y (EEE) h:mm a' }}</span>
             </div>
 
             <div class="record-card__actions">
