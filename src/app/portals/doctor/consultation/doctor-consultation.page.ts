@@ -30,6 +30,7 @@ import { FollowUpDraftView } from '../components/follow-up-form/follow-up-form.c
 import { LabRequestDraftView } from '../components/lab-request-form/lab-request-form.component';
 import { SoapFormValue } from '../components/soap-form/soap-form.component';
 import { DoctorService } from '../services/doctor.service';
+import { ConsultationSummaryComponent } from './components/consultation-summary.component';
 import {
   ConsultationCompleteModalComponent,
   ConsultationCompleteModalPayload
@@ -112,6 +113,7 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
     AsyncPipe, DatePipe, NgIf, RouterLink,
     EmptyStateComponent,
     ConsultationOverviewComponent,
+    ConsultationSummaryComponent,
     ConsultationWorkspaceComponent,
     PatientMediaPanelComponent,
     StatusBadgeComponent
@@ -119,38 +121,58 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
   template: `
     <ng-container *ngIf="vm$ | async as vm; else notFound">
       <div class="cr">
-        <div class="cr-top">
-          <div class="cr-hdr">
-            <div class="cr-hdr__left">
-              <h1 class="cr-hdr__title">Consultation Room</h1>
-              <p class="cr-hdr__sub">{{ vm.patient.firstName || 'Patient' }} {{ vm.patient.lastName || '' }} &middot; {{ vm.booking.appointmentDate | date:'MMM d, y' }} &middot; Queue #{{ vm.booking.queueNumber ?? '--' }}</p>
+        <!-- ===== VIEW MODE: Completed consultation, compact header + summary body ===== -->
+        <ng-container *ngIf="isCompletedConsultation(vm) && !isAmendMode; else editMode">
+          <div class="cvh">
+            <div class="cvh__row">
+              <a class="cvh__back" routerLink="/doctor/appointments">&larr; Back to Appointments</a>
+              <div class="cvh__badge"><app-status-badge [status]="vm.booking.status"></app-status-badge></div>
+              <button class="cr-btn cr-btn--secondary" (click)="enterAmendMode()">
+                <span class="btn-icon">&#9998;</span> Modify
+              </button>
             </div>
-            <div class="cr-hdr__right">
-              <app-status-badge [status]="vm.booking.status"></app-status-badge>
-              <a class="cr-btn" routerLink="/doctor/appointments">Back to Appointments</a>
-              <button class="cr-btn cr-btn--primary" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft">{{ isSavingDraft ? 'Saving...' : 'Save Draft' }}</button>
-              <button class="cr-btn cr-btn--complete" (click)="requestCompletion(vm)" [disabled]="isCompleteActionDisabled(vm)" *ngIf="!isCompletedConsultation(vm) || isAmendMode">Complete Consultation</button>
+            <div class="cvh__main">
+              <div class="cvh__avatar">
+                {{ (vm.patient.firstName?.charAt(0) || '?') }}{{ (vm.patient.lastName?.charAt(0) || '') }}
+              </div>
+              <div class="cvh__patient">
+                <strong>{{ vm.patient.firstName }} {{ vm.patient.lastName }}</strong>
+                <span>{{ vm.patient.sex || '--' }} &middot; {{ vm.patient.dateOfBirth ? (calcAge(vm.patient.dateOfBirth) + ' yrs') : '--' }}</span>
+              </div>
+              <div class="cvh__meta">
+                <div class="cvh__tag">
+                  <span class="cvh__tag-label">Booking ID</span>
+                  <span class="cvh__tag-value">{{ vm.booking.id.slice(0, 8) }}...</span>
+                </div>
+                <div class="cvh__tag">
+                  <span class="cvh__tag-label">Date</span>
+                  <span class="cvh__tag-value">{{ vm.booking.appointmentDate | date:'MMM d, y' }}</span>
+                </div>
+                <div class="cvh__tag">
+                  <span class="cvh__tag-label">Time</span>
+                  <span class="cvh__tag-value">{{ vm.booking.slotStartTime }} - {{ vm.booking.slotEndTime }}</span>
+                </div>
+                <div class="cvh__tag">
+                  <span class="cvh__tag-label">Queue</span>
+                  <span class="cvh__tag-value">#{{ vm.booking.queueNumber ?? '--' }}</span>
+                </div>
+                <div class="cvh__tag">
+                  <span class="cvh__tag-label">Service</span>
+                  <span class="cvh__tag-value">{{ vm.booking.serviceNames?.join(', ') || vm.booking.serviceName || 'Service' }}</span>
+                </div>
+                <div class="cvh__tag">
+                  <span class="cvh__tag-label">Fee</span>
+                  <span class="cvh__tag-value">PHP {{ vm.booking.consultationFeeSnapshot ?? vm.booking.totalFee ?? 0 }}</span>
+                </div>
+                <div class="cvh__tag">
+                  <span class="cvh__tag-label">Payment</span>
+                  <span class="cvh__tag-value">{{ vm.booking.paymentMode || '--' }} &middot; <app-status-badge [status]="vm.booking.paymentStatus || 'Unpaid'"></app-status-badge></span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="cr-patient">
-            <div class="cr-avatar">{{ (vm.patient.firstName?.charAt(0) || '?') }}{{ (vm.patient.lastName?.charAt(0) || '') }}</div>
-            <div class="cr-patient__info">
-              <strong>{{ vm.patient.firstName }} {{ vm.patient.lastName }}</strong>
-              <span>{{ vm.patient.sex || '--' }} &middot; {{ vm.patient.dateOfBirth ? (calcAge(vm.patient.dateOfBirth) + ' yrs') : '--' }}</span>
-              <span>{{ vm.booking.serviceNames?.join(', ') || vm.booking.serviceName || 'Service' }}</span>
-              <a class="cr-clinical-link" [routerLink]="['/doctor/patients', vm.patient.id]" (click)="$event.stopPropagation()">View Clinical History &rarr;</a>
-            </div>
-            <div class="cr-patient__meta">
-              <div><span class="ml">Fee</span><span class="mv">PHP {{ vm.booking.consultationFeeSnapshot ?? vm.booking.totalFee ?? 0 }}</span></div>
-              <div><span class="ml">Mode</span><span class="mv">{{ vm.booking.paymentMode || '--' }}</span></div>
-              <div><span class="ml">Payment</span><app-status-badge [status]="vm.booking.paymentStatus || 'Unpaid'"></app-status-badge></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="cr-body">
-          <div class="cr-workspace">
+          <div class="cr-body cr-body--view">
             <app-consultation-overview
               [patient]="vm.patient"
               [consultation]="vm.consultation"
@@ -160,47 +182,99 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
               [recentConsultations]="vm.recentConsultations"
             ></app-consultation-overview>
 
-            <div class="cr-section">
-              <app-consultation-workspace
-                [vm]="vm"
-                [locked]="isWorkspaceLocked(vm)"
-                [prescriptionItems]="prescriptionItems"
-                (vitalSignsChange)="onVitalsChange($event)"
-                (vitalsValidityChange)="vitalsValid = $event"
-                (soapChange)="onSoapChange($event)"
-                (soapValidityChange)="soapValid = $event"
-                (diagnosesChange)="onDiagnosesChange($event)"
-                (diagnosisValidityChange)="diagnosisValid = $event"
-                (prescriptionItemsChange)="onPrescriptionItemsChange($event)"
-                (labRequestsChange)="onLabRequestsChange($event)"
-                (followUpChange)="onFollowUpChange($event)"
-                (vaccinationsAdded)="onVaccinationsAdded($event)"
-              ></app-consultation-workspace>
+            <app-consultation-summary
+              [vm]="vm"
+            ></app-consultation-summary>
+          </div>
+        </ng-container>
+
+        <!-- ===== EDIT / AMEND MODE: Existing layout with sidebar ===== -->
+        <ng-template #editMode>
+          <div class="cr-top">
+            <div class="cr-hdr">
+              <div class="cr-hdr__left">
+                <h1 class="cr-hdr__title">Consultation Room</h1>
+                <p class="cr-hdr__sub">{{ vm.patient.firstName || 'Patient' }} {{ vm.patient.lastName || '' }} &middot; {{ vm.booking.appointmentDate | date:'MMM d, y' }} &middot; Queue #{{ vm.booking.queueNumber ?? '--' }}</p>
+              </div>
+              <div class="cr-hdr__right">
+                <app-status-badge [status]="vm.booking.status"></app-status-badge>
+                <a class="cr-btn" routerLink="/doctor/appointments">Back to Appointments</a>
+                <button class="cr-btn cr-btn--outline" (click)="cancelAmendMode()" *ngIf="isAmendMode" [disabled]="isSavingAmendment">Cancel</button>
+                <button class="cr-btn cr-btn--primary" (click)="saveAmendment(vm)" *ngIf="isAmendMode" [disabled]="isSavingAmendment">{{ isSavingAmendment ? 'Saving...' : 'Save Amendment' }}</button>
+                <button class="cr-btn cr-btn--primary" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft">{{ isSavingDraft ? 'Saving...' : 'Save Draft' }}</button>
+                <button class="cr-btn cr-btn--complete" (click)="requestCompletion(vm)" [disabled]="isCompleteActionDisabled(vm)">Complete Consultation</button>
+              </div>
+            </div>
+
+            <div class="cr-patient">
+              <div class="cr-avatar">{{ (vm.patient.firstName?.charAt(0) || '?') }}{{ (vm.patient.lastName?.charAt(0) || '') }}</div>
+              <div class="cr-patient__info">
+                <strong>{{ vm.patient.firstName }} {{ vm.patient.lastName }}</strong>
+                <span>{{ vm.patient.sex || '--' }} &middot; {{ vm.patient.dateOfBirth ? (calcAge(vm.patient.dateOfBirth) + ' yrs') : '--' }}</span>
+                <span>{{ vm.booking.serviceNames?.join(', ') || vm.booking.serviceName || 'Service' }}</span>
+                <a class="cr-clinical-link" [routerLink]="['/doctor/patients', vm.patient.id]" (click)="$event.stopPropagation()">View Clinical History &rarr;</a>
+              </div>
+              <div class="cr-patient__meta">
+                <div><span class="ml">Fee</span><span class="mv">PHP {{ vm.booking.consultationFeeSnapshot ?? vm.booking.totalFee ?? 0 }}</span></div>
+                <div><span class="ml">Mode</span><span class="mv">{{ vm.booking.paymentMode || '--' }}</span></div>
+                <div><span class="ml">Payment</span><app-status-badge [status]="vm.booking.paymentStatus || 'Unpaid'"></app-status-badge></div>
+              </div>
             </div>
           </div>
 
-          <div class="cr-side">
-            <div class="cr-side-card">
-              <h3>Consultation Progress</h3>
-              <ul class="cr-progress">
-                <li class="cr-progress__item" [class.done]="soapValid">Notes &amp; SOAP</li>
-                <li class="cr-progress__item" [class.done]="true">Vitals</li>
-                <li class="cr-progress__item" [class.done]="diagnosisValid">Diagnosis</li>
-                <li class="cr-progress__item" [class.done]="prescriptionItems.length > 0">Prescription</li>
-                <li class="cr-progress__item">Follow-up</li>
-                <li class="cr-progress__item">PF Decision</li>
-              </ul>
-              <button class="cr-btn cr-btn--primary cr-btn--full" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft">{{ isSavingDraft ? 'Saving Draft...' : 'Save Draft' }}</button>
-              <button class="cr-btn cr-btn--complete cr-btn--full" (click)="requestCompletion(vm)" [disabled]="isCompleteActionDisabled(vm)" *ngIf="!isCompletedConsultation(vm) || isAmendMode" style="margin-top:8px">Complete Consultation</button>
+          <div class="cr-body">
+            <div class="cr-workspace">
+              <app-consultation-overview
+                [patient]="vm.patient"
+                [consultation]="vm.consultation"
+                [existingPrescription]="vm.existingPrescription"
+                [allergies]="vm.allergies"
+                [followUps]="vm.followUps"
+                [recentConsultations]="vm.recentConsultations"
+              ></app-consultation-overview>
+
+              <div class="cr-section">
+                <app-consultation-workspace
+                  [vm]="vm"
+                  [locked]="isWorkspaceLocked(vm)"
+                  [prescriptionItems]="prescriptionItems"
+                  (vitalSignsChange)="onVitalsChange($event)"
+                  (vitalsValidityChange)="vitalsValid = $event"
+                  (soapChange)="onSoapChange($event)"
+                  (soapValidityChange)="soapValid = $event"
+                  (diagnosesChange)="onDiagnosesChange($event)"
+                  (diagnosisValidityChange)="diagnosisValid = $event"
+                  (prescriptionItemsChange)="onPrescriptionItemsChange($event)"
+                  (labRequestsChange)="onLabRequestsChange($event)"
+                  (followUpChange)="onFollowUpChange($event)"
+                  (vaccinationsAdded)="onVaccinationsAdded($event)"
+                ></app-consultation-workspace>
+              </div>
             </div>
 
-            <div class="cr-side-card">
-              <h3>Patient Uploads</h3>
-              <app-patient-media-panel kind="document" [patientId]="vm.patient.id" [filterByBooking]="false" [allowUpload]="false" heading="Documents" subheading="Referrals, certificates, and files."></app-patient-media-panel>
-              <app-patient-media-panel kind="lab-result" [patientId]="vm.patient.id" [filterByBooking]="false" [allowUpload]="false" heading="Lab Results" subheading="Uploaded lab reports."></app-patient-media-panel>
+            <div class="cr-side">
+              <div class="cr-side-card">
+                <h3>Consultation Progress</h3>
+                <ul class="cr-progress">
+                  <li class="cr-progress__item" [class.done]="soapValid">Notes &amp; SOAP</li>
+                  <li class="cr-progress__item" [class.done]="true">Vitals</li>
+                  <li class="cr-progress__item" [class.done]="diagnosisValid">Diagnosis</li>
+                  <li class="cr-progress__item" [class.done]="prescriptionItems.length > 0">Prescription</li>
+                  <li class="cr-progress__item">Follow-up</li>
+                  <li class="cr-progress__item">PF Decision</li>
+                </ul>
+                <button class="cr-btn cr-btn--primary cr-btn--full" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft">{{ isSavingDraft ? 'Saving Draft...' : 'Save Draft' }}</button>
+                <button class="cr-btn cr-btn--complete cr-btn--full" (click)="requestCompletion(vm)" [disabled]="isCompleteActionDisabled(vm)" style="margin-top:8px">Complete Consultation</button>
+              </div>
+
+              <div class="cr-side-card">
+                <h3>Patient Uploads</h3>
+                <app-patient-media-panel kind="document" [patientId]="vm.patient.id" [filterByBooking]="false" [allowUpload]="false" heading="Documents" subheading="Referrals, certificates, and files."></app-patient-media-panel>
+                <app-patient-media-panel kind="lab-result" [patientId]="vm.patient.id" [filterByBooking]="false" [allowUpload]="false" heading="Lab Results" subheading="Uploaded lab reports."></app-patient-media-panel>
+              </div>
             </div>
           </div>
-        </div>
+        </ng-template>
       </div>
     </ng-container>
 

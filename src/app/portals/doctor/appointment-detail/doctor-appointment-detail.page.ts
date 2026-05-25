@@ -130,7 +130,6 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
             >
               Edit / Amend Consultation
             </button>
-            <button type="button" class="btn-ghost" (click)="noShow(detail.booking.id)">Mark No Show</button>
             <button type="button" class="btn-ghost" (click)="back()">Back to appointments</button>
           </div>
 
@@ -193,10 +192,6 @@ export class DoctorAppointmentDetailPage implements OnInit {
 
   openConsultation(bookingId: string, amend = false): void {
     void this.router.navigate(['/doctor/consultation', bookingId], amend ? { queryParams: { amend: '1' } } : undefined);
-  }
-
-  noShow(bookingId: string): void {
-    this.bookingService.markNoShow(bookingId);
   }
 
   back(): void {

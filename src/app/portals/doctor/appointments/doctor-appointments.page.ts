@@ -130,7 +130,7 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
                 <td><app-status-badge [status]="booking.paymentStatus"></app-status-badge></td>
                 <td>
                   <div class="action-row">
-                    <button type="button" class="btn-ghost" (click)="view(booking.id)">View</button>
+                    <button type="button" class="btn-ghost" (click)="view(booking)">View</button>
                     <button
                       *ngIf="canStartConsultation(booking)"
                       type="button"
@@ -163,7 +163,7 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
                   {{ booking.queueNumber !== null ? '#' + booking.queueNumber : booking.id }}
                 </div>
               </div>
-              <button type="button" class="btn-ghost" (click)="view(booking.id)">View</button>
+              <button type="button" class="btn-ghost" (click)="view(booking)">View</button>
             </div>
 
             <div class="mobile-card__row">
@@ -362,8 +362,12 @@ export class DoctorAppointmentsPage implements OnInit {
     });
   }
 
-  view(bookingId: string): void {
-    void this.router.navigate(['/doctor/appointments', bookingId]);
+  view(booking: Booking): void {
+    if (booking.status === 'Completed') {
+      void this.router.navigate(['/doctor/consultation', booking.id]);
+    } else {
+      void this.router.navigate(['/doctor/appointments', booking.id]);
+    }
   }
 
   consult(bookingId: string): void {
