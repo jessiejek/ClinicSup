@@ -1,6 +1,8 @@
 import { DestroyRef, Injectable, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { BehaviorSubject, Observable, from, of, switchMap } from 'rxjs';
+import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
+import { getMessaging, getToken, isSupported, type Messaging } from 'firebase/messaging';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthStateService } from './auth-state.service';
 import { SupabaseService } from './supabase.service';
@@ -29,15 +31,26 @@ function rowToNotification(row: any): InAppNotification {
   };
 }
 
+type FirebaseWebConfig = {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  messagingSenderId: string;
+  appId: string;
+  measurementId?: string;
+  vapidKey: string;
+};
+
+const FIREBASE_WEB_PLATFORM = 'firebase-web';
+
 /**
  * Push notification service.
  *
  * Two responsibilities:
- *   1. **In-app delivery** — subscribes to the `notifications` table via
+ *   1. **In-app delivery** â€” subscribes to the `notifications` table via
  *      Supabase Realtime so new notifications appear instantly.
- *   2. **Web push** — registers the browser for background push via the
- *      Push API (VAPID + Service Worker) and persists the subscription
- *      via `upsert_device_token` RPC.
+ *   2. **Web push** â€” registers the browser with Firebase Messaging,
+ *      obtains an FCM token, and persists it via `upsert_device_token`.
  *
  * Auto-connects on login, disconnects on logout.
  */
@@ -50,6 +63,9 @@ export class PushNotificationService {
   private readonly notificationsSubject = new BehaviorSubject<InAppNotification[]>([]);
   private readonly unreadCountSubject = new BehaviorSubject(0);
   private readonly deviceRegisteredSubject = new BehaviorSubject(false);
+
+  private firebaseApp: FirebaseApp | null = null;
+  private messaging: Messaging | null = null;
 
   /** Live stream of in-app notifications (newest first). */
   readonly notifications$: Observable<InAppNotification[]> =
@@ -68,7 +84,6 @@ export class PushNotificationService {
   }
 
   constructor() {
-    // Subscribe/unsubscribe on auth changes
     this.authState.currentUser$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((user) => {
@@ -81,10 +96,7 @@ export class PushNotificationService {
       });
   }
 
-  // ── In-App Realtime Notifications ───────────────────
-
   private subscribeToNotifications(userId: string): void {
-    // Subscribe to INSERT on notifications
     this.supabase.client
       .channel('realtime-notifications')
       .on(
@@ -117,11 +129,9 @@ export class PushNotificationService {
       .subscribe();
   }
 
-  // ── Web Push Registration ──────────────────────────
-
   /**
-   * Register this browser for web push.
-   * Safe to call multiple times — skips if already registered.
+   * Register this browser for Firebase Messaging.
+   * Safe to call multiple times - skips if already registered.
    */
   async registerDevice(): Promise<{ success: boolean; error?: string }> {
     const user = this.authState.snapshot;
@@ -132,45 +142,48 @@ export class PushNotificationService {
       return { success: true };
     }
 
-    // Browser support check
     if (!('Notification' in window) || !('serviceWorker' in navigator)) {
       console.warn('[PushNotification] Push not supported in this browser.');
       return { success: false, error: 'Push not supported.' };
     }
 
-    // Permission
+    const config = this.getFirebaseConfig();
+    if (!config) {
+      console.warn('[PushNotification] Firebase config incomplete - browser push disabled.');
+      return { success: false, error: 'Firebase config missing.' };
+    }
+
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
       console.warn('[PushNotification] Permission denied.');
       return { success: false, error: 'Permission denied.' };
     }
 
-    // Service worker
-    let swRegistration: ServiceWorkerRegistration;
-    try {
-      swRegistration = await navigator.serviceWorker.ready;
-    } catch {
+    const swRegistration = await this.ensureServiceWorkerRegistration(config);
+    if (!swRegistration) {
       console.warn('[PushNotification] Service worker unavailable.');
       return { success: false, error: 'Service worker unavailable.' };
     }
 
-    const vapidKey = environment.vapidKey;
-    if (!vapidKey) {
-      // No VAPID configured — still enable in-app Realtime notifications
-      console.warn('[PushNotification] VAPID key not set — in-app notifications only.');
-      this.deviceRegisteredSubject.next(true);
-      return { success: true };
+    const messaging = await this.getMessagingClient();
+    if (!messaging) {
+      console.warn('[PushNotification] Firebase Messaging unavailable.');
+      return { success: false, error: 'Firebase Messaging unavailable.' };
     }
 
     try {
-      const subscription = await swRegistration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: this.urlB64ToUint8Array(vapidKey)
+      const token = await getToken(messaging, {
+        vapidKey: config.vapidKey,
+        serviceWorkerRegistration: swRegistration
       });
 
+      if (!token) {
+        return { success: false, error: 'Failed to obtain Firebase token.' };
+      }
+
       const { error } = await this.supabase.client.rpc('upsert_device_token', {
-        p_token: JSON.stringify(subscription),
-        p_platform: 'web'
+        p_token: token,
+        p_platform: FIREBASE_WEB_PLATFORM
       });
 
       if (error) {
@@ -186,8 +199,6 @@ export class PushNotificationService {
       return { success: false, error: msg };
     }
   }
-
-  // ── Mark as Read ──────────────────────────────────
 
   /** Mark a single notification read (optimistic local + remote). */
   async markRead(notificationId: string): Promise<void> {
@@ -217,29 +228,131 @@ export class PushNotificationService {
       .eq('is_read', false);
   }
 
-  // ── Teardown ──────────────────────────────────────
-
   private cleanup(): void {
     this.notificationsSubject.next([]);
     this.unreadCountSubject.next(0);
     this.deviceRegisteredSubject.next(false);
   }
 
-  // ── Helpers ───────────────────────────────────────
-
   private recalculateUnreadCount(): void {
     const count = this.notificationsSubject.value.filter((n) => !n.isRead).length;
     this.unreadCountSubject.next(count);
   }
 
-  private urlB64ToUint8Array(base64String: string): Uint8Array {
-    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const output = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; i++) {
-      output[i] = rawData.charCodeAt(i);
+  private async getMessagingClient(): Promise<Messaging | null> {
+    if (this.messaging) {
+      return this.messaging;
     }
-    return output;
+
+    try {
+      if (!(await isSupported())) {
+        return null;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error.';
+      console.warn('[PushNotification] Firebase Messaging support check failed:', msg);
+      return null;
+    }
+
+    const app = this.ensureFirebaseApp();
+    if (!app) {
+      return null;
+    }
+
+    this.messaging = getMessaging(app);
+    return this.messaging;
+  }
+
+  private ensureFirebaseApp(): FirebaseApp | null {
+    if (this.firebaseApp) {
+      return this.firebaseApp;
+    }
+
+    const config = this.getFirebaseConfig();
+    if (!config) {
+      return null;
+    }
+
+    this.firebaseApp =
+      getApps().length > 0
+        ? getApps()[0]
+        : initializeApp({
+            apiKey: config.apiKey,
+            authDomain: config.authDomain,
+            projectId: config.projectId,
+            messagingSenderId: config.messagingSenderId,
+            appId: config.appId,
+            measurementId: config.measurementId
+          });
+
+    return this.firebaseApp;
+  }
+
+  private async ensureServiceWorkerRegistration(
+    config: FirebaseWebConfig
+  ): Promise<ServiceWorkerRegistration | null> {
+    try {
+      const existing = await navigator.serviceWorker.getRegistration('/');
+      if (existing) {
+        const scriptUrl =
+          existing.active?.scriptURL ??
+          existing.waiting?.scriptURL ??
+          existing.installing?.scriptURL ??
+          '';
+
+        if (scriptUrl.includes('/firebase-messaging-sw.js')) {
+          return existing;
+        }
+
+        await existing.unregister();
+      }
+
+      const swUrl = this.buildFirebaseServiceWorkerUrl(config);
+      return await navigator.serviceWorker.register(swUrl, { scope: '/' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error.';
+      console.error('[PushNotification] Failed to register service worker:', msg);
+      return null;
+    }
+  }
+
+  private buildFirebaseServiceWorkerUrl(config: FirebaseWebConfig): string {
+    const params = new URLSearchParams({
+      apiKey: config.apiKey,
+      authDomain: config.authDomain,
+      projectId: config.projectId,
+      messagingSenderId: config.messagingSenderId,
+      appId: config.appId
+    });
+
+    if (config.measurementId) {
+      params.set('measurementId', config.measurementId);
+    }
+
+    return `/firebase-messaging-sw.js?${params.toString()}`;
+  }
+
+  private getFirebaseConfig(): FirebaseWebConfig | null {
+    const apiKey = environment.firebaseApiKey?.trim();
+    const authDomain = environment.firebaseAuthDomain?.trim();
+    const projectId = environment.firebaseProjectId?.trim();
+    const messagingSenderId = environment.firebaseMessagingSenderId?.trim();
+    const appId = environment.firebaseAppId?.trim();
+    const measurementId = environment.firebaseMeasurementId?.trim();
+    const vapidKey = environment.firebaseVapidKey?.trim() || environment.vapidKey?.trim();
+
+    if (!apiKey || !authDomain || !projectId || !messagingSenderId || !appId || !vapidKey) {
+      return null;
+    }
+
+    return {
+      apiKey,
+      authDomain,
+      projectId,
+      messagingSenderId,
+      appId,
+      measurementId: measurementId || undefined,
+      vapidKey
+    };
   }
 }
