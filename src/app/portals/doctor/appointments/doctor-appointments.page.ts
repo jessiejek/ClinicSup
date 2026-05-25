@@ -337,7 +337,9 @@ export class DoctorAppointmentsPage implements OnInit {
           'BookingCancelled',
           'PatientCheckedIn',
           'PatientCheckInUndone',
-          'DoctorCompletedConsultation'
+          'DoctorCompletedConsultation',
+          'PaymentCompleted',
+          'PaymentWaived'
         ].includes(event.eventName)) {
           this.loadSummary();
         }

@@ -185,6 +185,7 @@ export class PatientBookingsPage implements OnInit {
         const name = event.eventName;
         if (
           name === 'BookingCancelled' ||
+          name === 'PatientCheckInUndone' ||
           name === 'DoctorCompletedConsultation' ||
           name === 'PaymentCompleted' ||
           name === 'PaymentWaived'
