@@ -1,5 +1,5 @@
 import { DatePipe, NgFor, NgIf } from '@angular/common';
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import {
@@ -12,14 +12,12 @@ import {
   IonToolbar,
   ToastController
 } from '@ionic/angular/standalone';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Booking } from '../../../core/models';
 import {
   BookingService,
   DoctorCompleteBookingRequest,
   DoctorTodaySummary
 } from '../../../core/services/booking.service';
-import { ClinicDashboardRealtimeService } from '../../../core/services/clinic-dashboard-realtime.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
@@ -264,10 +262,8 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
 })
 export class DoctorAppointmentsPage implements OnInit {
   private readonly bookingService = inject(BookingService);
-  private readonly realtime = inject(ClinicDashboardRealtimeService);
   private readonly router = inject(Router);
   private readonly toastCtrl = inject(ToastController);
-  private readonly destroyRef = inject(DestroyRef);
 
   summary: DoctorTodaySummary | null = null;
   isLoading = false;
@@ -327,24 +323,6 @@ export class DoctorAppointmentsPage implements OnInit {
 
   ngOnInit(): void {
     this.loadSummary();
-    void this.realtime.ensureConnected();
-    this.realtime.events$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => {
-        if (
-          [
-            'BookingCreated',
-            'BookingCancelled',
-            'PatientCheckedIn',
-            'PatientCheckInUndone',
-            'DoctorCompletedConsultation',
-            'PaymentCompleted',
-            'PaymentWaived'
-          ].includes(event.eventName)
-        ) {
-          this.loadSummary();
-        }
-      });
   }
 
   loadSummary(): void {

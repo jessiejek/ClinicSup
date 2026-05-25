@@ -3,10 +3,9 @@ import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastController, IonIcon } from '@ionic/angular/standalone';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, combineLatest, firstValueFrom, of, switchMap, take } from 'rxjs';
+import { catchError, combineLatest, firstValueFrom, of, switchMap } from 'rxjs';
 import { Booking, ReceiptData } from '../../../core/models';
 import { BookingService } from '../../../core/services/booking.service';
-import { ClinicDashboardRealtimeService } from '../../../core/services/clinic-dashboard-realtime.service';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ReceiptModalComponent } from '../../../shared/components/receipt-modal/receipt-modal.component';
@@ -159,7 +158,6 @@ import { PatientService } from '../services/patient.service';
 })
 export class PatientBookingDetailPage implements OnInit {
   private readonly bookingService = inject(BookingService);
-  private readonly realtime = inject(ClinicDashboardRealtimeService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -271,7 +269,6 @@ export class PatientBookingDetailPage implements OnInit {
   }
 
   ngOnInit(): void {
-    void this.realtime.ensureConnected();
     this.route.paramMap
       .pipe(
         switchMap((params) => {
@@ -290,26 +287,6 @@ export class PatientBookingDetailPage implements OnInit {
         }
 
         this.booking = booking;
-      });
-
-    this.realtime.events$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => {
-        if (
-          this.booking &&
-          [
-            'BookingCreated',
-            'BookingCancelled',
-            'PatientCheckedIn',
-            'PatientCheckInUndone',
-            'DoctorCompletedConsultation',
-            'PaymentCompleted',
-            'PaymentWaived'
-          ].includes(event.eventName) &&
-          (!event.bookingId || event.bookingId === this.booking.id)
-        ) {
-          this.bookingService.getBookingById$(this.booking.id).pipe(take(1)).subscribe();
-        }
       });
   }
 

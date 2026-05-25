@@ -1,5 +1,5 @@
 import { DecimalPipe, DatePipe, NgFor, NgIf } from '@angular/common';
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ToastController } from '@ionic/angular/standalone';
 import {
@@ -8,14 +8,12 @@ import {
   PagedResult,
   StaffForPaymentItem
 } from '../../../core/services/booking.service';
-import { ClinicDashboardRealtimeService } from '../../../core/services/clinic-dashboard-realtime.service';
 import { ReceiptData } from '../../../core/models';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { ReceiptModalComponent } from '../../../shared/components/receipt-modal/receipt-modal.component';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 type CollectPaymentMethod = 'Cash' | 'GCash' | 'Maya' | 'BankTransfer';
 
@@ -226,9 +224,7 @@ interface CollectPaymentMethodOption {
 })
 export class StaffPaymentsPage implements OnInit {
   private readonly bookingService = inject(BookingService);
-  private readonly realtime = inject(ClinicDashboardRealtimeService);
   private readonly toastCtrl = inject(ToastController);
-  private readonly destroyRef = inject(DestroyRef);
 
   items: StaffForPaymentItem[] = [];
   isLoading = false;
@@ -259,16 +255,6 @@ export class StaffPaymentsPage implements OnInit {
 
   ngOnInit(): void {
     this.loadQueue();
-    void this.realtime.ensureConnected();
-    this.realtime.events$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => {
-        if (
-          ['DoctorCompletedConsultation', 'PaymentCompleted', 'PaymentWaived'].includes(event.eventName)
-        ) {
-          this.loadQueue();
-        }
-      });
   }
 
   previousPage(): void {

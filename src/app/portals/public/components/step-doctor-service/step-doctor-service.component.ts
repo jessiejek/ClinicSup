@@ -11,7 +11,6 @@ import {
 } from 'ionicons/icons';
 import { Doctor } from '../../../../core/models/doctor.models';
 import { Service } from '../../../../core/models';
-import { ClinicDashboardRealtimeService } from '../../../../core/services/clinic-dashboard-realtime.service';
 import { BookingWizardService } from '../../../../core/services/booking-wizard.service';
 import { AvatarComponent } from '../../../../shared/components/avatar/avatar.component';
 import { EmptyStateComponent } from '../../../../shared/components/empty-state/empty-state.component';
@@ -174,7 +173,6 @@ import { DoctorSummary, PublicService } from '../../services/public.service';
 export class StepDoctorServiceComponent implements OnInit {
   private readonly wizardService = inject(BookingWizardService);
   private readonly publicService = inject(PublicService);
-  private readonly realtime = inject(ClinicDashboardRealtimeService);
   private readonly toastCtrl = inject(ToastController);
   private readonly destroyRef = inject(DestroyRef);
   private readonly subscriptions = new Subscription();
@@ -241,7 +239,6 @@ export class StepDoctorServiceComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    void this.realtime.ensureConnected();
     this.publicService
       .refreshDoctors()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -257,20 +254,6 @@ export class StepDoctorServiceComponent implements OnInit {
         }
       });
 
-    this.realtime.events$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => {
-        if (
-          event.eventName === 'DoctorServicesUpdated' &&
-          this.latestSelectedDoctorId &&
-          (!event.doctorId || event.doctorId === this.latestSelectedDoctorId)
-        ) {
-          this.selectedDoctorLoading = true;
-          this.loadDoctorServices(this.latestSelectedDoctorId).subscribe((services) => {
-            this.selectedDoctorServices = services;
-          });
-        }
-      });
   }
 
   ngOnDestroy(): void {

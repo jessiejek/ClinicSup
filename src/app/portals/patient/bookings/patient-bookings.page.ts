@@ -5,7 +5,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize } from 'rxjs';
 import { Booking } from '../../../core/models';
 import { BookingService, MyBookingsPageResult } from '../../../core/services/booking.service';
-import { ClinicDashboardRealtimeService } from '../../../core/services/clinic-dashboard-realtime.service';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
@@ -151,7 +150,6 @@ type BookingFilter = 'all' | 'upcoming' | 'for-payment' | 'completed' | 'cancell
 })
 export class PatientBookingsPage implements OnInit {
   private readonly bookingService = inject(BookingService);
-  private readonly realtime = inject(ClinicDashboardRealtimeService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -178,24 +176,6 @@ export class PatientBookingsPage implements OnInit {
 
   ngOnInit(): void {
     this.loadBookings(this.currentPage || 1);
-    void this.realtime.ensureConnected();
-    this.realtime.events$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => {
-        if (
-          [
-            'BookingCreated',
-            'BookingCancelled',
-            'PatientCheckedIn',
-            'PatientCheckInUndone',
-            'DoctorCompletedConsultation',
-            'PaymentCompleted',
-            'PaymentWaived'
-          ].includes(event.eventName)
-        ) {
-          this.loadBookings(this.currentPage || 1);
-        }
-      });
   }
 
   ionViewWillEnter(): void {

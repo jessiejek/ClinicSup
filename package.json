@@ -22,12 +22,11 @@
     "@ionic/angular": "^7.8.6",
     "@ionic/angular-toolkit": "^12.3.0",
     "@ionic/core": "^7.8.6",
-    "@microsoft/signalr": "^10.0.0",
+    "@supabase/supabase-js": "^2.45.4",
     "ionicons": "^7.4.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
-    "zone.js": "~0.14.3",
-    "@supabase/supabase-js": "^2.45.4"
+    "zone.js": "~0.14.3"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^17.3.17",
