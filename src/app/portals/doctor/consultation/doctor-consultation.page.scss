@@ -20,18 +20,19 @@
 .cr-btn--secondary:hover{background:#e2e8f0;border-color:#94a3b8}
 
 /* ===== View-mode header: compact appointment details bar ===== */
-.cvh{display:grid;gap:var(--space-3);padding:var(--space-4);background:#fff;border:1px solid #e2e8f0;border-radius:var(--radius-lg);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.cvh{display:grid;gap:var(--space-3);padding:var(--space-4) var(--space-5);background:#fff;border:1px solid #e2e8f0;border-radius:var(--radius-lg);box-shadow:0 1px 4px rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.04)}
 .cvh__row{display:flex;align-items:center;gap:var(--space-3)}
-.cvh__back{font-size:var(--text-sm);color:var(--ion-color-primary);text-decoration:none;font-weight:600}
-.cvh__back:hover{text-decoration:underline}
+.cvh__back{font-size:var(--text-sm);color:#475569;text-decoration:none;font-weight:500;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:var(--radius-md);transition:all .12s}
+.cvh__back:hover{background:#f1f5f9;color:#1e293b}
 .cvh__badge{display:inline-flex;margin-left:auto}
-.cvh__main{display:flex;align-items:center;gap:var(--space-4);flex-wrap:wrap}
-.cvh__avatar{width:40px;height:40px;border-radius:50%;background:var(--gradient-hero);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--text-xs);flex-shrink:0}
-.cvh__patient strong{font-size:var(--text-base)}
-.cvh__patient span{font-size:var(--text-xs);color:#64748b;display:block}
-.cvh__meta{display:flex;gap:var(--space-2);flex-wrap:wrap;margin-left:auto;align-items:center}
-.cvh__tag{display:inline-flex;align-items:center;gap:var(--space-1);padding:2px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:var(--radius-md);font-size:var(--text-xs);white-space:nowrap}
-.cvh__tag-label{color:#94a3b8;text-transform:uppercase;font-weight:600}
+.cvh__main{display:flex;align-items:flex-start;gap:var(--space-4);flex-wrap:wrap;padding-top:var(--space-1)}
+.cvh__avatar{width:42px;height:42px;border-radius:50%;background:var(--gradient-hero);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--text-xs);flex-shrink:0;box-shadow:0 2px 4px rgba(0,0,0,.08)}
+.cvh__patient{display:flex;flex-direction:column;gap:1px}
+.cvh__patient strong{font-size:var(--text-base);color:#1e293b}
+.cvh__patient span{font-size:var(--text-xs);color:#64748b}
+.cvh__meta{display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:flex-start}
+.cvh__tag{display:inline-flex;align-items:center;gap:var(--space-1);padding:3px 10px;background:var(--bg-muted);border:1px solid #e2e8f0;border-radius:var(--radius-md);font-size:0.72rem;white-space:nowrap;line-height:1.4}
+.cvh__tag-label{color:#94a3b8;text-transform:uppercase;font-weight:700;letter-spacing:0.03em}
 .cvh__tag-value{color:#334155;font-weight:600}
 .cvh__tag-value app-status-badge{display:inline-flex}
 
