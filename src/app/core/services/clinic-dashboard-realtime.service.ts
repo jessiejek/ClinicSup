@@ -41,6 +41,10 @@ export class ClinicDashboardRealtimeService {
   private channels: RealtimeChannel[] = [];
   private subscribed = false;
 
+  /** Track booking status locally so we can detect transitions even when payload.old has no status. */
+  private bookingStatuses = new Map<string, string>();
+  private bookingPaymentStatuses = new Map<string, string>();
+
   /** Public observable for dashboard events. */
   readonly events$: Observable<ClinicDashboardEvent> = this.eventsSubject.asObservable();
 
@@ -86,6 +90,12 @@ export class ClinicDashboardRealtimeService {
             (payload: any) => {
               const row = payload.new ?? {};
               console.log('[Realtime] 🔵 Booking INSERT', row.id, row.status);
+              if (row.id && row.status) {
+                this.bookingStatuses.set(row.id, row.status);
+              }
+              if (row.id && row.payment_status) {
+                this.bookingPaymentStatuses.set(row.id, row.payment_status);
+              }
               this.emit('BookingCreated', {
                 bookingId: row.id,
                 patientId: row.patient_id,
@@ -101,20 +111,21 @@ export class ClinicDashboardRealtimeService {
             { event: 'UPDATE', schema: 'public', table: 'bookings' },
             (payload: any) => {
               const row = payload.new ?? {};
-              const prev = payload.old ?? {};
-              console.log('[Realtime] 🟡 Booking UPDATE', row.id, row.status, 'was', prev.status);
+              const prevStatus = this.bookingStatuses.get(row.id);
+              console.log('[Realtime] 🟡 Booking UPDATE', row.id, row.status, 'was', prevStatus);
 
-              if (row.status === 'Cancelled' && prev.status !== 'Cancelled') {
+              // ── Status transitions (use tracked prevStatus, not payload.old) ──
+              if (row.status === 'Cancelled' && prevStatus !== 'Cancelled') {
                 this.emit('BookingCancelled', {
                   bookingId: row.id, patientId: row.patient_id,
                   doctorId: row.doctor_id, status: row.status, timestamp: row.updated_at
                 });
-              } else if (row.status === 'CheckedIn' && prev.status !== 'CheckedIn') {
+              } else if (row.status === 'CheckedIn' && prevStatus !== 'CheckedIn') {
                 this.emit('PatientCheckedIn', {
                   bookingId: row.id, patientId: row.patient_id,
                   doctorId: row.doctor_id, status: row.status, timestamp: row.updated_at
                 });
-              } else if (row.status === 'Completed' && prev.status !== 'Completed') {
+              } else if (row.status === 'Completed' && prevStatus !== 'Completed') {
                 this.emit('DoctorCompletedConsultation', {
                   bookingId: row.id, patientId: row.patient_id,
                   doctorId: row.doctor_id, status: row.status,
@@ -122,14 +133,16 @@ export class ClinicDashboardRealtimeService {
                   isProfessionalFeeWaived: row.is_professional_fee_waived,
                   timestamp: row.updated_at
                 });
-              } else if (prev.status === 'CheckedIn' && row.status !== 'CheckedIn') {
+              } else if (prevStatus === 'CheckedIn' && row.status !== 'CheckedIn') {
                 this.emit('PatientCheckInUndone', {
                   bookingId: row.id, patientId: row.patient_id,
                   doctorId: row.doctor_id, status: row.status, timestamp: row.updated_at
                 });
               }
 
-              if (row.payment_status !== prev.payment_status) {
+              // ── Payment status changes ──
+              const prevPaymentStatus = this.bookingPaymentStatuses.get(row.id);
+              if (row.payment_status && row.payment_status !== prevPaymentStatus) {
                 if (row.payment_status === 'Paid') {
                   this.emit('PaymentCompleted', {
                     bookingId: row.id, patientId: row.patient_id,
@@ -140,6 +153,14 @@ export class ClinicDashboardRealtimeService {
                     bookingId: row.id, patientId: row.patient_id,
                     paymentStatus: row.payment_status, timestamp: row.updated_at
                   });
+                }
+              }
+
+              // ── Update tracked state ──
+              if (row.id) {
+                this.bookingStatuses.set(row.id, row.status);
+                if (row.payment_status) {
+                  this.bookingPaymentStatuses.set(row.id, row.payment_status);
                 }
               }
             }
@@ -203,6 +224,8 @@ export class ClinicDashboardRealtimeService {
       this.supabase.client.removeChannel(channel);
     }
     this.channels = [];
+    this.bookingStatuses.clear();
+    this.bookingPaymentStatuses.clear();
     console.log('[Realtime] All channels disconnected');
   }
 
