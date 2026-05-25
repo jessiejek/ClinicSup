@@ -253,7 +253,7 @@ import { Diagnosis, LabRequest, PrescriptionItem, VitalSigns } from '../../../..
     .cs-grid {
       display: grid;
       grid-template-columns: minmax(0, 1.4fr) minmax(360px, 0.8fr);
-      gap: var(--space-4);
+      gap: var(--space-5);
       align-items: start;
     }
 
@@ -433,12 +433,23 @@ import { Diagnosis, LabRequest, PrescriptionItem, VitalSigns } from '../../../..
        ═══════════════════════════════════════════════════════════ */
 
     /* ──────────────────────────────────────────────────────
-       1440px+ desktop: two-column grid (default, set above)
+       1440px+ desktop: two-column grid (default above)
        ────────────────────────────────────────────────────── */
 
-    /* 1025px – 1439px small laptop: single-column stack,
-       vitals 4-col row, triad 3-col row */
+    /* 1200px – 1439px small laptop: compact two-column,
+       tighter cards so vitals/diagnoses stay visible */
     @media (max-width: 1439px) {
+      .cs-grid {
+        grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.85fr);
+        gap: var(--space-3);
+      }
+      .cs-card__body { padding: 12px 14px; }
+      .cs-soap__block { margin-bottom: 6px; }
+      .cs-soap__content { padding: 6px 10px; }
+    }
+
+    /* ≤1199px tablet: single column */
+    @media (max-width: 1199px) {
       .cs-grid {
         grid-template-columns: 1fr;
         gap: var(--space-4);
