@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { closeOutline, menuOutline, searchOutline } from 'ionicons/icons';
+import { closeOutline, logOutOutline, menuOutline, searchOutline } from 'ionicons/icons';
 import { AuthUser, Role } from '../../../../core/models';
 import { getClinicalRoleBadge, resolveClinicalRole } from '../../../../core/utils/clinical-role.util';
 import { AvatarComponent } from '../../../../shared/components/avatar/avatar.component';
@@ -36,6 +36,10 @@ import { NotificationBellComponent } from '../notification-bell/notification-bel
             </span>
           </span>
         </button>
+        <button type="button" class="topbar__logout" aria-label="Log out" (click)="logout.emit()">
+          <ion-icon name="log-out-outline" aria-hidden="true"></ion-icon>
+          <span class="topbar__logout-label">Logout</span>
+        </button>
       </div>
 
       <button type="button" class="topbar__hamburger" aria-label="Open navigation menu" (click)="menuToggle.emit()">
@@ -64,7 +68,7 @@ export class TopbarComponent {
   };
 
   constructor() {
-    addIcons({ menuOutline, closeOutline, searchOutline });
+    addIcons({ menuOutline, closeOutline, searchOutline, logOutOutline });
   }
 
   get roleBadge() {
