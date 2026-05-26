@@ -1,7 +1,8 @@
 import { NgFor, NgIf } from '@angular/common';
 import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ToastController, IonSpinner } from '@ionic/angular/standalone';
+import { ToastController, IonIcon, IonNote, IonProgressBar, IonSpinner } from '@ionic/angular/standalone';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, finalize, of } from 'rxjs';
 import { Doctor } from '../../../core/models';
@@ -22,6 +23,10 @@ interface SummaryItem {
     NgFor,
     NgIf,
     ReactiveFormsModule,
+    RouterLink,
+    IonIcon,
+    IonNote,
+    IonProgressBar,
     IonSpinner,
     PageHeaderComponent,
     EmptyStateComponent,
@@ -40,8 +45,28 @@ interface SummaryItem {
         <section class="profile-grid">
           <form class="clinic-card profile-form" [formGroup]="profileForm" (ngSubmit)="save()">
             <p class="section-label">Edit Profile</p>
+            <div class="completeness-row">
+              <span class="completeness-label">Profile completeness - {{ completenessPercent }}%</span>
+              <ion-progress-bar class="completeness-bar" [value]="completenessPercent / 100"></ion-progress-bar>
+            </div>
             <h3>Professional Profile</h3>
-            <p class="form-hint">Keep the details below in sync with your doctor record.</p>
+            <p class="form-hint profile-subtext">This information appears on your public booking profile.</p>
+
+            <div class="photo-upload-wrapper">
+              <button type="button" class="photo-preview" (click)="photoInput.click()" [attr.aria-label]="'Upload profile photo'">
+                <ng-container *ngIf="photoPreviewUrl || doctor.profilePhotoUrl; else initialsFallback">
+                  <img class="photo-img" [src]="photoPreviewUrl || doctor.profilePhotoUrl" alt="Profile photo preview" />
+                </ng-container>
+                <ng-template #initialsFallback>
+                  <span class="photo-initials">{{ doctorInitials }}</span>
+                </ng-template>
+                <span class="photo-overlay" aria-hidden="true">
+                  <ion-icon name="camera-outline"></ion-icon>
+                </span>
+              </button>
+              <input #photoInput type="file" accept="image/*" hidden (change)="onPhotoUpload($event)" />
+              <p class="photo-hint">Click to upload photo</p>
+            </div>
 
             <label class="profile-field">
               <span>Full Name</span>
@@ -55,28 +80,62 @@ interface SummaryItem {
 
             <label class="profile-field">
               <span>Bio</span>
-              <textarea class="profile-textarea" rows="4" formControlName="bio"></textarea>
+              <textarea
+                class="profile-textarea"
+                rows="3"
+                formControlName="bio"
+                placeholder="Describe your practice, experience, and approach to care. This appears on your public booking page."
+              ></textarea>
+              <div class="char-counter" [class.near-limit]="bioLength >= 450">{{ bioLength }} / 500</div>
             </label>
 
             <div class="grid-2">
               <label class="profile-field">
                 <span>Consultation Fee</span>
-                <input class="profile-input" type="number" min="0" formControlName="consultationFee" />
+                <div class="currency-input-wrapper">
+                  <span class="currency-prefix">PHP</span>
+                  <input class="profile-input currency-input" type="number" min="0" formControlName="consultationFee" />
+                </div>
               </label>
 
               <label class="profile-field">
                 <span>License Number</span>
-                <input class="profile-input" type="text" formControlName="licenseNumber" />
+                <input
+                  class="profile-input"
+                  [class.warning-input]="!profileForm.get('licenseNumber')?.value"
+                  type="text"
+                  formControlName="licenseNumber"
+                />
+                <div class="field-warning" *ngIf="!profileForm.get('licenseNumber')?.value">
+                  <ion-icon name="warning-outline"></ion-icon>
+                  <ion-note>Required for your public profile to appear verified.</ion-note>
+                </div>
               </label>
 
               <label class="profile-field">
                 <span>PTR Number</span>
                 <input class="profile-input" type="text" formControlName="ptrNumber" />
+                <div class="field-warning" *ngIf="!profileForm.get('ptrNumber')?.value">
+                  <ion-icon name="warning-outline"></ion-icon>
+                  <ion-note>Required for your public profile to appear verified.</ion-note>
+                </div>
               </label>
 
               <label class="profile-field">
-                <span>S2 Number</span>
+                <span class="label-with-hint">
+                  S2 Number
+                  <ion-icon
+                    class="hint-icon"
+                    name="information-circle-outline"
+                    title="S2 Number is issued by the PDEA (Philippine Drug Enforcement Agency). Required only if you prescribe Schedule II regulated substances. Leave blank if not applicable."
+                    aria-label="S2 Number explanation"
+                  ></ion-icon>
+                </span>
                 <input class="profile-input" type="text" formControlName="s2Number" />
+                <div class="field-warning" *ngIf="!profileForm.get('s2Number')?.value">
+                  <ion-icon name="warning-outline"></ion-icon>
+                  <ion-note>Required for your public profile to appear verified.</ion-note>
+                </div>
               </label>
             </div>
 
@@ -89,20 +148,41 @@ interface SummaryItem {
 
           <aside class="profile-summary">
             <article class="clinic-card preview-card">
-              <p class="section-label">Profile Summary</p>
+              <div class="summary-eyebrow-row">
+                <p class="section-label">Profile Summary</p>
+                <ion-note class="summary-timing-note">Updates after you save</ion-note>
+              </div>
 
               <div class="profile-summary__header">
                 <div>
                   <h3>{{ doctor.fullName }}</h3>
                   <p class="summary-subtitle">{{ doctor.specialization || 'Specialization not set' }}</p>
                 </div>
-                <app-status-badge [status]="doctor.status"></app-status-badge>
+                <app-status-badge
+                  [status]="profileIsComplete ? 'Confirmed' : 'Pending'"
+                  [labelOverride]="profileIsComplete ? 'ACTIVE' : 'INCOMPLETE'"
+                  portal="admin"
+                  [title]="profileIsComplete ? 'Your profile is visible to patients.' : 'Complete your credentials to maintain active status.'"
+                ></app-status-badge>
               </div>
 
               <p class="bio">{{ doctor.bio || 'No bio provided.' }}</p>
+              <p class="profile-subtext">This information appears on your public booking profile.</p>
 
               <div class="summary-items">
-                <div class="summary-item" *ngFor="let item of summaryItems">
+                <div class="summary-item" *ngFor="let item of profileSummaryItems">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
+                </div>
+              </div>
+
+              <div class="summary-section-divider">
+                <span class="summary-section-label">Schedule Settings</span>
+                <a class="edit-link" routerLink="/doctor/schedule">Edit in Schedule →</a>
+              </div>
+
+              <div class="summary-items readonly-fields">
+                <div class="summary-item" *ngFor="let item of scheduleSummaryItems">
                   <span>{{ item.label }}</span>
                   <strong>{{ item.value }}</strong>
                 </div>
@@ -135,6 +215,7 @@ export class DoctorProfilePage implements OnInit {
   isSaving = false;
   loadError: string | null = null;
   doctor: Doctor | null = null;
+  photoPreviewUrl: string | null = null;
 
   profileForm = this.fb.nonNullable.group({
     fullName: ['', Validators.required],
@@ -150,7 +231,37 @@ export class DoctorProfilePage implements OnInit {
     this.loadProfile();
   }
 
-  get summaryItems(): SummaryItem[] {
+  get doctorInitials(): string {
+    const value = this.profileForm.get('fullName')?.value?.trim() || this.doctor?.fullName || '';
+    const initials = value
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((name: string) => name[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+    return initials || 'DR';
+  }
+
+  get bioLength(): number {
+    return this.profileForm.get('bio')?.value?.length ?? 0;
+  }
+
+  get profileIsComplete(): boolean {
+    const f = this.profileForm.value;
+    return !!(f.fullName?.trim() && f.specialization?.trim() && f.bio?.trim() && f.consultationFee !== null && f.licenseNumber?.trim());
+  }
+
+  get completenessPercent(): number {
+    const fields = ['fullName', 'specialization', 'bio', 'consultationFee', 'licenseNumber', 'ptrNumber'];
+    const filled = fields.filter((field) => {
+      const raw = this.profileForm.get(field)?.value;
+      return raw !== null && raw !== undefined && String(raw).trim() !== '';
+    }).length;
+    return Math.round((filled / fields.length) * 100);
+  }
+
+  get profileSummaryItems(): SummaryItem[] {
     if (!this.doctor) {
       return [];
     }
@@ -159,7 +270,16 @@ export class DoctorProfilePage implements OnInit {
       { label: 'Consultation Fee', value: `PHP ${this.doctor.consultationFee.toLocaleString('en-PH')}` },
       { label: 'License Number', value: this.doctor.licenseNumber || 'N/A' },
       { label: 'PTR Number', value: this.doctor.ptrNumber || 'N/A' },
-      { label: 'S2 Number', value: this.doctor.s2Number || 'N/A' },
+      { label: 'S2 Number', value: this.doctor.s2Number || 'N/A' }
+    ];
+  }
+
+  get scheduleSummaryItems(): SummaryItem[] {
+    if (!this.doctor) {
+      return [];
+    }
+
+    return [
       { label: 'Slot Duration', value: `${this.doctor.slotDurationMinutes} minutes` },
       {
         label: 'Slot Capacity',
@@ -170,15 +290,25 @@ export class DoctorProfilePage implements OnInit {
         value:
           this.doctor.dailyPatientLimit === null
             ? 'No limit'
-            : `${this.doctor.dailyPatientLimit} ${
-                this.doctor.dailyPatientLimit === 1 ? 'patient' : 'patients'
-              }`
+            : `${this.doctor.dailyPatientLimit} ${this.doctor.dailyPatientLimit === 1 ? 'patient' : 'patients'}`
       }
     ];
   }
 
   reload(): void {
     this.loadProfile();
+  }
+
+  onPhotoUpload(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.photoPreviewUrl = reader.result as string;
+    };
+    reader.readAsDataURL(file);
   }
 
   save(): void {
