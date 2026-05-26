@@ -54,6 +54,55 @@
 .cr-complete-wrap { display: inline-flex; }
 .error-text { color: #dc2626; font-size: 14px; max-width: 400px; text-align: center; line-height: 1.5; }
 
+.cr-save-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 2px;
+  min-height: 34px;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cr-save-state__icon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #16a34a;
+  flex-shrink: 0;
+}
+
+.cr-save-state__icon--spinner {
+  width: 12px;
+  height: 12px;
+  background: transparent;
+  border: 2px solid rgba(91, 33, 182, 0.18);
+  border-top-color: #5b21b6;
+  animation: cr-spin 0.8s linear infinite;
+}
+
+.cr-save-state--saved {
+  color: #64748b;
+}
+
+.cr-save-state--unsaved {
+  color: #b45309;
+}
+
+.cr-save-state--failed {
+  color: #dc2626;
+}
+
+.cr-save-state--failed .cr-save-state__icon {
+  background: #dc2626;
+}
+
+.cr-save-state--unsaved .cr-save-state__icon {
+  background: #d97706;
+}
+
 .cr-clinical-link {
   font-size: var(--text-xs); color: #5d3e8e; text-decoration: none; font-weight: 600;
   cursor: pointer; display: inline-block; margin-top: 2px;
@@ -251,6 +300,12 @@
   to {
     transform: scale(1);
     filter: saturate(1);
+  }
+}
+
+@keyframes cr-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 

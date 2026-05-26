@@ -59,7 +59,7 @@ export class FollowUpFormComponent implements OnChanges {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly form = this.fb.group({
-    followUpDate: [''],
+    followUpDate: [this.getDefaultFollowUpDate()],
     reason: [''],
     reminderEnabled: [false]
   });
@@ -74,7 +74,7 @@ export class FollowUpFormComponent implements OnChanges {
     if (changes['value']) {
       this.form.patchValue(
         {
-          followUpDate: this.value?.followUpDate ?? '',
+          followUpDate: this.value?.followUpDate ?? this.getDefaultFollowUpDate(),
           reason: this.value?.reason ?? '',
           reminderEnabled: this.value?.reminderEnabled ?? false
         },
@@ -107,5 +107,11 @@ export class FollowUpFormComponent implements OnChanges {
       reason,
       reminderEnabled: Boolean(value.reminderEnabled)
     });
+  }
+
+  private getDefaultFollowUpDate(): string {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
+    return date.toISOString().slice(0, 10);
   }
 }

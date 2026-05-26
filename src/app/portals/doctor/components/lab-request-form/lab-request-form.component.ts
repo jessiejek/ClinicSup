@@ -28,16 +28,37 @@ export interface LabRequestDraftView {
   imports: [NgFor, NgIf, ReactiveFormsModule, IonButton, IonInput, IonItem, IonLabel, IonTextarea],
   template: `
     <section class="clinic-card section-card">
-      <div class="section-card__head">
-        <h3>Labs</h3>
-        <p>Create mock lab requests and capture a fake attachment name when needed.</p>
+      <div class="section-card__head" title="Tests you have ordered for this patient this visit">
+        <div class="section-card__title-row">
+          <h3><i class="ti ti-clipboard-list"></i> Order Labs ({{ selectedLabOrders.length }} selected)</h3>
+          <p>Lab requests placed by you for this visit</p>
+        </div>
       </div>
 
       <form class="lab-grid" [formGroup]="form">
         <div class="quick-buttons">
-          <button type="button" class="btn-ghost" *ngFor="let quick of quickTests" (click)="setQuickTest(quick)">
-            {{ quick }}
+          <button
+            type="button"
+            class="quick-chip"
+            *ngFor="let quick of quickTests"
+            [class.quick-chip--selected]="isQuickSelected(quick)"
+            (click)="toggleQuickTest(quick)"
+          >
+            <span *ngIf="isQuickSelected(quick)">✓</span>{{ quick }}
           </button>
+        </div>
+
+        <div class="selected-orders" *ngIf="selectedLabOrders.length > 0">
+          <div class="selected-orders__head">
+            <strong>Selected Lab Orders</strong>
+            <span>{{ selectedLabOrders.length }} selected</span>
+          </div>
+          <div class="selected-orders__list">
+            <div class="selected-order" *ngFor="let item of selectedLabOrders">
+              <span>{{ item }}</span>
+              <button type="button" class="selected-order__remove" (click)="removeSelectedLabOrder(item)">X</button>
+            </div>
+          </div>
         </div>
 
         <ion-item class="field">
@@ -94,6 +115,7 @@ export class LabRequestFormComponent implements OnChanges {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly quickTests = ['CBC', 'Urinalysis', 'Chest X-ray', 'Fasting Blood Sugar', 'Lipid Profile'];
+  selectedLabOrders: string[] = [];
 
   readonly form = this.fb.group({
     testName: [''],
@@ -125,11 +147,25 @@ export class LabRequestFormComponent implements OnChanges {
     }
   }
 
-  setQuickTest(value: string): void {
+  toggleQuickTest(value: string): void {
     if (this.locked) {
       return;
     }
-    this.form.patchValue({ testName: value });
+
+    if (this.selectedLabOrders.includes(value)) {
+      this.selectedLabOrders = this.selectedLabOrders.filter((item) => item !== value);
+      return;
+    }
+
+    this.selectedLabOrders = [...this.selectedLabOrders, value];
+  }
+
+  isQuickSelected(value: string): boolean {
+    return this.selectedLabOrders.includes(value);
+  }
+
+  removeSelectedLabOrder(value: string): void {
+    this.selectedLabOrders = this.selectedLabOrders.filter((item) => item !== value);
   }
 
   onFileChange(event: Event): void {
@@ -147,18 +183,26 @@ export class LabRequestFormComponent implements OnChanges {
       return;
     }
     const value = this.form.getRawValue();
-    if (!value.testName) {
+    const pendingTests = Array.from(
+      new Set([
+        ...this.selectedLabOrders,
+        value.testName?.trim() || ''
+      ].filter((test) => test.length > 0))
+    );
+
+    if (pendingTests.length === 0) {
       return;
     }
-    this.requests = [
-      ...this.requests,
-      {
-        id: `labreq-${Date.now()}-${this.requests.length + 1}`,
-        testName: value.testName,
-        reason: value.reason || undefined,
-        fileName: value.fileName || undefined
-      }
-    ];
+
+    const nextRequests = pendingTests.map((testName, index) => ({
+      id: `labreq-${Date.now()}-${this.requests.length + index + 1}`,
+      testName,
+      reason: value.reason || undefined,
+      fileName: value.fileName || undefined
+    }));
+
+    this.requests = [...this.requests, ...nextRequests];
+    this.selectedLabOrders = [];
     this.requestsChange.emit([...this.requests]);
     this.clearForm();
   }

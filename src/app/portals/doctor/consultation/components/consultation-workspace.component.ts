@@ -49,9 +49,11 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         <app-soap-form
           id="section-soap"
           [value]="vm.soap"
+          [lastVisitSoap]="getLastVisitSoap(vm)"
           [locked]="locked"
           (soapChange)="soapChange.emit($event)"
           (validityChange)="soapValidityChange.emit($event)"
+          (loadFromLastVisit)="loadFromLastVisit.emit()"
         ></app-soap-form>
 
         <app-diagnosis-picker
@@ -92,6 +94,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         <app-vaccination-form
           [locked]="locked"
           [existingVaccinations]="vm.vaccinations"
+          [draftVaccinations]="pendingVaccinations"
           (vaccinationsAdded)="vaccinationsAdded.emit($event)"
         ></app-vaccination-form>
 
@@ -142,7 +145,10 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         </section>
 
         <section class="clinic-card side-card">
-          <h3>Lab Results</h3>
+          <div class="side-card__head" title="Lab result files uploaded by the patient">
+            <h3><i class="ti ti-upload"></i> Lab Results</h3>
+            <p>Files uploaded by the patient</p>
+          </div>
           <p *ngFor="let result of vm.labResults">
             {{ result.fileName }} &bull; {{ result.resultDate | date : 'MMMM d, y (EEE)' }}
           </p>
@@ -160,6 +166,7 @@ export class ConsultationWorkspaceComponent {
   @Input() professionalFee = 0;
   @Input() professionalFeePaymentMode: ProfessionalFeePaymentMode = 'Cash';
   @Input() professionalFeeNotes = '';
+  @Input() pendingVaccinations: CreatePatientVaccinationRequest[] = [];
 
   @Output() vitalSignsChange = new EventEmitter<VitalSigns>();
   @Output() vitalsValidityChange = new EventEmitter<boolean>();
@@ -175,7 +182,23 @@ export class ConsultationWorkspaceComponent {
   @Output() professionalFeeNotesChange = new EventEmitter<string>();
   @Output() professionalFeeValidityChange = new EventEmitter<boolean>();
   @Output() vaccinationsAdded = new EventEmitter<CreatePatientVaccinationRequest[]>();
+  @Output() loadFromLastVisit = new EventEmitter<void>();
 
   readonly emptyDiagnoses: Diagnosis[] = [];
   readonly emptyPrescriptionItems: PrescriptionItem[] = [];
+
+  getLastVisitSoap(vm: ConsultationPageVm): SoapFormValue | null {
+    const last = vm.recentConsultations[0];
+    if (!last) {
+      return null;
+    }
+
+    return {
+      chiefComplaint: last.chiefComplaint ?? '',
+      subjective: last.subjective ?? last.historyOfPresentIllness ?? '',
+      objective: last.objective ?? last.peGeneralFindings ?? '',
+      assessment: last.assessment ?? '',
+      plan: last.plan ?? ''
+    };
+  }
 }

@@ -126,7 +126,7 @@ export class PrescriptionFormComponent implements OnChanges {
   private readonly fb = inject(FormBuilder);
 
 
-  readonly form = this.fb.group({ medicineName: [''], strength: [''], dosage: [''], route: [''], frequency: [''], duration: [''], quantity: [1], instructions: [''] });
+  readonly form = this.fb.group({ medicineName: [''], strength: [''], dosage: [''], route: ['Oral'], frequency: ['Once daily'], duration: [''], quantity: [1], instructions: [''] });
 
   readonly dosageOptions = ['Tablet', 'Capsule', 'Syrup', 'Injection', 'Cream', 'Drops', 'Powder', 'Suspension', 'Ointment', 'Others'];
   readonly routeOptions = MEDICATION_ROUTE_MASTERS.map((r) => ({ value: r.route_description, label: r.route_description }));
@@ -289,6 +289,6 @@ export class PrescriptionFormComponent implements OnChanges {
 
   private emitAndClear(): void {
     this.itemsChange.emit([...this.medicines]);
-    this.form.patchValue({ medicineName: '', strength: '', dosage: '', route: '', frequency: '', duration: '', quantity: 1, instructions: '' });
+    this.form.patchValue({ medicineName: '', strength: '', dosage: '', route: 'Oral', frequency: 'Once daily', duration: '', quantity: 1, instructions: '' });
   }
 }

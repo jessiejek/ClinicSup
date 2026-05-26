@@ -1,5 +1,5 @@
-import { AsyncPipe, DatePipe, NgIf } from '@angular/common';
-import { AfterViewChecked, Component, OnDestroy, inject } from '@angular/core';
+import { AsyncPipe, DatePipe, NgClass, NgIf } from '@angular/common';
+import { AfterViewChecked, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ModalController, ToastController } from '@ionic/angular/standalone';
 import { BehaviorSubject, Observable, combineLatest, firstValueFrom, of } from 'rxjs';
@@ -33,6 +33,7 @@ import { PatientIdentityStripComponent } from './components/patient-identity-str
 import { AllergyConfirmationState } from './components/allergy-badge.component';
 import { DoctorService } from '../services/doctor.service';
 import { ConsultationSummaryComponent } from './components/consultation-summary.component';
+import { SoapLastVisitModalComponent } from './components/soap-last-visit-modal.component';
 import {
   ConsultationCompleteModalComponent,
   ConsultationChecklistItem,
@@ -105,6 +106,7 @@ interface ConsultationLocalDraft {
   prescriptionItems: PrescriptionItem[];
   labRequests: LabRequestDraftView[];
   followUpValue: FollowUpDraftView | null;
+  pendingVaccinations: CreatePatientVaccinationRequest[];
   professionalFeeAmount: number;
   professionalFeePaymentMode: ProfessionalFeePaymentMode;
   professionalFeeNotes: string;
@@ -129,6 +131,7 @@ type ProgressSectionId =
   selector: 'app-doctor-consultation-page',
   imports: [
     AsyncPipe, DatePipe, NgIf, RouterLink,
+    NgClass,
     EmptyStateComponent,
     ConsultationOverviewComponent,
     ConsultationSummaryComponent,
@@ -224,7 +227,14 @@ type ProgressSectionId =
                 <a class="cr-btn" routerLink="/doctor/appointments">Back to Appointments</a>
                 <button class="cr-btn cr-btn--outline" (click)="cancelAmendMode()" *ngIf="isAmendMode" [disabled]="isSavingAmendment">Cancel</button>
                 <button class="cr-btn cr-btn--primary" (click)="saveAmendment(vm)" *ngIf="isAmendMode" [disabled]="isSavingAmendment">{{ isSavingAmendment ? 'Saving...' : 'Save Amendment' }}</button>
-                <button class="cr-btn cr-btn--primary" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft">{{ isSavingDraft ? 'Saving...' : 'Save Draft' }}</button>
+                <div class="cr-save-state" [ngClass]="'cr-save-state--' + saveState">
+                  <span class="cr-save-state__icon" *ngIf="saveState === 'saved'"></span>
+                  <span class="cr-save-state__icon cr-save-state__icon--spinner" *ngIf="saveState === 'saving'"></span>
+                  <span class="cr-save-state__icon" *ngIf="saveState === 'unsaved'"></span>
+                  <span class="cr-save-state__icon" *ngIf="saveState === 'failed'"></span>
+                  <span class="cr-save-state__label">{{ getSaveStateLabel() }}</span>
+                </div>
+                <button class="cr-btn cr-btn--primary" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft || isAutosaving">{{ isSavingDraft ? 'Saving...' : 'Save Draft' }}</button>
                 <span class="cr-complete-wrap" [attr.title]="getCompleteTooltip(vm)">
                   <button
                     class="cr-btn cr-btn--complete"
@@ -281,6 +291,7 @@ type ProgressSectionId =
                   [professionalFee]="professionalFeeAmount"
                   [professionalFeePaymentMode]="professionalFeePaymentMode"
                   [professionalFeeNotes]="professionalFeeNotes"
+                  [pendingVaccinations]="pendingVaccinations"
                   (vitalSignsChange)="onVitalsChange($event)"
                   (vitalsValidityChange)="vitalsValid = $event"
                   (soapChange)="onSoapChange($event)"
@@ -295,6 +306,7 @@ type ProgressSectionId =
                   (professionalFeeNotesChange)="professionalFeeNotes = $event"
                   (professionalFeeValidityChange)="pfDecisionValid = $event"
                   (vaccinationsAdded)="onVaccinationsAdded($event)"
+                  (loadFromLastVisit)="openLastVisitSoap(vm)"
                 ></app-consultation-workspace>
               </div>
             </div>
@@ -372,7 +384,7 @@ type ProgressSectionId =
               <div class="cr-side-card">
                 <h3>Patient Uploads</h3>
                 <app-patient-media-panel kind="document" [patientId]="vm.patient.id" [filterByBooking]="false" [allowUpload]="false" heading="Documents" subheading="Referrals, certificates, and files."></app-patient-media-panel>
-                <app-patient-media-panel kind="lab-result" [patientId]="vm.patient.id" [filterByBooking]="false" [allowUpload]="false" heading="Lab Results" subheading="Uploaded lab reports."></app-patient-media-panel>
+                <app-patient-media-panel kind="lab-result" [patientId]="vm.patient.id" [filterByBooking]="false" [allowUpload]="false" heading="Lab Results" headingIcon="ti ti-upload" subheading="Files uploaded by the patient"></app-patient-media-panel>
               </div>
             </div>
           </div>
@@ -386,7 +398,7 @@ type ProgressSectionId =
   `,
   styleUrl: './doctor-consultation.page.scss'
 })
-export class DoctorConsultationPage implements AfterViewChecked, OnDestroy {
+export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestroy {
   private readonly apiService = inject(ApiService);
   private readonly authState = inject(AuthStateService);
   private readonly bookingService = inject(BookingService);
@@ -400,17 +412,26 @@ export class DoctorConsultationPage implements AfterViewChecked, OnDestroy {
   private readonly toastController = inject(ToastController);
   private readonly reloadSubject = new BehaviorSubject(0);
 
+  private currentVm: ConsultationPageVm | null = null;
+  private lastSavedDraftSnapshot = '';
+  private lastAutosaveAt = 0;
+  private autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private draftDirty = false;
+  private isNetworkOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
   isProfessionalFeeWaived = false;
   completionFinalAmount = 0;
   completionWaivedReason = '';
   isSubmittingComplete = false;
   isSavingDraft = false;
+  isAutosaving = false;
   isSavingAmendment = false;
   isAmendMode = false;
   completionValidationRequested = false;
   showStickyIdentityStrip = false;
   identityStripExpanded = false;
   activeSectionId: ProgressSectionId = 'section-soap';
+  saveState: 'saved' | 'saving' | 'unsaved' | 'failed' = 'saved';
 
   currentConsultationFee = 0;
   professionalFeeAmount = 0;
@@ -496,41 +517,179 @@ export class DoctorConsultationPage implements AfterViewChecked, OnDestroy {
     })
   );
 
+  ngOnInit(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.addEventListener('beforeunload', this.handleBeforeUnload);
+    window.addEventListener('offline', this.handleNetworkOffline);
+    window.addEventListener('online', this.handleNetworkOnline);
+  }
+
   ngAfterViewChecked(): void {
     this.initializeObservers();
   }
 
   ngOnDestroy(): void {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('beforeunload', this.handleBeforeUnload);
+      window.removeEventListener('offline', this.handleNetworkOffline);
+      window.removeEventListener('online', this.handleNetworkOnline);
+    }
+
+    if (this.autosaveTimer) {
+      clearTimeout(this.autosaveTimer);
+      this.autosaveTimer = null;
+    }
+
     this.sectionObserver?.disconnect();
     this.identityObserver?.disconnect();
   }
 
   onVitalsChange(value: VitalSigns): void {
     this.vitalsValue = value;
+    this.handleDraftMutation();
   }
 
   onSoapChange(value: SoapFormValue): void {
     this.soapValue = value;
+    this.handleDraftMutation();
   }
 
   onDiagnosesChange(value: Diagnosis[]): void {
     this.diagnoses = value;
+    this.handleDraftMutation();
   }
 
   onPrescriptionItemsChange(value: PrescriptionItem[]): void {
     this.prescriptionItems = value;
+    this.handleDraftMutation();
   }
 
   onLabRequestsChange(value: LabRequestDraftView[]): void {
     this.labRequests = value;
+    this.handleDraftMutation();
   }
 
   onFollowUpChange(value: FollowUpDraftView | null): void {
     this.followUpValue = value;
+    this.handleDraftMutation();
   }
 
   onVaccinationsAdded(payloads: CreatePatientVaccinationRequest[]): void {
     this.pendingVaccinations = payloads;
+    this.handleDraftMutation();
+  }
+
+  openLastVisitSoap(vm: ConsultationPageVm): void {
+    const lastVisit = this.getLastVisitSoap(vm);
+    if (!lastVisit) {
+      return;
+    }
+
+    void this.openSoapHistoryModal(lastVisit);
+  }
+
+  private handleDraftMutation(): void {
+    const currentSnapshot = this.createDraftSnapshot();
+    this.draftDirty = currentSnapshot !== this.lastSavedDraftSnapshot;
+
+    if (!this.draftDirty) {
+      this.saveState = 'saved';
+      if (this.autosaveTimer) {
+        clearTimeout(this.autosaveTimer);
+        this.autosaveTimer = null;
+      }
+      return;
+    }
+
+    if (!this.isNetworkOnline) {
+      this.saveState = 'failed';
+      return;
+    }
+
+    this.saveState = this.isAutosaving || this.isSavingDraft ? 'saving' : 'unsaved';
+    this.scheduleAutosave();
+  }
+
+  private scheduleAutosave(): void {
+    if (!this.draftDirty || !this.currentVm || this.isSavingDraft || this.isSubmittingComplete) {
+      return;
+    }
+
+    if (this.autosaveTimer) {
+      clearTimeout(this.autosaveTimer);
+    }
+
+    const now = Date.now();
+    const earliestByTyping = now + 5000;
+    const earliestByCadence = this.lastAutosaveAt ? this.lastAutosaveAt + 30000 : earliestByTyping;
+    const targetTime = Math.max(earliestByTyping, earliestByCadence);
+    const delay = Math.max(0, targetTime - now);
+
+    this.autosaveTimer = setTimeout(() => {
+      void this.performAutosave();
+    }, delay);
+  }
+
+  private async performAutosave(): Promise<void> {
+    if (!this.currentVm || !this.draftDirty) {
+      return;
+    }
+
+    if (!this.isNetworkOnline) {
+      this.saveState = 'failed';
+      return;
+    }
+
+    this.isAutosaving = true;
+    this.saveState = 'saving';
+    try {
+      await this.saveDraft(this.currentVm, true);
+    } finally {
+      this.isAutosaving = false;
+    }
+  }
+
+  private handleBeforeUnload = (event: BeforeUnloadEvent): void => {
+    if (!this.draftDirty) {
+      return;
+    }
+
+    event.preventDefault();
+    event.returnValue = '';
+  };
+
+  private handleNetworkOffline = (): void => {
+    this.isNetworkOnline = false;
+    if (this.autosaveTimer) {
+      clearTimeout(this.autosaveTimer);
+      this.autosaveTimer = null;
+    }
+    if (this.draftDirty) {
+      this.saveState = 'failed';
+    }
+  };
+
+  private handleNetworkOnline = (): void => {
+    this.isNetworkOnline = true;
+    if (this.draftDirty) {
+      void this.performAutosave();
+    }
+  };
+
+  getSaveStateLabel(): string {
+    switch (this.saveState) {
+      case 'saving':
+        return 'Saving...';
+      case 'unsaved':
+        return 'Unsaved changes';
+      case 'failed':
+        return 'Autosave failed — click Save Draft';
+      default:
+        return 'All changes saved';
+    }
   }
 
   private initializeObservers(): void {
@@ -884,19 +1043,54 @@ export class DoctorConsultationPage implements AfterViewChecked, OnDestroy {
     ];
   }
 
-  saveDraft(vm: ConsultationPageVm): void {
+  async saveDraft(vm: ConsultationPageVm, autosave = false): Promise<void> {
     if (this.isWorkspaceLocked(vm) || this.isSavingDraft || this.isAmendMode) {
       return;
     }
 
-    this.isSavingDraft = true;
+    this.isSavingDraft = !autosave;
+    this.saveState = 'saving';
     try {
       this.writeLocalDraft(vm);
-      void this.presentToast('Draft saved locally.', 'success');
+      this.currentVm = vm;
+      this.lastSavedDraftSnapshot = this.createDraftSnapshot();
+      this.lastAutosaveAt = Date.now();
+      this.draftDirty = false;
+      this.saveState = 'saved';
+      if (!autosave) {
+        void this.presentToast('Draft saved locally.', 'success');
+      }
     } catch (error) {
-      void this.presentToast(extractApiErrorMessage(error, 'Failed to save local draft.'), 'danger');
+      this.draftDirty = true;
+      this.saveState = 'failed';
+      if (!autosave) {
+        void this.presentToast(extractApiErrorMessage(error, 'Failed to save local draft.'), 'danger');
+      }
     } finally {
       this.isSavingDraft = false;
+      if (this.autosaveTimer) {
+        clearTimeout(this.autosaveTimer);
+        this.autosaveTimer = null;
+      }
+      if (this.draftDirty && this.isNetworkOnline && !autosave) {
+        this.saveState = 'unsaved';
+        this.scheduleAutosave();
+      }
+    }
+  }
+
+  private async openSoapHistoryModal(sourceSoap: SoapFormValue): Promise<void> {
+    const modal = await this.modalCtrl.create({
+      component: SoapLastVisitModalComponent,
+      componentProps: { soap: sourceSoap },
+      cssClass: 'modal-default',
+      backdropDismiss: false
+    });
+
+    await modal.present();
+    const result = await modal.onDidDismiss<{ soap?: SoapFormValue }>();
+    if (result.role === 'confirm' && result.data?.soap) {
+      this.onSoapChange(result.data.soap);
     }
   }
 
@@ -1131,6 +1325,9 @@ export class DoctorConsultationPage implements AfterViewChecked, OnDestroy {
     this.isProfessionalFeeWaived = this.professionalFeePaymentMode === 'Waived';
     this.completionFinalAmount = this.isProfessionalFeeWaived ? 0 : this.professionalFeeAmount;
     this.completionWaivedReason = this.isProfessionalFeeWaived ? this.professionalFeeNotes : '';
+    this.pendingVaccinations = localDraft?.pendingVaccinations?.length
+      ? localDraft.pendingVaccinations.map((payload) => ({ ...payload }))
+      : [];
     const consultation = this.mapConsultationRecord(
       args.consultationRecord,
       args.booking,
@@ -1151,7 +1348,7 @@ export class DoctorConsultationPage implements AfterViewChecked, OnDestroy {
           args.records.prescriptions.find((item) => item.consultationId === mergedConsultation?.id) ??
           null;
 
-    return {
+    const vm: ConsultationPageVm = {
       booking: args.booking,
       patient: args.patient,
       doctor: args.doctor,
@@ -1185,10 +1382,19 @@ export class DoctorConsultationPage implements AfterViewChecked, OnDestroy {
               reminderEnabled: false
             }
           : null),
+      pendingVaccinations: this.pendingVaccinations.map((payload) => ({ ...payload })),
       recentConsultations: args.records.consultations
         .filter((item) => item.patientId === args.patient.id)
         .slice(0, 5)
     };
+
+    this.currentVm = vm;
+    this.lastSavedDraftSnapshot = this.createDraftSnapshot();
+    this.draftDirty = false;
+    this.saveState = 'saved';
+    this.lastAutosaveAt = Date.now();
+
+    return vm;
   }
 
   private soapFromConsultation(consultation: Consultation | null): SoapFormValue {
@@ -1199,6 +1405,36 @@ export class DoctorConsultationPage implements AfterViewChecked, OnDestroy {
       assessment: consultation?.assessment ?? '',
       plan: consultation?.plan ?? ''
     };
+  }
+
+  private getLastVisitSoap(vm: ConsultationPageVm): SoapFormValue | null {
+    const last = vm.recentConsultations[0];
+    if (!last) {
+      return null;
+    }
+
+    return {
+      chiefComplaint: last.chiefComplaint ?? '',
+      subjective: last.subjective ?? last.historyOfPresentIllness ?? '',
+      objective: last.objective ?? last.peGeneralFindings ?? '',
+      assessment: last.assessment ?? '',
+      plan: last.plan ?? ''
+    };
+  }
+
+  private createDraftSnapshot(): string {
+    return JSON.stringify({
+      soap: this.soapValue,
+      vitals: this.vitalsValue,
+      diagnoses: this.diagnoses,
+      prescriptions: this.prescriptionItems,
+      labRequests: this.labRequests,
+      followUp: this.followUpValue,
+      professionalFeeAmount: this.professionalFeeAmount,
+      professionalFeePaymentMode: this.professionalFeePaymentMode,
+      professionalFeeNotes: this.professionalFeeNotes,
+      vaccinations: this.pendingVaccinations
+    });
   }
 
   private buildSoapNotes(): string | undefined {
@@ -1451,6 +1687,7 @@ export class DoctorConsultationPage implements AfterViewChecked, OnDestroy {
       prescriptionItems: this.prescriptionItems.map((item) => ({ ...item })),
       labRequests: this.labRequests.map((request) => ({ ...request })),
       followUpValue: this.followUpValue ? { ...this.followUpValue } : null,
+      pendingVaccinations: this.pendingVaccinations.map((payload) => ({ ...payload })),
       professionalFeeAmount: this.professionalFeeAmount,
       professionalFeePaymentMode: this.professionalFeePaymentMode,
       professionalFeeNotes: this.professionalFeeNotes,
@@ -1495,6 +1732,9 @@ export class DoctorConsultationPage implements AfterViewChecked, OnDestroy {
           : [],
         labRequests: Array.isArray(parsed.labRequests) ? parsed.labRequests.map((request) => ({ ...request })) : [],
         followUpValue: parsed.followUpValue ? { ...parsed.followUpValue } : null,
+        pendingVaccinations: Array.isArray(parsed.pendingVaccinations)
+          ? parsed.pendingVaccinations.map((payload) => ({ ...payload }))
+          : [],
         professionalFeeAmount: typeof parsed.professionalFeeAmount === 'number' ? parsed.professionalFeeAmount : 0,
         professionalFeePaymentMode: this.normalizeProfessionalFeePaymentMode(parsed.professionalFeePaymentMode),
         professionalFeeNotes: parsed.professionalFeeNotes ?? '',

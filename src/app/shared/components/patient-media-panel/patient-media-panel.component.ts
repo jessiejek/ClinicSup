@@ -41,7 +41,10 @@ type PatientMediaItem = PatientDocument | PatientLabResult;
       <div class="patient-media-panel__header">
         <div>
           <p class="section-heading">{{ eyebrow }}</p>
-          <h3 class="patient-media-panel__title">{{ heading }}</h3>
+          <h3 class="patient-media-panel__title">
+            <i *ngIf="headingIcon" [class]="headingIcon"></i>
+            <span>{{ heading }}</span>
+          </h3>
           <p class="patient-media-panel__subtitle">{{ subheading }}</p>
         </div>
 
@@ -184,6 +187,7 @@ export class PatientMediaPanelComponent implements OnInit, OnChanges {
   @Input() allowUpload = true;
   @Input() heading = '';
   @Input() subheading = '';
+  @Input() headingIcon = '';
   @Input() errorTitle = '';
   @Input() bookingIdFilter?: string;
   /** When false (doctor view), show all patient uploads instead of filtering to one booking. */
