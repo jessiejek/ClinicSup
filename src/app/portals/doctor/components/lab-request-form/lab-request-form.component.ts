@@ -1,4 +1,4 @@
-import { NgFor, NgIf } from '@angular/common';
+import { NgClass, NgFor, NgIf } from '@angular/common';
 import {
   Component,
   DestroyRef,
@@ -25,12 +25,12 @@ export interface LabRequestDraftView {
 @Component({
   selector: 'app-lab-request-form',
   standalone: true,
-  imports: [NgFor, NgIf, ReactiveFormsModule, IonButton, IonInput, IonItem, IonLabel, IonTextarea],
+  imports: [NgClass, NgFor, NgIf, ReactiveFormsModule, IonButton, IonInput, IonItem, IonLabel, IonTextarea],
   template: `
-    <section class="clinic-card section-card" [class.section-card--locked]="locked">
+    <section class="clinic-card section-card" [class.section-card--locked]="locked || actionMode === 'request'" aria-labelledby="lab-orders-heading">
       <div class="section-card__head" title="Tests you have ordered for this patient this visit">
         <div class="section-card__title-row">
-          <h3><i class="ti ti-clipboard-list"></i> Order Labs ({{ selectedLabOrders.length }} selected) <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
+          <h3 id="lab-orders-heading"><i class="ti ti-clipboard-list"></i> Order Labs ({{ selectedLabOrders.length }} selected) <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
           <p>Lab requests placed by you for this visit</p>
         </div>
       </div>
@@ -42,6 +42,7 @@ export interface LabRequestDraftView {
             class="quick-chip"
             *ngFor="let quick of quickTests"
             [class.quick-chip--selected]="isQuickSelected(quick)"
+            [attr.aria-pressed]="isQuickSelected(quick)"
             (click)="toggleQuickTest(quick)"
           >
             <span *ngIf="isQuickSelected(quick)">✓</span>{{ quick }}
@@ -63,27 +64,27 @@ export interface LabRequestDraftView {
 
         <ion-item class="field">
           <ion-label position="stacked">Test Name</ion-label>
-          <ion-input formControlName="testName" [disabled]="locked"></ion-input>
+          <ion-input formControlName="testName" [disabled]="locked || actionMode === 'request'"></ion-input>
         </ion-item>
         <ion-item class="field">
           <ion-label position="stacked">Reason</ion-label>
-          <ion-textarea formControlName="reason" autoGrow="true" [disabled]="locked"></ion-textarea>
+          <ion-textarea formControlName="reason" autoGrow="true" [disabled]="locked || actionMode === 'request'"></ion-textarea>
         </ion-item>
         <ion-item class="field">
           <ion-label position="stacked">Attachment File Name</ion-label>
-          <ion-input formControlName="fileName" readonly="true" [disabled]="locked"></ion-input>
+          <ion-input formControlName="fileName" readonly="true" [disabled]="locked || actionMode === 'request'"></ion-input>
         </ion-item>
 
         <input #fileInput type="file" hidden (change)="onFileChange($event)" />
         <div class="attachment-row">
-          <button type="button" class="btn-outline" [disabled]="locked" (click)="fileInput.click()">
+          <button type="button" class="btn-outline" [disabled]="locked || actionMode === 'request'" (click)="fileInput.click()">
             Choose File Name
           </button>
           <span>{{ form.get('fileName')?.value || 'No file selected' }}</span>
         </div>
 
-        <button type="button" class="btn-primary" [disabled]="locked" (click)="editIndex >= 0 ? updateRequest() : addRequest()">
-          {{ editIndex >= 0 ? 'Update Request' : 'Add Request' }}
+        <button type="button" [ngClass]="actionMode === 'request' ? 'btn-outline' : 'btn-primary'" [disabled]="locked" (click)="actionMode === 'request' ? requestAttendingPhysician.emit() : (editIndex >= 0 ? updateRequest() : addRequest())">
+          {{ actionMode === 'request' ? 'Request lab order from attending physician' : (editIndex >= 0 ? 'Update Request' : 'Add Request') }}
         </button>
       </form>
 
@@ -95,8 +96,8 @@ export interface LabRequestDraftView {
             <span *ngIf="request.fileName">Attachment: {{ request.fileName }}</span>
           </div>
           <div class="request-item__actions">
-            <button type="button" class="btn-ghost" [disabled]="locked" (click)="editRequest(i)">Edit</button>
-            <button type="button" class="btn-ghost" [disabled]="locked" (click)="removeRequest(i)" style="color:#dc2626">Remove</button>
+            <button type="button" class="btn-ghost" [disabled]="locked || actionMode === 'request'" (click)="editRequest(i)">Edit</button>
+            <button type="button" class="btn-ghost" [disabled]="locked || actionMode === 'request'" (click)="removeRequest(i)" style="color:#dc2626">Remove</button>
           </div>
         </article>
       </div>
@@ -112,7 +113,9 @@ export class LabRequestFormComponent implements OnChanges {
   @Input() value: LabRequestDraftView[] = [];
   @Input() auditText = 'Not yet edited this visit';
   @Input() locked = false;
+  @Input() actionMode: 'edit' | 'request' = 'edit';
   @Output() requestsChange = new EventEmitter<LabRequestDraftView[]>();
+  @Output() requestAttendingPhysician = new EventEmitter<void>();
 
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 

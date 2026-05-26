@@ -22,9 +22,9 @@ export type ProfessionalFeePaymentMode = 'Cash' | 'Card' | 'PayMClinic' | 'HMO' 
     IonTextarea
   ],
   template: `
-    <section class="clinic-card section-card" [class.section-card--locked]="locked">
+    <section *ngIf="visible" class="clinic-card section-card" [class.section-card--locked]="locked" aria-labelledby="pf-decision-heading">
       <div class="section-card__head">
-        <h3>PF Decision <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
+        <h3 id="pf-decision-heading">PF Decision <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
         <p>Confirm the professional fee before finalizing the consultation.</p>
       </div>
 
@@ -145,6 +145,7 @@ export class ProfessionalFeeDecisionFormComponent implements OnChanges {
   @Input() paymentMode: ProfessionalFeePaymentMode = 'Cash';
   @Input() notes = '';
   @Input() locked = false;
+  @Input() visible = true;
 
   @Output() professionalFeeChange = new EventEmitter<number>();
   @Output() paymentModeChange = new EventEmitter<ProfessionalFeePaymentMode>();

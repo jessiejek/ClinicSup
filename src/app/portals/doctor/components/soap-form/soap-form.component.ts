@@ -30,11 +30,11 @@ export interface SoapFormValue {
   standalone: true,
   imports: [NgFor, NgIf, ReactiveFormsModule, BannerComponent, IonItem, IonLabel, IonTextarea],
   template: `
-    <section class="clinic-card section-card" [class.section-card--locked]="locked">
+    <section class="clinic-card section-card" [class.section-card--locked]="locked" aria-labelledby="soap-notes-heading">
       <div class="section-card__head">
         <div class="section-card__title-row">
           <div>
-            <h3>SOAP Notes <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
+            <h3 id="soap-notes-heading">SOAP Notes <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
             <p>Document the consultation in a structured format.</p>
           </div>
           <button type="button" class="section-card__action" [disabled]="!lastVisitSoap" (click)="loadFromLastVisit.emit()">
@@ -253,6 +253,11 @@ export class SoapFormComponent implements OnChanges {
     if (!this.hostRef.nativeElement.contains(event.target as Node)) {
       this.openTemplateFor = null;
     }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.openTemplateFor = null;
   }
 
   toggleTemplate(field: keyof SoapFormValue, event: MouseEvent): void {

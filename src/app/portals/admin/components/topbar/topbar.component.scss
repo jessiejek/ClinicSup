@@ -109,6 +109,38 @@
   color: var(--clinic-text-muted);
 }
 
+.topbar__role-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+}
+
+.role-badge--physician {
+  background: #1d4ed8;
+}
+
+.role-badge--nurse {
+  background: #0f766e;
+}
+
+.role-badge--ma {
+  background: #6b7280;
+}
+
+.role-badge--admin {
+  background: #7c3aed;
+}
+
+.role-badge--front-desk {
+  background: #4b5563;
+}
+
 @media (max-width: 768px) {
   .topbar {
     gap: var(--space-2);

@@ -52,7 +52,107 @@
 .cr-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .cr-btn--full { width: 100%; justify-content: center; height: 38px; }
 .cr-complete-wrap { display: inline-flex; }
+.cr-complete-wrap__message {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+}
 .error-text { color: #dc2626; font-size: 14px; max-width: 400px; text-align: center; line-height: 1.5; }
+
+.cr-network-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cr-network-banner__retry {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: #5d3e8e;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.shortcut-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  z-index: 195;
+}
+
+.shortcut-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 196;
+}
+
+.shortcut-modal__card {
+  width: min(720px, 100%);
+  max-height: min(80vh, 720px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 22px;
+  padding: 20px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+}
+
+.shortcut-modal__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.shortcut-modal__head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.shortcut-modal__close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 20px;
+}
+
+.shortcut-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+
+.shortcut-table th,
+.shortcut-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 13px;
+  text-align: left;
+}
+
+.shortcut-table th {
+  color: #0f172a;
+}
 
 .cr-save-state {
   display: inline-flex;

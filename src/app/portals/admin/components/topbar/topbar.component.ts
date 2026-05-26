@@ -1,16 +1,18 @@
+import { NgClass } from '@angular/common';
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { closeOutline, menuOutline, searchOutline } from 'ionicons/icons';
 import { AuthUser, Role } from '../../../../core/models';
+import { getClinicalRoleBadge, resolveClinicalRole } from '../../../../core/utils/clinical-role.util';
 import { AvatarComponent } from '../../../../shared/components/avatar/avatar.component';
 import { NotificationBellComponent } from '../notification-bell/notification-bell.component';
 
 @Component({
   selector: 'app-admin-topbar',
   standalone: true,
-  imports: [IonIcon, AvatarComponent, NotificationBellComponent],
+  imports: [IonIcon, AvatarComponent, NotificationBellComponent, NgClass],
   template: `
     <header class="topbar">
       <div class="topbar__title-group">
@@ -29,7 +31,9 @@ import { NotificationBellComponent } from '../notification-bell/notification-bel
           <app-avatar [name]="currentUser?.fullName || 'Admin'" size="sm"></app-avatar>
           <span class="topbar__user-meta">
             <span class="topbar__user-name">{{ currentUser?.fullName || 'Admin User' }}</span>
-            <span class="topbar__user-role">{{ currentUser?.role || 'Admin' }}</span>
+            <span class="topbar__user-role">
+              <span class="topbar__role-badge" [ngClass]="roleBadge.className">{{ roleBadge.label }}</span>
+            </span>
           </span>
         </button>
       </div>
@@ -61,6 +65,10 @@ export class TopbarComponent {
 
   constructor() {
     addIcons({ menuOutline, closeOutline, searchOutline });
+  }
+
+  get roleBadge() {
+    return getClinicalRoleBadge(resolveClinicalRole(this.currentUser));
   }
 
   goToProfile(): void {

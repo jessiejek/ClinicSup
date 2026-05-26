@@ -37,11 +37,11 @@ export interface VaccinationFormDraft {
   standalone: true,
   imports: [DatePipe, FormsModule, NgFor, NgIf, IonSelect, IonSelectOption],
   template: `
-    <section class="clinic-card section-card" [class.section-card--locked]="locked">
+    <section class="clinic-card section-card" [class.section-card--locked]="locked || !canEdit" aria-labelledby="vaccinations-heading">
       <div class="section-card__head">
         <div class="section-card__title-row" (click)="toggleExpanded()">
           <div>
-            <h3>Vaccinations <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
+            <h3 id="vaccinations-heading">Vaccinations <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
             <p>Add vaccination records for this patient. Required fields are marked with *.</p>
           </div>
           <button type="button" class="vf-expand-btn" (click)="expandAndStart($event)">
@@ -75,15 +75,15 @@ export interface VaccinationFormDraft {
           <div class="vf-grid">
             <div class="vf-f vf-full">
               <label>Vaccine Name *</label>
-              <input [(ngModel)]="draft.vaccineName" name="vaccineName" placeholder="e.g. Influenza, Hepatitis B" required />
+              <input [(ngModel)]="draft.vaccineName" name="vaccineName" placeholder="e.g. Influenza, Hepatitis B" required [disabled]="locked || !canEdit" />
             </div>
             <div class="vf-f">
               <label>Administered Date *</label>
-              <input type="date" [(ngModel)]="draft.administeredDate" name="administeredDate" required />
+              <input type="date" [(ngModel)]="draft.administeredDate" name="administeredDate" required [disabled]="locked || !canEdit" />
             </div>
             <div class="vf-f">
               <label>Status *</label>
-              <ion-select [interface]="selectInterface" [(ngModel)]="draft.status" name="status">
+              <ion-select [interface]="selectInterface" [(ngModel)]="draft.status" name="status" [disabled]="locked || !canEdit">
                 <ion-select-option *ngFor="let s of statusOptions" [value]="s">{{ s }}</ion-select-option>
               </ion-select>
             </div>
@@ -97,61 +97,61 @@ export interface VaccinationFormDraft {
             <ng-container *ngIf="showAdditionalFields">
               <div class="vf-f">
                 <label>Manufacturer</label>
-                <input [(ngModel)]="draft.manufacturer" name="manufacturer" placeholder="e.g. Sanofi" />
+                <input [(ngModel)]="draft.manufacturer" name="manufacturer" placeholder="e.g. Sanofi" [disabled]="locked || !canEdit" />
               </div>
               <div class="vf-f">
                 <label>Lot Number</label>
-                <input [(ngModel)]="draft.lotNumber" name="lotNumber" placeholder="e.g. L12345" />
+                <input [(ngModel)]="draft.lotNumber" name="lotNumber" placeholder="e.g. L12345" [disabled]="locked || !canEdit" />
               </div>
               <div class="vf-f">
                 <label>Dose Amount</label>
-                <input type="number" min="0" step="0.01" [(ngModel)]="draft.doseAmount" name="doseAmount" placeholder="e.g. 0.5" />
+                <input type="number" min="0" step="0.01" [(ngModel)]="draft.doseAmount" name="doseAmount" placeholder="e.g. 0.5" [disabled]="locked || !canEdit" />
               </div>
               <div class="vf-f">
                 <label>Dose Unit</label>
-                <ion-select [interface]="selectInterface" [(ngModel)]="draft.doseUnit" name="doseUnit">
+                <ion-select [interface]="selectInterface" [(ngModel)]="draft.doseUnit" name="doseUnit" [disabled]="locked || !canEdit">
                   <ion-select-option value="">-- Select --</ion-select-option>
                   <ion-select-option *ngFor="let u of doseUnitOptions" [value]="u">{{ u }}</ion-select-option>
                 </ion-select>
               </div>
               <div class="vf-f">
                 <label>Route</label>
-                <ion-select [interface]="selectInterface" [(ngModel)]="draft.route" name="route">
+                <ion-select [interface]="selectInterface" [(ngModel)]="draft.route" name="route" [disabled]="locked || !canEdit">
                   <ion-select-option value="">-- Select --</ion-select-option>
                   <ion-select-option *ngFor="let r of routeOptions" [value]="r">{{ r }}</ion-select-option>
                 </ion-select>
               </div>
               <div class="vf-f">
                 <label>Site</label>
-                <ion-select [interface]="selectInterface" [(ngModel)]="draft.site" name="site">
+                <ion-select [interface]="selectInterface" [(ngModel)]="draft.site" name="site" [disabled]="locked || !canEdit">
                   <ion-select-option value="">-- Select --</ion-select-option>
                   <ion-select-option *ngFor="let s of siteOptions" [value]="s">{{ s }}</ion-select-option>
                 </ion-select>
               </div>
               <div class="vf-f">
                 <label>Next Due Date</label>
-                <input type="date" [(ngModel)]="draft.nextDueDate" name="nextDueDate" />
+                <input type="date" [(ngModel)]="draft.nextDueDate" name="nextDueDate" [disabled]="locked || !canEdit" />
               </div>
               <div class="vf-f">
                 <label>VIS Edition Date</label>
-                <input type="date" [(ngModel)]="draft.visEditionDate" name="visEditionDate" />
+                <input type="date" [(ngModel)]="draft.visEditionDate" name="visEditionDate" [disabled]="locked || !canEdit" />
               </div>
               <div class="vf-f">
                 <label>VIS Provided Date</label>
-                <input type="date" [(ngModel)]="draft.visProvidedDate" name="visProvidedDate" />
+                <input type="date" [(ngModel)]="draft.visProvidedDate" name="visProvidedDate" [disabled]="locked || !canEdit" />
               </div>
               <div class="vf-f vf-full">
                 <label>Notes</label>
-                <textarea [(ngModel)]="draft.notes" name="notes" rows="2" placeholder="Any additional notes about this vaccination..."></textarea>
+                <textarea [(ngModel)]="draft.notes" name="notes" rows="2" placeholder="Any additional notes about this vaccination..." [disabled]="locked || !canEdit"></textarea>
               </div>
               <div class="vf-f vf-full">
                 <label>Reaction Notes</label>
-                <textarea [(ngModel)]="draft.reactionNotes" name="reactionNotes" rows="2" placeholder="Any adverse reactions or observations..."></textarea>
+                <textarea [(ngModel)]="draft.reactionNotes" name="reactionNotes" rows="2" placeholder="Any adverse reactions or observations..." [disabled]="locked || !canEdit"></textarea>
               </div>
             </ng-container>
           </div>
 
-          <div class="vf-actions">
+          <div class="vf-actions" *ngIf="canEdit && !locked">
             <button type="button" class="btn-primary" [disabled]="locked || !draft.vaccineName.trim() || !draft.administeredDate" (click)="addVaccination()">
               {{ editIdx >= 0 ? 'Update Vaccination' : 'Add Vaccination' }}
             </button>
@@ -229,6 +229,7 @@ export interface VaccinationFormDraft {
 })
 export class VaccinationFormComponent implements OnChanges {
   @Input() locked = false;
+  @Input() canEdit = true;
   @Input() auditText = 'Not yet edited this visit';
   @Input() existingVaccinations: any[] = [];
   @Input() draftVaccinations: CreatePatientVaccinationRequest[] = [];

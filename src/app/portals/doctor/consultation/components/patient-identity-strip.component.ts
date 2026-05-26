@@ -1,5 +1,5 @@
 import { DatePipe, NgIf, NgClass, NgStyle } from '@angular/common';
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { Allergy, Booking, Patient } from '../../../../core/models';
 import { AllergyBadgeComponent, AllergyConfirmationState } from './allergy-badge.component';
 import { buildPatientAvatarStyle } from './patient-avatar.util';
@@ -12,6 +12,8 @@ import { buildPatientAvatarStyle } from './patient-avatar.util';
     <section
       class="pis"
       [class.pis--expanded]="expanded"
+      role="region"
+      aria-label="Patient identity"
       (click)="toggleExpanded()"
       (keydown.enter)="toggleExpanded()"
       (keydown.space)="$event.preventDefault(); toggleExpanded()"
@@ -24,11 +26,20 @@ import { buildPatientAvatarStyle } from './patient-avatar.util';
 
       <div class="pis__main">
         <strong class="pis__name">{{ fullNameUpper }}</strong>
-        <div class="pis__badges">
-          <app-allergy-badge [allergies]="allergies" [confirmationState]="allergyConfirmationState"></app-allergy-badge>
-          <span
-            *ngIf="showDetails"
-            class="pis__payment"
+      <div class="pis__badges">
+        <app-allergy-badge [allergies]="allergies" [confirmationState]="allergyConfirmationState"></app-allergy-badge>
+        <button
+          *ngIf="showDetails"
+          type="button"
+          class="pis__history"
+          (click)="emitHistoryClick($event)"
+        >
+          <i class="ti ti-history"></i>
+          <span>History</span>
+        </button>
+        <span
+          *ngIf="showDetails"
+          class="pis__payment"
             [class.pis__payment--paid]="isPaid"
             [class.pis__payment--unpaid]="!isPaid"
           >
@@ -105,6 +116,25 @@ import { buildPatientAvatarStyle } from './patient-avatar.util';
         flex-wrap: wrap;
         gap: 8px;
         align-items: center;
+      }
+
+      .pis__history {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: #334155;
+        font-size: 0.72rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .pis__history i {
+        font-size: 14px;
       }
 
       .pis__details {
@@ -211,6 +241,11 @@ import { buildPatientAvatarStyle } from './patient-avatar.util';
           flex-wrap: nowrap;
           overflow: hidden;
         }
+
+        .pis__history {
+          min-height: 24px;
+          padding: 0 8px;
+        }
       }
     `
   ]
@@ -221,6 +256,7 @@ export class PatientIdentityStripComponent implements OnInit, OnDestroy {
   @Input() allergies: Allergy[] = [];
   @Input() allergyConfirmationState: AllergyConfirmationState = null;
   @Input() expanded = false;
+  @Output() historyClick = new EventEmitter<void>();
 
   private timerHandle: ReturnType<typeof setInterval> | null = null;
   private now = Date.now();
@@ -319,6 +355,11 @@ export class PatientIdentityStripComponent implements OnInit, OnDestroy {
     if (!this.isDesktopViewport()) {
       this.expanded = !this.expanded;
     }
+  }
+
+  emitHistoryClick(event: Event): void {
+    event.stopPropagation();
+    this.historyClick.emit();
   }
 
   private isDesktopViewport(): boolean {

@@ -1,5 +1,5 @@
 import { AsyncPipe, DatePipe, NgClass, NgFor, NgIf, NgStyle } from '@angular/common';
-import { AfterViewChecked, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { AfterViewChecked, Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ModalController, ToastController } from '@ionic/angular/standalone';
 import { BehaviorSubject, Observable, combineLatest, firstValueFrom, of } from 'rxjs';
@@ -12,7 +12,8 @@ import {
   Patient,
   Prescription,
   PrescriptionItem,
-  VitalSigns
+  VitalSigns,
+  ClinicalRole
 } from '../../../core/models';
 import { CreatePatientVaccinationRequest } from '../../../core/models/vaccination.models';
 import { ApiService } from '../../../core/services/api.service';
@@ -25,6 +26,9 @@ import {
 } from '../../../core/services/medical-records.service';
 import { PatientStateService } from '../../../core/services/patient-state.service';
 import { PatientVaccinationsService } from '../../../core/services/patient-vaccinations.service';
+import { PatientClinicalHistoryService } from '../../../core/services/patient-clinical-history.service';
+import { OfflineConsultationQueueService } from '../../../core/services/offline-consultation-queue.service';
+import { DrugInteractionService } from '../../../core/services/drug-interaction.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { FollowUpDraftView } from '../components/follow-up-form/follow-up-form.component';
@@ -52,6 +56,9 @@ import { ConsultationOverviewComponent } from './components/consultation-overvie
 import { ConsultationWorkspaceComponent } from './components/consultation-workspace.component';
 import { ConsultationPageVm } from './doctor-consultation.types';
 import { PatientMediaPanelComponent } from '../../../shared/components/patient-media-panel/patient-media-panel.component';
+import { PatientClinicalHistoryDto } from '../../../core/models/patient-clinical-history.models';
+import { PatientClinicalHistoryDrawerComponent } from './components/patient-clinical-history-drawer.component';
+import { resolveClinicalRole } from '../../../core/utils/clinical-role.util';
 import {
   ConsultationRecordResponse,
   ConsultationRecordUpdateRequest
@@ -149,6 +156,7 @@ type ProgressSectionId =
     ConsultationOverviewComponent,
     ConsultationSummaryComponent,
     ConsultationWorkspaceComponent,
+    PatientClinicalHistoryDrawerComponent,
     PatientIdentityStripComponent,
     PatientMediaPanelComponent,
     StatusBadgeComponent
@@ -254,9 +262,10 @@ type ProgressSectionId =
                   <span class="cr-save-state__icon" *ngIf="saveState === 'failed'"></span>
                   <span class="cr-save-state__label">{{ getSaveStateLabel() }}</span>
                 </div>
-                <button class="cr-btn cr-btn--primary" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft || isAutosaving">{{ isSavingDraft ? 'Saving...' : 'Save Draft' }}</button>
+                <button class="cr-btn cr-btn--primary" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft || isAutosaving">{{ getDraftButtonLabel() }}</button>
                 <span class="cr-complete-wrap" [attr.title]="getCompleteTooltip(vm)">
                   <button
+                    *ngIf="currentClinicalRole === 'physician'"
                     class="cr-btn cr-btn--complete"
                     [class.cr-btn--complete--ready]="!isCompleteActionDisabled(vm)"
                     (click)="requestCompletion(vm)"
@@ -264,8 +273,17 @@ type ProgressSectionId =
                   >
                     Complete Consultation
                   </button>
+                  <span *ngIf="currentClinicalRole !== 'physician'" class="cr-complete-wrap__message">
+                    Consultation can only be completed by the attending physician.
+                  </span>
                 </span>
               </div>
+            </div>
+
+            <div class="cr-network-banner" *ngIf="!isNetworkOnline || networkBannerMessage">
+              <i class="ti" [ngClass]="isNetworkOnline ? 'ti-wifi' : 'ti-wifi-off'"></i>
+              <span>{{ networkBannerMessage || 'You are offline — Changes are being saved locally and will sync when reconnected.' }}</span>
+              <button type="button" class="cr-network-banner__retry" *ngIf="networkSyncFailed" (click)="retrySync()">Retry sync</button>
             </div>
 
               <div class="cr-patient" id="patient-identity-card">
@@ -274,7 +292,6 @@ type ProgressSectionId =
                   <strong>{{ vm.patient.firstName }} {{ vm.patient.lastName }}</strong>
                   <span>{{ vm.patient.sex || '--' }} &middot; {{ vm.patient.dateOfBirth ? (calcAge(vm.patient.dateOfBirth) + ' yrs') : '--' }}</span>
                   <span>{{ vm.booking.serviceNames?.join(', ') || vm.booking.serviceName || 'Service' }}</span>
-                  <a class="cr-clinical-link" [routerLink]="['/doctor/patients', vm.patient.id]" (click)="$event.stopPropagation()">View Clinical History &rarr;</a>
               </div>
               <div class="cr-patient__meta">
                 <div><span class="ml">Fee</span><span class="mv">PHP {{ vm.booking.consultationFeeSnapshot ?? vm.booking.totalFee ?? 0 }}</span></div>
@@ -290,6 +307,8 @@ type ProgressSectionId =
             [booking]="vm.booking"
             [allergies]="vm.allergies"
             [allergyConfirmationState]="getAllergyConfirmationState(vm)"
+            [expanded]="identityStripExpanded"
+            (historyClick)="openPatientClinicalHistory(vm)"
           ></app-patient-identity-strip>
 
           <nav class="cr-mobile-tabs" aria-label="Consultation sections">
@@ -307,7 +326,7 @@ type ProgressSectionId =
             </a>
           </nav>
 
-          <div class="cr-body">
+          <div class="cr-body" role="main">
             <div class="cr-workspace">
               <app-consultation-overview
                 [patient]="vm.patient"
@@ -322,6 +341,7 @@ type ProgressSectionId =
                 <app-consultation-workspace
                   [vm]="vm"
                   [locked]="isWorkspaceLocked(vm)"
+                  [clinicalRole]="currentClinicalRole"
                   [prescriptionItems]="prescriptionItems"
                   [professionalFee]="professionalFeeAmount"
                   [professionalFeePaymentMode]="professionalFeePaymentMode"
@@ -342,6 +362,8 @@ type ProgressSectionId =
                   (professionalFeeValidityChange)="pfDecisionValid = $event"
                   (vaccinationsAdded)="onVaccinationsAdded($event)"
                   (loadFromLastVisit)="openLastVisitSoap(vm)"
+                  (requestPrescription)="requestAttendingPhysician('prescription', vm)"
+                  (requestLabOrder)="requestAttendingPhysician('lab-order', vm)"
                 ></app-consultation-workspace>
               </div>
             </div>
@@ -356,13 +378,13 @@ type ProgressSectionId =
               <i class="ti ti-progress"></i>
             </button>
 
-            <div class="cr-side" [class.is-open]="progressSidebarOpen">
+            <div class="cr-side" [class.is-open]="progressSidebarOpen" role="navigation" aria-label="Consultation sections">
               <div class="cr-side-card">
                 <div class="cr-progress-summary">
                   <div class="cr-progress-summary__label">
-                    {{ getCompletedSectionCount(vm) === 7 ? 'Ready to complete ✓' : (getCompletedSectionCount(vm) + ' of 7 sections complete') }}
+                    {{ getCompletedSectionCount(vm) === getVisibleProgressSectionIds().length ? 'Ready to complete ✓' : (getCompletedSectionCount(vm) + ' of ' + getVisibleProgressSectionIds().length + ' sections complete') }}
                   </div>
-                  <div class="cr-progress-summary__bar" [class.cr-progress-summary__bar--ready]="getCompletedSectionCount(vm) === 7">
+                  <div class="cr-progress-summary__bar" [class.cr-progress-summary__bar--ready]="getCompletedSectionCount(vm) === getVisibleProgressSectionIds().length">
                     <span class="cr-progress-summary__fill" [style.width.%]="getProgressPercent(vm)"></span>
                   </div>
                 </div>
@@ -422,7 +444,7 @@ type ProgressSectionId =
                       <span class="cr-progress__label">Follow-up</span>
                     </a>
                   </li>
-                  <li class="cr-progress__item"
+                  <li *ngIf="currentClinicalRole !== 'nurse' && currentClinicalRole !== 'medical_assistant'" class="cr-progress__item"
                       [class.warning]="getProgressStepState('section-pf-decision', vm) === 'warning'"
                       [class.done]="getProgressStepState('section-pf-decision', vm) === 'complete'"
                       [class.active]="isStepActive('section-pf-decision')">
@@ -445,13 +467,54 @@ type ProgressSectionId =
 
           <div class="cr-mobile-actions">
             <button type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--outline" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft || isAutosaving">
-              {{ isSavingDraft ? 'Saving...' : 'Save Draft' }}
+              {{ getDraftButtonLabel() }}
             </button>
-            <button type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--primary" (click)="requestCompletion(vm)" [disabled]="isCompleteActionDisabled(vm)">
+            <button *ngIf="currentClinicalRole === 'physician'" type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--primary" (click)="requestCompletion(vm)" [disabled]="isCompleteActionDisabled(vm)">
               Complete ▶
+            </button>
+            <button *ngIf="currentClinicalRole !== 'physician'" type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--primary" disabled>
+              Physician Only
             </button>
           </div>
         </ng-template>
+
+        <app-patient-clinical-history-drawer
+          [isOpen]="clinicalHistoryDrawerOpen"
+          [patientName]="clinicalHistoryPatientName"
+          [history]="clinicalHistory"
+          (close)="closeClinicalHistoryDrawer()"
+        ></app-patient-clinical-history-drawer>
+
+        <div class="shortcut-backdrop" *ngIf="shortcutsHelpOpen" (click)="shortcutsHelpOpen = false"></div>
+        <section
+          class="shortcut-modal"
+          *ngIf="shortcutsHelpOpen"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="shortcutsHelpTitle"
+        >
+          <div class="shortcut-modal__card">
+            <div class="shortcut-modal__head">
+              <h2 id="shortcutsHelpTitle">Keyboard Shortcuts</h2>
+              <button type="button" class="shortcut-modal__close" (click)="shortcutsHelpOpen = false" aria-label="Close shortcuts help">×</button>
+            </div>
+            <table class="shortcut-table">
+              <tr><th>Shortcut</th><th>Action</th></tr>
+              <tr><td>Ctrl/Cmd + S</td><td>Save Draft</td></tr>
+              <tr><td>Ctrl/Cmd + Enter</td><td>Open Complete Consultation flow</td></tr>
+              <tr><td>Ctrl/Cmd + 1</td><td>Patient Summary</td></tr>
+              <tr><td>Ctrl/Cmd + 2</td><td>Vitals</td></tr>
+              <tr><td>Ctrl/Cmd + 3</td><td>SOAP</td></tr>
+              <tr><td>Ctrl/Cmd + 4</td><td>Diagnosis</td></tr>
+              <tr><td>Ctrl/Cmd + 5</td><td>Prescription</td></tr>
+              <tr><td>Ctrl/Cmd + 6</td><td>Lab Orders</td></tr>
+              <tr><td>Ctrl/Cmd + 7</td><td>Vaccinations</td></tr>
+              <tr><td>Ctrl/Cmd + 8</td><td>Follow-up</td></tr>
+              <tr><td>Esc</td><td>Close open overlays</td></tr>
+              <tr><td>?</td><td>Open this help panel</td></tr>
+            </table>
+          </div>
+        </section>
 
         <div class="history-drawer-backdrop" *ngIf="historyDrawerOpen" (click)="closeHistoryDrawer()"></div>
         <aside class="history-drawer" *ngIf="historyDrawerOpen" role="dialog" aria-modal="true" aria-label="Consultation Edit History">
@@ -498,6 +561,9 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   private readonly doctorService = inject(DoctorService);
   private readonly medicalRecords = inject(MedicalRecordsService);
   private readonly modalCtrl = inject(ModalController);
+  private readonly offlineQueue = inject(OfflineConsultationQueueService);
+  private readonly patientClinicalHistoryService = inject(PatientClinicalHistoryService);
+  private readonly drugInteractionService = inject(DrugInteractionService);
   private readonly patientState = inject(PatientStateService);
   private readonly vaccinationService = inject(PatientVaccinationsService);
   private readonly route = inject(ActivatedRoute);
@@ -506,11 +572,12 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   private readonly reloadSubject = new BehaviorSubject(0);
 
   private currentVm: ConsultationPageVm | null = null;
+  currentClinicalRole: ClinicalRole = 'receptionist';
   private lastSavedDraftSnapshot = '';
   private lastAutosaveAt = 0;
   private autosaveTimer: ReturnType<typeof setTimeout> | null = null;
   private draftDirty = false;
-  private isNetworkOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  isNetworkOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
   isProfessionalFeeWaived = false;
   completionFinalAmount = 0;
@@ -534,6 +601,12 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   ];
   progressSidebarOpen = false;
   saveState: 'saved' | 'saving' | 'unsaved' | 'failed' = 'saved';
+  networkBannerMessage = '';
+  networkSyncFailed = false;
+  clinicalHistoryDrawerOpen = false;
+  clinicalHistory: PatientClinicalHistoryDto | null | undefined = undefined;
+  clinicalHistoryPatientName = 'Patient';
+  shortcutsHelpOpen = false;
 
   currentConsultationFee = 0;
   professionalFeeAmount = 0;
@@ -574,6 +647,8 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
       if (!bookingId || !user) {
         return of(null);
       }
+
+      this.currentClinicalRole = resolveClinicalRole(user);
 
       return this.bookingService.getBookingById$(bookingId).pipe(
         switchMap((booking) => {
@@ -658,6 +733,77 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
     this.identityObserver?.disconnect();
   }
 
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboardShortcuts(event: KeyboardEvent): void {
+    const key = event.key;
+    const isModifier = event.ctrlKey || event.metaKey;
+    const isTypingTarget = this.isEditableTarget(event.target);
+
+    if (key === '?') {
+      event.preventDefault();
+      this.shortcutsHelpOpen = true;
+      return;
+    }
+
+    if (key === 'Escape') {
+      this.shortcutsHelpOpen = false;
+      this.progressSidebarOpen = false;
+      this.clinicalHistoryDrawerOpen = false;
+      this.historyDrawerOpen = false;
+      return;
+    }
+
+    if (!isModifier) {
+      return;
+    }
+
+    if (key.toLowerCase() === 's') {
+      event.preventDefault();
+      if (this.currentVm) {
+        void this.saveDraft(this.currentVm);
+      }
+      return;
+    }
+
+    if (key === 'Enter') {
+      event.preventDefault();
+      if (this.currentVm && this.currentClinicalRole === 'physician') {
+        this.requestCompletion(this.currentVm);
+      }
+      return;
+    }
+
+    if (isTypingTarget) {
+      return;
+    }
+
+    const shortcutMap: Record<string, ProgressSectionId> = {
+      '1': 'section-soap',
+      '2': 'section-vitals',
+      '3': 'section-soap',
+      '4': 'section-diagnosis',
+      '5': 'section-prescription',
+      '6': 'section-lab-orders',
+      '7': 'section-followup',
+      '8': 'section-pf-decision'
+    };
+
+    const sectionId = shortcutMap[key];
+    if (sectionId) {
+      event.preventDefault();
+      this.scrollToSection(sectionId);
+    }
+  }
+
+  private isEditableTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+
+    const tagName = target.tagName.toLowerCase();
+    return tagName === 'input' || tagName === 'textarea' || target.isContentEditable;
+  }
+
   onVitalsChange(value: VitalSigns): void {
     this.vitalsValue = value;
     this.handleDraftMutation();
@@ -710,6 +856,40 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
     void this.openSoapHistoryModal(lastVisit);
   }
 
+  openPatientClinicalHistory(vm: ConsultationPageVm): void {
+    this.clinicalHistoryDrawerOpen = true;
+    this.clinicalHistoryPatientName = [vm.patient.firstName, vm.patient.lastName].filter(Boolean).join(' ') || 'Patient';
+    this.clinicalHistory = undefined;
+    this.patientClinicalHistoryService.getPatientClinicalHistory(vm.patient.id).pipe(take(1)).subscribe((history) => {
+      this.clinicalHistory = history;
+    });
+  }
+
+  closeClinicalHistoryDrawer(): void {
+    this.clinicalHistoryDrawerOpen = false;
+  }
+
+  async requestAttendingPhysician(kind: 'prescription' | 'lab-order', vm: ConsultationPageVm): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.apiService.post<{ ok: boolean }>('/consultation-requests/request-attending-physician', {
+          bookingId: vm.booking.id,
+          patientId: vm.patient.id,
+          kind,
+          requestedByRole: this.currentClinicalRole
+        })
+      );
+      await this.presentToast(
+        kind === 'prescription'
+          ? 'Prescription request sent to the attending physician.'
+          : 'Lab order request sent to the attending physician.',
+        'success'
+      );
+    } catch (error) {
+      await this.presentToast(extractApiErrorMessage(error, 'Could not send request to the attending physician.'), 'danger');
+    }
+  }
+
   private handleDraftMutation(): void {
     const currentSnapshot = this.createDraftSnapshot();
     this.draftDirty = currentSnapshot !== this.lastSavedDraftSnapshot;
@@ -725,10 +905,13 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
 
     if (!this.isNetworkOnline) {
       this.saveState = 'failed';
+      this.networkBannerMessage = 'You are offline — Changes are being saved locally and will sync when reconnected.';
+      void this.queueCurrentDraft('draft');
       return;
     }
 
     this.saveState = this.isAutosaving || this.isSavingDraft ? 'saving' : 'unsaved';
+    void this.queueCurrentDraft('draft');
     this.scheduleAutosave();
   }
 
@@ -782,6 +965,8 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
 
   private handleNetworkOffline = (): void => {
     this.isNetworkOnline = false;
+    this.networkBannerMessage = 'You are offline — Changes are being saved locally and will sync when reconnected.';
+    this.networkSyncFailed = false;
     if (this.autosaveTimer) {
       clearTimeout(this.autosaveTimer);
       this.autosaveTimer = null;
@@ -793,10 +978,24 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
 
   private handleNetworkOnline = (): void => {
     this.isNetworkOnline = true;
+    this.networkBannerMessage = 'Back online — syncing your changes...';
+    this.networkSyncFailed = false;
+    void this.syncQueuedDrafts();
     if (this.draftDirty) {
       void this.performAutosave();
     }
+    window.setTimeout(() => {
+      if (this.networkBannerMessage === 'Back online — syncing your changes...') {
+        this.networkBannerMessage = '';
+      }
+    }, 3200);
   };
+
+  async retrySync(): Promise<void> {
+    this.networkSyncFailed = false;
+    this.networkBannerMessage = 'Back online — syncing your changes...';
+    await this.syncQueuedDrafts();
+  }
 
   getSaveStateLabel(): string {
     switch (this.saveState) {
@@ -811,21 +1010,20 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
     }
   }
 
+  getDraftButtonLabel(): string {
+    if (!this.isNetworkOnline) {
+      return 'Saved Locally';
+    }
+    return this.isSavingDraft ? 'Saving...' : 'Save Draft';
+  }
+
   private initializeObservers(): void {
     if (this.observersInitialized || typeof document === 'undefined') {
       return;
     }
 
     const patientCard = document.getElementById('patient-identity-card');
-    const sectionIds: ProgressSectionId[] = [
-      'section-soap',
-      'section-vitals',
-      'section-diagnosis',
-      'section-prescription',
-      'section-lab-orders',
-      'section-followup',
-      'section-pf-decision'
-    ];
+    const sectionIds = this.getVisibleProgressSectionIds();
     const sections = sectionIds
       .map((sectionId) => document.getElementById(sectionId))
       .filter((element): element is HTMLElement => Boolean(element));
@@ -879,6 +1077,10 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   }
 
   getCompleteTooltip(vm: ConsultationPageVm): string {
+    if (this.currentClinicalRole !== 'physician') {
+      return 'Consultation can only be completed by the attending physician.';
+    }
+
     const missing = this.getMissingCompletionFields(vm);
     if (missing.length > 0) {
       return `Missing: ${missing.join(', ')}`;
@@ -1195,16 +1397,42 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
     try {
       this.writeLocalDraft(vm);
       this.currentVm = vm;
+      const payload = this.buildConsultationRecordUpdatePayload();
+
+      if (!this.isNetworkOnline) {
+        await this.queueCurrentDraft('draft');
+        this.lastSavedDraftSnapshot = this.createDraftSnapshot();
+        this.lastAutosaveAt = Date.now();
+        this.draftDirty = true;
+        this.saveState = 'saved';
+        if (!autosave) {
+          void this.presentToast('Saved locally. Changes will sync when reconnected.', 'success');
+        }
+        return;
+      }
+
+      await firstValueFrom(this.bookingService.updateConsultationRecord(vm.booking.id, payload));
+      await this.queueCurrentDraft('draft');
+      await this.offlineQueue.clear(vm.booking.id);
       this.lastSavedDraftSnapshot = this.createDraftSnapshot();
       this.lastAutosaveAt = Date.now();
       this.draftDirty = false;
       this.saveState = 'saved';
+      this.networkBannerMessage = 'All changes synced ✓';
+      this.networkSyncFailed = false;
+      window.setTimeout(() => {
+        if (this.networkBannerMessage === 'All changes synced ✓') {
+          this.networkBannerMessage = '';
+        }
+      }, 2200);
       if (!autosave) {
-        void this.presentToast('Draft saved locally.', 'success');
+        void this.presentToast('Draft saved.', 'success');
       }
     } catch (error) {
       this.draftDirty = true;
       this.saveState = 'failed';
+      this.networkSyncFailed = true;
+      this.networkBannerMessage = 'Sync failed. Please retry syncing.';
       if (!autosave) {
         void this.presentToast(extractApiErrorMessage(error, 'Failed to save local draft.'), 'danger');
       }
@@ -1236,7 +1464,56 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
     }
   }
 
+  private async queueCurrentDraft(kind: 'draft' | 'complete'): Promise<void> {
+    if (!this.currentVm || typeof navigator === 'undefined') {
+      return;
+    }
+
+    try {
+      await this.offlineQueue.enqueue({
+        bookingId: this.currentVm.booking.id,
+        createdAt: new Date().toISOString(),
+        kind,
+        payload: this.buildConsultationRecordUpdatePayload()
+      });
+    } catch (error) {
+      console.warn('[DoctorConsultation] Failed to queue draft change', error);
+    }
+  }
+
+  private async syncQueuedDrafts(): Promise<void> {
+    if (!this.currentVm || !this.isNetworkOnline) {
+      return;
+    }
+
+    try {
+      await this.offlineQueue.flush(this.currentVm.booking.id, async () => {
+        await firstValueFrom(
+          this.bookingService.updateConsultationRecord(this.currentVm!.booking.id, this.buildConsultationRecordUpdatePayload())
+        );
+      });
+      this.lastSavedDraftSnapshot = this.createDraftSnapshot();
+      this.lastAutosaveAt = Date.now();
+      this.draftDirty = false;
+      this.networkBannerMessage = 'All changes synced ✓';
+      this.networkSyncFailed = false;
+      window.setTimeout(() => {
+        if (this.networkBannerMessage === 'All changes synced ✓') {
+          this.networkBannerMessage = '';
+        }
+      }, 2200);
+    } catch (error) {
+      this.networkSyncFailed = true;
+      this.networkBannerMessage = 'Sync failed. Please retry syncing.';
+      console.warn('[DoctorConsultation] Failed to sync offline changes', error);
+    }
+  }
+
   requestCompletion(vm: ConsultationPageVm): void {
+    if (this.currentClinicalRole !== 'physician') {
+      return;
+    }
+
     if (this.isCompleteActionDisabled(vm)) {
       void this.presentToast(
         'Complete the chief complaint, diagnosis, and required vitals before completing.',
@@ -1582,21 +1859,34 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
     return this.isCompletedConsultation(vm) || vm.consultation?.status === 'Locked';
   }
 
+  getVisibleProgressSectionIds(): ProgressSectionId[] {
+    return this.currentClinicalRole === 'nurse' || this.currentClinicalRole === 'medical_assistant'
+      ? [
+          'section-soap',
+          'section-vitals',
+          'section-diagnosis',
+          'section-prescription',
+          'section-lab-orders',
+          'section-followup'
+        ]
+      : [
+          'section-soap',
+          'section-vitals',
+          'section-diagnosis',
+          'section-prescription',
+          'section-lab-orders',
+          'section-followup',
+          'section-pf-decision'
+        ];
+  }
+
   getCompletedSectionCount(vm: ConsultationPageVm): number {
-    const sectionIds: ProgressSectionId[] = [
-      'section-soap',
-      'section-vitals',
-      'section-diagnosis',
-      'section-prescription',
-      'section-lab-orders',
-      'section-followup',
-      'section-pf-decision'
-    ];
-    return sectionIds.filter((sectionId) => this.getProgressStepState(sectionId, vm) === 'complete').length;
+    return this.getVisibleProgressSectionIds().filter((sectionId) => this.getProgressStepState(sectionId, vm) === 'complete').length;
   }
 
   getProgressPercent(vm: ConsultationPageVm): number {
-    return Math.round((this.getCompletedSectionCount(vm) / 7) * 100);
+    const total = this.getVisibleProgressSectionIds().length || 1;
+    return Math.round((this.getCompletedSectionCount(vm) / total) * 100);
   }
 
   openHistoryDrawer(vm: ConsultationPageVm): void {

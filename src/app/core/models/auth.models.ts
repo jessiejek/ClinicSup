@@ -1,10 +1,12 @@
 export type Role = 'Admin' | 'Staff' | 'Doctor' | 'Patient';
+export type ClinicalRole = 'physician' | 'nurse' | 'medical_assistant' | 'admin' | 'receptionist';
 
 export interface AuthUser {
   id: string;
   fullName: string;
   email: string;
   role: Role;
+  clinicalRole?: ClinicalRole | null;
   avatarUrl?: string;
   isFirstLogin: boolean;
 }

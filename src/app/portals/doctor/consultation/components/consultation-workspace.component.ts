@@ -1,6 +1,7 @@
 import { DatePipe, NgFor, NgIf } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { Diagnosis, PrescriptionItem, VitalSigns } from '../../../../core/models';
+import { ClinicalRole } from '../../../../core/models/auth.models';
 import { CreatePatientVaccinationRequest } from '../../../../core/models/vaccination.models';
 import { AllergyWarningBannerComponent } from '../../components/allergy-warning-banner/allergy-warning-banner.component';
 import { DiagnosisPickerComponent } from '../../components/diagnosis-picker/diagnosis-picker.component';
@@ -76,7 +77,10 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
           [items]="vm.existingPrescription?.items ?? emptyPrescriptionItems"
           [auditText]="getSectionAuditText('prescription', vm)"
           [locked]="locked"
+          [allergies]="vm.allergies"
+          [actionMode]="isPhysician ? 'edit' : 'request'"
           (itemsChange)="prescriptionItemsChange.emit($event)"
+          (requestAttendingPhysician)="requestPrescription.emit()"
         ></app-prescription-form>
 
         <app-lab-request-form
@@ -84,7 +88,9 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
           [value]="vm.labRequestDrafts"
           [auditText]="getSectionAuditText('lab-orders', vm)"
           [locked]="locked"
+          [actionMode]="isPhysician ? 'edit' : 'request'"
           (requestsChange)="labRequestsChange.emit($event)"
+          (requestAttendingPhysician)="requestLabOrder.emit()"
         ></app-lab-request-form>
 
         <div class="record-list clinic-card" *ngIf="vm.labRequests.length > 0">
@@ -97,6 +103,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
 
         <app-vaccination-form
           [locked]="locked"
+          [canEdit]="canEditVaccinations"
           [existingVaccinations]="vm.vaccinations"
           [draftVaccinations]="pendingVaccinations"
           [auditText]="getSectionAuditText('vaccinations', vm)"
@@ -119,6 +126,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         </div>
 
         <app-professional-fee-decision-form
+          *ngIf="showPfDecision"
           id="section-pf-decision"
           [currentConsultationFee]="vm.booking.consultationFeeSnapshot ?? vm.booking.totalFee ?? 0"
           [professionalFee]="professionalFee"
@@ -172,6 +180,7 @@ export class ConsultationWorkspaceComponent {
   @Input() professionalFeePaymentMode: ProfessionalFeePaymentMode = 'Cash';
   @Input() professionalFeeNotes = '';
   @Input() pendingVaccinations: CreatePatientVaccinationRequest[] = [];
+  @Input() clinicalRole: ClinicalRole = 'physician';
 
   @Output() vitalSignsChange = new EventEmitter<VitalSigns>();
   @Output() vitalsValidityChange = new EventEmitter<boolean>();
@@ -188,9 +197,23 @@ export class ConsultationWorkspaceComponent {
   @Output() professionalFeeValidityChange = new EventEmitter<boolean>();
   @Output() vaccinationsAdded = new EventEmitter<CreatePatientVaccinationRequest[]>();
   @Output() loadFromLastVisit = new EventEmitter<void>();
+  @Output() requestPrescription = new EventEmitter<void>();
+  @Output() requestLabOrder = new EventEmitter<void>();
 
   readonly emptyDiagnoses: Diagnosis[] = [];
   readonly emptyPrescriptionItems: PrescriptionItem[] = [];
+
+  get isPhysician(): boolean {
+    return this.clinicalRole === 'physician';
+  }
+
+  get canEditVaccinations(): boolean {
+    return this.clinicalRole === 'physician' || this.clinicalRole === 'nurse' || this.clinicalRole === 'medical_assistant';
+  }
+
+  get showPfDecision(): boolean {
+    return this.clinicalRole === 'physician' || this.clinicalRole === 'admin' || this.clinicalRole === 'receptionist';
+  }
 
   getLastVisitSoap(vm: ConsultationPageVm): SoapFormValue | null {
     const last = vm.recentConsultations[0];

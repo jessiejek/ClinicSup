@@ -61,9 +61,9 @@ const ICD10_ENTRIES = icd10Data as Icd10Entry[];
     IonSpinner
   ],
   template: `
-    <section class="clinic-card section-card" [class.section-card--locked]="locked">
+    <section class="clinic-card section-card" [class.section-card--locked]="locked" aria-labelledby="diagnosis-heading">
       <div class="section-card__head">
-        <h3>Diagnosis ({{ diagnoses.length }} added) <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
+        <h3 id="diagnosis-heading">Diagnosis ({{ diagnoses.length }} added) <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
         <p>Search the local ICD-10 list and pick one or more diagnoses.</p>
       </div>
 
@@ -79,9 +79,13 @@ const ICD10_ENTRIES = icd10Data as Icd10Entry[];
         <ion-item class="field field--full diagnosis-search">
           <ion-label position="stacked">Search ICD-10</ion-label>
           <ion-input
+            id="icd10-search-input"
             formControlName="search"
             placeholder="Search by code or description"
             [disabled]="locked"
+            aria-haspopup="listbox"
+            [attr.aria-expanded]="showResultsPanel"
+            aria-controls="icd10-results-list"
             (ionFocus)="searchFocused = true"
             (ionBlur)="handleSearchBlur()"
           ></ion-input>
@@ -89,11 +93,12 @@ const ICD10_ENTRIES = icd10Data as Icd10Entry[];
         </ion-item>
       </div>
 
-      <ion-list *ngIf="showResultsPanel" class="result-list">
+      <ion-list *ngIf="showResultsPanel" id="icd10-results-list" role="listbox" class="result-list">
         <button
           type="button"
           class="result-item"
           *ngFor="let entry of searchResults"
+          role="option"
           (mousedown)="selectEntry(entry)"
         >
           <div class="result-item__main">
@@ -219,6 +224,11 @@ export class DiagnosisPickerComponent implements OnChanges {
     if (!this.hostRef.nativeElement.contains(event.target as Node)) {
       this.searchFocused = false;
     }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.searchFocused = false;
   }
 
   ngOnChanges(changes: SimpleChanges): void {

@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { AuthError, Session, User } from '@supabase/supabase-js';
 import { Observable, catchError, from, map, of, switchMap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AuthUser, Role } from '../models';
+import { AuthUser, ClinicalRole, Role } from '../models';
 import { SupabaseService } from './supabase.service';
 import { TokenService } from './token.service';
 
@@ -265,6 +265,8 @@ export class AuthService {
       role = await this.ensureRole(user);
     }
 
+    const clinicalRole = resolveClinicalRoleHint(user, role);
+
     // If patient role, ensure a patients row exists
     if (role === 'Patient') {
       void this.ensurePatientRow(user, resolvedProfile).catch((error: unknown) => {
@@ -281,6 +283,7 @@ export class AuthService {
         'Clinic User',
       email: resolvedProfile?.email || user.email || '',
       role,
+      clinicalRole,
       avatarUrl: resolvedProfile?.avatar_url ?? undefined,
       isFirstLogin: false
     };
@@ -471,6 +474,49 @@ function mapSupabaseRoleToAngularRole(role: SupabaseAppRole): Role {
       return 'Doctor';
     case 'patient':
       return 'Patient';
+  }
+}
+
+function resolveClinicalRoleHint(user: User, legacyRole: Role): ClinicalRole {
+  const hint = [
+    user.user_metadata?.['clinical_role'],
+    user.user_metadata?.['app_role'],
+    user.user_metadata?.['job_title'],
+    user.user_metadata?.['position'],
+    user.user_metadata?.['role_label']
+  ]
+    .map((value) => (typeof value === 'string' ? value.trim().toLowerCase() : ''))
+    .find((value) => value.length > 0) ?? '';
+
+  if (hint.includes('physician') || hint.includes('doctor') || hint.includes('md')) {
+    return 'physician';
+  }
+
+  if (hint.includes('nurse') || hint.includes('rn')) {
+    return 'nurse';
+  }
+
+  if (hint.includes('assistant') || hint.includes('ma')) {
+    return 'medical_assistant';
+  }
+
+  if (hint.includes('reception') || hint.includes('front desk') || hint.includes('frontdesk')) {
+    return 'receptionist';
+  }
+
+  if (hint.includes('admin')) {
+    return 'admin';
+  }
+
+  switch (legacyRole) {
+    case 'Doctor':
+      return 'physician';
+    case 'Admin':
+      return 'admin';
+    case 'Staff':
+      return 'receptionist';
+    default:
+      return 'receptionist';
   }
 }
 
