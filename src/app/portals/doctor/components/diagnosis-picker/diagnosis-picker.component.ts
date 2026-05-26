@@ -26,6 +26,8 @@ import {
   IonItem,
   IonLabel,
   IonList,
+  IonSelect,
+  IonSelectOption,
   IonSpinner
 } from '@ionic/angular/standalone';
 
@@ -54,6 +56,8 @@ const ICD10_ENTRIES = icd10Data as Icd10Entry[];
     IonItem,
     IonLabel,
     IonList,
+    IonSelect,
+    IonSelectOption,
     IonSpinner
   ],
   template: `
@@ -66,11 +70,11 @@ const ICD10_ENTRIES = icd10Data as Icd10Entry[];
       <div class="diagnosis-controls" [formGroup]="form">
         <ion-item class="field">
           <ion-label position="stacked">Diagnosis Type</ion-label>
-          <select class="native-select" formControlName="diagnosisType" [disabled]="locked">
-            <option value="Primary">Primary</option>
-            <option value="Secondary">Secondary</option>
-            <option value="Comorbidity">Comorbidity</option>
-          </select>
+          <ion-select [interface]="selectInterface" formControlName="diagnosisType" [disabled]="locked">
+            <ion-select-option value="Primary">Primary</ion-select-option>
+            <ion-select-option value="Secondary">Secondary</ion-select-option>
+            <ion-select-option value="Comorbidity">Comorbidity</ion-select-option>
+          </ion-select>
         </ion-item>
         <ion-item class="field field--full diagnosis-search">
           <ion-label position="stacked">Search ICD-10</ion-label>
@@ -112,11 +116,17 @@ const ICD10_ENTRIES = icd10Data as Icd10Entry[];
           [class.comorbidity-chip]="diagnosis.type === 'Comorbidity'"
         >
           <ion-label>{{ diagnosis.code }} - {{ diagnosis.description }}</ion-label>
-          <select class="chip-type" [value]="diagnosis.type" (change)="updateDiagnosisType(diagnosis.id, $any($event.target).value)" [disabled]="locked">
-            <option value="Primary">Primary</option>
-            <option value="Secondary">Secondary</option>
-            <option value="Comorbidity">Comorbidity</option>
-          </select>
+          <ion-select
+            class="chip-type"
+            [interface]="selectInterface"
+            [value]="diagnosis.type"
+            (ionChange)="updateDiagnosisType(diagnosis.id, $any($event.detail.value))"
+            [disabled]="locked"
+          >
+            <ion-select-option value="Primary">Primary</ion-select-option>
+            <ion-select-option value="Secondary">Secondary</ion-select-option>
+            <ion-select-option value="Comorbidity">Comorbidity</ion-select-option>
+          </ion-select>
           <ion-button *ngIf="!locked" fill="clear" size="small" (click)="removeDiagnosis(diagnosis.id)">
             <ion-badge class="chip-remove">X</ion-badge>
           </ion-button>
@@ -158,6 +168,10 @@ export class DiagnosisPickerComponent implements OnChanges {
   loadingResults = false;
   searchFocused = false;
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  get selectInterface(): 'action-sheet' | 'popover' {
+    return typeof window !== 'undefined' && window.innerWidth < 768 ? 'action-sheet' : 'popover';
+  }
 
   get hasPrimaryDiagnosis(): boolean {
     return this.diagnoses.some((diagnosis) => diagnosis.type === 'Primary');

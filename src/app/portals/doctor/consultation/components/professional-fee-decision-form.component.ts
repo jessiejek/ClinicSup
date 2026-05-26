@@ -42,7 +42,7 @@ export type ProfessionalFeePaymentMode = 'Cash' | 'Card' | 'PayMClinic' | 'HMO' 
         </ion-item>
         <ion-item class="field">
           <ion-label position="stacked">Payment Mode *</ion-label>
-          <ion-select formControlName="paymentMode" interface="popover" [disabled]="locked">
+          <ion-select formControlName="paymentMode" [interface]="selectInterface" [disabled]="locked">
             <ion-select-option *ngFor="let mode of paymentModes" [value]="mode">{{ mode }}</ion-select-option>
           </ion-select>
         </ion-item>
@@ -130,6 +130,12 @@ export type ProfessionalFeePaymentMode = 'Cash' | 'Card' | 'PayMClinic' | 'HMO' 
           grid-template-columns: 1fr;
         }
       }
+
+      @media (max-width: 767px) {
+        .field {
+          min-height: 48px;
+        }
+      }
     `
   ]
 })
@@ -149,6 +155,9 @@ export class ProfessionalFeeDecisionFormComponent implements OnChanges {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly paymentModes: ProfessionalFeePaymentMode[] = ['Cash', 'Card', 'PayMClinic', 'HMO', 'Waived'];
+  get selectInterface(): 'action-sheet' | 'popover' {
+    return typeof window !== 'undefined' && window.innerWidth < 768 ? 'action-sheet' : 'popover';
+  }
 
   readonly form = this.fb.group({
     professionalFee: [0, [Validators.required, Validators.min(0)]],

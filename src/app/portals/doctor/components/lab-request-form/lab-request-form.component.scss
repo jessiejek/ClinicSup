@@ -49,7 +49,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
+  min-height: 44px;
+  padding: 10px 12px;
   border-radius: 999px;
   border: 1px solid var(--ion-color-primary);
   background: #fff;
@@ -107,6 +108,8 @@
   color: #dc2626;
   font-weight: 800;
   cursor: pointer;
+  min-width: 32px;
+  min-height: 32px;
 }
 
 .request-list {
@@ -139,4 +142,24 @@
 
 .field {
   --background: transparent;
+}
+
+@media (max-width: 767px) {
+  .quick-buttons,
+  .attachment-row {
+    gap: 8px;
+  }
+
+  .quick-chip {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .selected-order {
+    gap: 6px;
+  }
+
+  .request-item__actions button {
+    min-height: 32px;
+  }
 }

@@ -4,7 +4,7 @@ import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, map, of } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
-import { IonSearchbar, IonSpinner, ToastController, IonIcon, ModalController } from '@ionic/angular/standalone';
+import { IonSearchbar, IonSpinner, ToastController, IonIcon, ModalController, IonSelect, IonSelectOption } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
   documentTextOutline,
@@ -35,7 +35,7 @@ type PatientMediaItem = PatientDocument | PatientLabResult;
 @Component({
   selector: 'app-patient-media-panel',
   standalone: true,
-  imports: [DatePipe, NgFor, NgIf, ReactiveFormsModule, IonSearchbar, IonSpinner, SecureImageComponent, IonIcon],
+  imports: [DatePipe, NgFor, NgIf, ReactiveFormsModule, IonSearchbar, IonSpinner, SecureImageComponent, IonIcon, IonSelect, IonSelectOption],
   template: `
     <section class="patient-media-panel clinic-card">
       <div class="patient-media-panel__header">
@@ -89,12 +89,12 @@ type PatientMediaItem = PatientDocument | PatientLabResult;
 
           <label class="media-field media-field--full">
             <span>Related Booking</span>
-            <select class="filter-input" [formControl]="form.controls.bookingId">
-              <option value="">Select a booking</option>
-              <option *ngFor="let booking of bookings" [value]="booking.id">
+            <ion-select class="filter-input" [interface]="selectInterface" [formControl]="form.controls.bookingId">
+              <ion-select-option value="">Select a booking</ion-select-option>
+              <ion-select-option *ngFor="let booking of bookings" [value]="booking.id">
                 {{ formatBooking(booking) }}
-              </option>
-            </select>
+              </ion-select-option>
+            </ion-select>
             <div class="booking-helper-row">
               <small class="booking-helper" *ngIf="fromQueryParam">
                 <ion-icon name="checkmark-circle-outline"></ion-icon>
@@ -287,6 +287,10 @@ export class PatientMediaPanelComponent implements OnInit, OnChanges {
 
   get eyebrow(): string {
     return this.kind === 'document' ? 'Uploads' : 'Lab Records';
+  }
+
+  get selectInterface(): 'action-sheet' | 'popover' {
+    return typeof window !== 'undefined' && window.innerWidth < 768 ? 'action-sheet' : 'popover';
   }
 
   get kindLabelLower(): string {

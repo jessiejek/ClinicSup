@@ -17,6 +17,25 @@
   color: var(--clinic-text-secondary);
 }
 
+.section-card__head--toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.section-card__chevron {
+  font-size: 1rem;
+  color: #5b21b6;
+  flex-shrink: 0;
+}
+
 .empty-state {
   display: grid;
   gap: var(--space-3);
@@ -101,4 +120,46 @@
 
 .date-axis span {
   text-align: center;
+}
+
+.collapsed-mobile-state {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .vitals-grid,
+  .date-axis,
+  .empty-state {
+    display: none;
+  }
+
+  .collapsed-mobile-state {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0 0;
+  }
+
+  .collapsed-mobile-state__chart {
+    width: 72px;
+    height: 48px;
+    border-radius: 14px;
+    background:
+      linear-gradient(#e2e8f0 1px, transparent 1px) 0 0 / 100% 12px,
+      linear-gradient(90deg, #e2e8f0 1px, transparent 1px) 0 0 / 18px 100%;
+    opacity: 0.7;
+  }
+
+  .collapsed-mobile-state h4 {
+    margin: 0;
+    color: var(--clinic-text-primary);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+  }
+
+  .collapsed-mobile-state p {
+    margin: 4px 0 0;
+    color: var(--clinic-text-secondary);
+    font-size: var(--text-xs);
+  }
 }

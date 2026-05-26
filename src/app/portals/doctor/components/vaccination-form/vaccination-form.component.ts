@@ -1,6 +1,7 @@
 import { DatePipe, NgFor, NgIf } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { IonSelect, IonSelectOption } from '@ionic/angular/standalone';
 import {
   CreatePatientVaccinationRequest,
   VACCINATION_DOSE_UNIT_OPTIONS,
@@ -34,7 +35,7 @@ export interface VaccinationFormDraft {
 @Component({
   selector: 'app-vaccination-form',
   standalone: true,
-  imports: [DatePipe, FormsModule, NgFor, NgIf],
+  imports: [DatePipe, FormsModule, NgFor, NgIf, IonSelect, IonSelectOption],
   template: `
     <section class="clinic-card section-card" [class.section-card--locked]="locked">
       <div class="section-card__head">
@@ -82,9 +83,9 @@ export interface VaccinationFormDraft {
             </div>
             <div class="vf-f">
               <label>Status *</label>
-              <select [(ngModel)]="draft.status" name="status">
-                <option *ngFor="let s of statusOptions" [value]="s">{{ s }}</option>
-              </select>
+              <ion-select [interface]="selectInterface" [(ngModel)]="draft.status" name="status">
+                <ion-select-option *ngFor="let s of statusOptions" [value]="s">{{ s }}</ion-select-option>
+              </ion-select>
             </div>
 
             <div class="vf-toggle-row vf-full">
@@ -108,24 +109,24 @@ export interface VaccinationFormDraft {
               </div>
               <div class="vf-f">
                 <label>Dose Unit</label>
-                <select [(ngModel)]="draft.doseUnit" name="doseUnit">
-                  <option [ngValue]="null">-- Select --</option>
-                  <option *ngFor="let u of doseUnitOptions" [value]="u">{{ u }}</option>
-                </select>
+                <ion-select [interface]="selectInterface" [(ngModel)]="draft.doseUnit" name="doseUnit">
+                  <ion-select-option value="">-- Select --</ion-select-option>
+                  <ion-select-option *ngFor="let u of doseUnitOptions" [value]="u">{{ u }}</ion-select-option>
+                </ion-select>
               </div>
               <div class="vf-f">
                 <label>Route</label>
-                <select [(ngModel)]="draft.route" name="route">
-                  <option [ngValue]="null">-- Select --</option>
-                  <option *ngFor="let r of routeOptions" [value]="r">{{ r }}</option>
-                </select>
+                <ion-select [interface]="selectInterface" [(ngModel)]="draft.route" name="route">
+                  <ion-select-option value="">-- Select --</ion-select-option>
+                  <ion-select-option *ngFor="let r of routeOptions" [value]="r">{{ r }}</ion-select-option>
+                </ion-select>
               </div>
               <div class="vf-f">
                 <label>Site</label>
-                <select [(ngModel)]="draft.site" name="site">
-                  <option [ngValue]="null">-- Select --</option>
-                  <option *ngFor="let s of siteOptions" [value]="s">{{ s }}</option>
-                </select>
+                <ion-select [interface]="selectInterface" [(ngModel)]="draft.site" name="site">
+                  <ion-select-option value="">-- Select --</ion-select-option>
+                  <ion-select-option *ngFor="let s of siteOptions" [value]="s">{{ s }}</ion-select-option>
+                </ion-select>
               </div>
               <div class="vf-f">
                 <label>Next Due Date</label>
@@ -169,7 +170,7 @@ export interface VaccinationFormDraft {
     .section-card__head h3{margin:0}
     .section-card__head p{margin:4px 0 0;color:var(--clinic-text-secondary)}
     .section-card__title-row{display:flex;justify-content:space-between;gap:var(--space-3);align-items:flex-start;cursor:pointer}
-    .vf-expand-btn{border:1px solid #d8c9ea;background:#fff;color:#5b21b6;border-radius:999px;padding:8px 12px;font-size:var(--text-xs);font-weight:700;cursor:pointer;white-space:nowrap}
+      .vf-expand-btn{border:1px solid #d8c9ea;background:#fff;color:#5b21b6;border-radius:999px;padding:8px 12px;font-size:var(--text-xs);font-weight:700;cursor:pointer;white-space:nowrap}
     .vf-notice{background:#ede9fe;border:1px solid #c4b5fd;border-radius:var(--radius-md);padding:var(--space-2) var(--space-3)}
     .vf-notice p{font-size:var(--text-sm);color:#5b21b6;margin:0}
     .vf-accordion{display:grid;gap:var(--space-4);animation:vf-open 180ms ease-out}
@@ -194,8 +195,37 @@ export interface VaccinationFormDraft {
     .vf-remove{color:#dc2626!important}
     .vf-actions{display:flex;justify-content:flex-start}
     @keyframes vf-open{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
-    @media(max-width:640px){.vf-grid{grid-template-columns:1fr}.vf-item{flex-direction:column}.section-card__title-row{flex-direction:column}.vf-expand-btn{align-self:flex-start}}
-  `]
+      @media(max-width:640px){.vf-grid{grid-template-columns:1fr}.vf-item{flex-direction:column}.section-card__title-row{flex-direction:column}.vf-expand-btn{align-self:flex-start}}
+      @media (max-width: 767px) {
+        .vf-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .vf-full {
+          grid-column: 1 / -1;
+        }
+
+        .vf-f input,
+        .vf-f ion-select,
+        .vf-f textarea {
+          min-height: 48px;
+        }
+
+        .vf-toggle-btn,
+        .vf-expand-btn {
+          min-height: 48px;
+        }
+
+        .vf-item-acts button {
+          min-height: 32px;
+        }
+      }
+      @media (max-width: 374px) {
+        .vf-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    `]
 })
 export class VaccinationFormComponent implements OnChanges {
   @Input() locked = false;
@@ -216,6 +246,9 @@ export class VaccinationFormComponent implements OnChanges {
   readonly routeOptions = VACCINATION_ROUTE_OPTIONS;
   readonly siteOptions = VACCINATION_SITE_OPTIONS;
   readonly doseUnitOptions = VACCINATION_DOSE_UNIT_OPTIONS;
+  get selectInterface(): 'action-sheet' | 'popover' {
+    return typeof window !== 'undefined' && window.innerWidth < 768 ? 'action-sheet' : 'popover';
+  }
 
   toggleExpanded(): void {
     this.expanded = !this.expanded;

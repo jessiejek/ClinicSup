@@ -41,10 +41,10 @@ export interface FollowUpDraftView {
           <ion-label position="stacked">Reason</ion-label>
           <ion-input formControlName="reason" [disabled]="locked"></ion-input>
         </ion-item>
-        <div class="reminder-row">
+        <label class="reminder-row">
           <ion-checkbox formControlName="reminderEnabled" [disabled]="locked"></ion-checkbox>
           <span>Enable reminder</span>
-        </div>
+        </label>
       </form>
     </section>
   `,

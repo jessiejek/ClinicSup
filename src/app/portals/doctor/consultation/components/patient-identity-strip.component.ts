@@ -20,7 +20,7 @@ import { buildPatientAvatarStyle } from './patient-avatar.util';
       [attr.aria-expanded]="expanded"
       [attr.title]="mobileHint"
     >
-      <div class="pis__avatar" *ngIf="showDetails" [ngStyle]="avatarStyle">{{ initials }}</div>
+      <div class="pis__avatar" *ngIf="showDetails || isMobileViewport" [ngStyle]="avatarStyle">{{ initials }}</div>
 
       <div class="pis__main">
         <strong class="pis__name">{{ fullNameUpper }}</strong>
@@ -164,25 +164,52 @@ import { buildPatientAvatarStyle } from './patient-avatar.util';
       @media (max-width: 767px) {
         .pis {
           cursor: pointer;
+          min-height: 48px;
+          padding: 8px 12px;
+          gap: 10px;
         }
 
-        .pis__avatar,
+        .pis__avatar {
+          width: 36px;
+          height: 36px;
+          min-width: 36px;
+          min-height: 36px;
+          font-size: 16px;
+        }
+
         .pis__details {
           display: none;
         }
 
-        .pis--expanded .pis__avatar,
         .pis--expanded .pis__details {
           display: flex;
-        }
-
-        .pis--expanded {
-          align-items: flex-start;
         }
 
         .pis--expanded .pis__details {
           width: 100%;
           margin-top: 4px;
+        }
+
+        .pis--expanded {
+          align-items: flex-start;
+          flex-wrap: wrap;
+        }
+
+        .pis__main {
+          min-width: 0;
+        }
+
+        .pis__name {
+          display: block;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .pis__badges {
+          flex-wrap: nowrap;
+          overflow: hidden;
         }
       }
     `
@@ -248,6 +275,10 @@ export class PatientIdentityStripComponent implements OnInit, OnDestroy {
 
   get showDetails(): boolean {
     return this.isDesktopViewport() || this.expanded;
+  }
+
+  get isMobileViewport(): boolean {
+    return !this.isDesktopViewport();
   }
 
   get avatarStyle(): Record<string, string> {

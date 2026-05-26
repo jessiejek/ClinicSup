@@ -60,7 +60,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 767px) {
   .portal-layout__sidebar {
     position: fixed;
     left: -260px;
@@ -94,6 +94,22 @@
   .sidebar-overlay.is-visible {
     opacity: 1;
     pointer-events: auto;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .portal-layout__sidebar {
+    width: 48px;
+    flex-basis: 48px;
+  }
+
+  .portal-layout__sidebar.is-open {
+    width: 240px;
+    flex-basis: 240px;
+  }
+
+  .portal-layout__main {
+    min-width: 0;
   }
 }
 

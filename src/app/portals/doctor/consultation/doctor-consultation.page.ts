@@ -292,6 +292,21 @@ type ProgressSectionId =
             [allergyConfirmationState]="getAllergyConfirmationState(vm)"
           ></app-patient-identity-strip>
 
+          <nav class="cr-mobile-tabs" aria-label="Consultation sections">
+            <a
+              *ngFor="let sectionId of mobileSectionIds"
+              [href]="'#' + sectionId"
+              class="cr-mobile-tabs__item"
+              [class.active]="isStepActive(sectionId)"
+              [class.done]="getProgressStepState(sectionId, vm) === 'complete'"
+              [class.warning]="getProgressStepState(sectionId, vm) === 'warning'"
+              (click)="scrollToSection(sectionId, $event)"
+            >
+              <span>{{ getMobileTabLabel(sectionId) }}</span>
+              <i class="cr-mobile-tabs__dot" aria-hidden="true"></i>
+            </a>
+          </nav>
+
           <div class="cr-body">
             <div class="cr-workspace">
               <app-consultation-overview
@@ -331,7 +346,17 @@ type ProgressSectionId =
               </div>
             </div>
 
-            <div class="cr-side">
+            <button
+              type="button"
+              class="cr-progress-toggle"
+              (click)="toggleProgressSidebar()"
+              [attr.aria-expanded]="progressSidebarOpen"
+              aria-label="Toggle consultation progress"
+            >
+              <i class="ti ti-progress"></i>
+            </button>
+
+            <div class="cr-side" [class.is-open]="progressSidebarOpen">
               <div class="cr-side-card">
                 <div class="cr-progress-summary">
                   <div class="cr-progress-summary__label">
@@ -415,6 +440,16 @@ type ProgressSectionId =
                 <app-patient-media-panel kind="lab-result" [patientId]="vm.patient.id" [filterByBooking]="false" [allowUpload]="false" heading="Lab Results" headingIcon="ti ti-upload" subheading="Files uploaded by the patient"></app-patient-media-panel>
               </div>
             </div>
+            <div class="cr-side-backdrop" [class.is-visible]="progressSidebarOpen" (click)="closeProgressSidebar()"></div>
+          </div>
+
+          <div class="cr-mobile-actions">
+            <button type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--outline" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft || isAutosaving">
+              {{ isSavingDraft ? 'Saving...' : 'Save Draft' }}
+            </button>
+            <button type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--primary" (click)="requestCompletion(vm)" [disabled]="isCompleteActionDisabled(vm)">
+              Complete ▶
+            </button>
           </div>
         </ng-template>
 
@@ -489,6 +524,15 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   showStickyIdentityStrip = false;
   identityStripExpanded = false;
   activeSectionId: ProgressSectionId = 'section-soap';
+  mobileSectionIds: ProgressSectionId[] = [
+    'section-soap',
+    'section-vitals',
+    'section-diagnosis',
+    'section-prescription',
+    'section-lab-orders',
+    'section-followup'
+  ];
+  progressSidebarOpen = false;
   saveState: 'saved' | 'saving' | 'unsaved' | 'failed' = 'saved';
 
   currentConsultationFee = 0;
@@ -647,6 +691,14 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   onVaccinationsAdded(payloads: CreatePatientVaccinationRequest[]): void {
     this.pendingVaccinations = payloads;
     this.handleDraftMutation();
+  }
+
+  toggleProgressSidebar(): void {
+    this.progressSidebarOpen = !this.progressSidebarOpen;
+  }
+
+  closeProgressSidebar(): void {
+    this.progressSidebarOpen = false;
   }
 
   openLastVisitSoap(vm: ConsultationPageVm): void {
@@ -906,6 +958,25 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
         return 'Diagnosis';
       case 'section-prescription':
         return 'Prescription';
+      case 'section-lab-orders':
+        return 'Lab Orders';
+      case 'section-followup':
+        return 'Follow-up';
+      case 'section-pf-decision':
+        return 'PF Decision';
+    }
+  }
+
+  getMobileTabLabel(sectionId: ProgressSectionId): string {
+    switch (sectionId) {
+      case 'section-soap':
+        return 'Notes';
+      case 'section-vitals':
+        return 'Vitals';
+      case 'section-diagnosis':
+        return 'Diagnosis';
+      case 'section-prescription':
+        return 'Rx';
       case 'section-lab-orders':
         return 'Lab Orders';
       case 'section-followup':

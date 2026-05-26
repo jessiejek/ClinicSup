@@ -112,8 +112,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: #fee2e2;
   color: #dc2626;
@@ -123,5 +123,45 @@
 @media (max-width: 900px) {
   .diagnosis-controls {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .diagnosis-search {
+    position: static;
+  }
+
+  ion-select {
+    min-height: 48px;
+  }
+
+  .result-list {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    z-index: 80;
+    max-height: 75vh;
+    margin: 0;
+    padding: 14px;
+    border-radius: 20px 20px 0 0;
+    background: #fff;
+    box-shadow: 0 -20px 40px rgba(15, 23, 42, 0.18);
+  }
+
+  .result-item {
+    min-height: 52px;
+  }
+
+  .selected-list {
+    gap: 8px;
+  }
+
+  ion-chip {
+    min-height: 44px;
+  }
+
+  .chip-type {
+    min-height: 32px;
   }
 }

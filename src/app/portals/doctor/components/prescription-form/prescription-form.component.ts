@@ -119,7 +119,8 @@ import { PRESCRIPTION_DRUG_LIST } from '../prescription-builder/prescription-dru
     .pf-item-acts button:hover{border-color:var(--ion-color-primary);color:var(--ion-color-primary)}
     .pf-remove{color:#dc2626!important}
     .pf-empty{text-align:center;color:#94a3b8;font-size:var(--text-sm);padding:var(--space-4)}
-    @media(max-width:640px){.pf-grid{grid-template-columns:1fr}.pf-item{flex-direction:column}}
+    @media(max-width:767px){.pf-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pf-item{flex-direction:column}.pf-f input{min-height:48px}.pf-full{grid-column:1/-1}}
+    @media(max-width:374px){.pf-grid{grid-template-columns:1fr}}
   `]
 })
 export class PrescriptionFormComponent implements OnChanges {

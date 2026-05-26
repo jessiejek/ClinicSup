@@ -23,13 +23,17 @@ interface TrendMetric {
   standalone: true,
   imports: [DatePipe, NgFor, NgIf],
   template: `
-    <section class="clinic-card section-card">
-      <div class="section-card__head">
-        <h3>Vitals Trend</h3>
-        <p>Last 5 consultations with recorded vitals.</p>
-      </div>
+    <section class="clinic-card section-card" [class.is-collapsed-mobile]="!expanded">
+      <button type="button" class="section-card__head section-card__head--toggle" (click)="expanded = !expanded">
+        <div>
+          <h3>Vitals Trend</h3>
+          <p>Last 5 consultations with recorded vitals.</p>
+        </div>
+        <span class="section-card__chevron">{{ expanded ? '▴' : '▾' }}</span>
+      </button>
 
-      <ng-container *ngIf="points.length >= 2; else emptyTpl">
+      <ng-container *ngIf="expanded || !isMobileViewport(); else collapsedMobileTpl">
+        <ng-container *ngIf="points.length >= 2; else emptyTpl">
         <div class="vitals-grid">
           <article class="metric-card" *ngFor="let metric of metrics">
             <div class="metric-card__head">
@@ -64,6 +68,7 @@ interface TrendMetric {
           <span *ngFor="let point of points">{{ point.date | date : 'MMM d' }}</span>
         </div>
       </ng-container>
+      </ng-container>
 
       <ng-template #emptyTpl>
         <div class="empty-state">
@@ -89,12 +94,23 @@ interface TrendMetric {
           <p>Vitals trend appears after 3 consultations with recorded vitals.</p>
         </div>
       </ng-template>
+
+      <ng-template #collapsedMobileTpl>
+        <div class="collapsed-mobile-state">
+          <div class="collapsed-mobile-state__chart" aria-hidden="true"></div>
+          <div>
+            <h4>No trend data yet</h4>
+            <p>Vitals trend appears after 3 consultations with recorded vitals.</p>
+          </div>
+        </div>
+      </ng-template>
     </section>
   `,
   styleUrl: './vitals-trend-chart.component.scss'
 })
 export class VitalsTrendChartComponent implements OnChanges {
   @Input() consultations: Consultation[] = [];
+  expanded = false;
 
   readonly metrics: TrendMetric[] = [
     { key: 'systolic', label: 'Blood Pressure Systolic', unit: 'mmHg', color: '#2563EB' },
@@ -110,6 +126,10 @@ export class VitalsTrendChartComponent implements OnChanges {
     if (changes['consultations']) {
       this.points = this.buildPoints();
     }
+  }
+
+  isMobileViewport(): boolean {
+    return typeof window !== 'undefined' ? window.innerWidth < 768 : false;
   }
 
   latestValue(key: TrendMetric['key']): string {

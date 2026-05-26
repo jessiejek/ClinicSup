@@ -140,3 +140,39 @@
     align-self: flex-start;
   }
 }
+
+@media (max-width: 767px) {
+  .soap-grid {
+    gap: 10px;
+  }
+
+  .soap-field__head {
+    min-height: 48px;
+  }
+
+  .soap-template-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .soap-template-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    top: auto;
+    max-height: 50vh;
+    overflow: auto;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -20px 40px rgba(15, 23, 42, 0.18);
+    z-index: 80;
+  }
+
+  .soap-field ion-item {
+    min-height: 80px;
+  }
+
+  .soap-field ion-textarea {
+    min-height: 80px;
+  }
+}
