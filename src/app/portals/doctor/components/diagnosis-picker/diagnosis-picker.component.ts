@@ -138,7 +138,7 @@ const ICD10_ENTRIES = icd10Data as Icd10Entry[];
         </ion-chip>
       </div>
 
-      <p class="helper" *ngIf="!hasPrimaryDiagnosis">
+      <p class="helper helper--error" *ngIf="validationRequested && !hasPrimaryDiagnosis">
         At least one primary diagnosis is required before completing the consultation.
       </p>
 
@@ -153,6 +153,7 @@ export class DiagnosisPickerComponent implements OnChanges {
   @Input() value: Diagnosis[] = [];
   @Input() auditText = 'Not yet edited this visit';
   @Input() locked = false;
+  @Input() validationRequested = false;
 
   @Output() diagnosesChange = new EventEmitter<Diagnosis[]>();
   @Output() validityChange = new EventEmitter<boolean>();

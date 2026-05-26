@@ -29,6 +29,7 @@ import { PatientVaccinationsService } from '../../../core/services/patient-vacci
 import { PatientClinicalHistoryService } from '../../../core/services/patient-clinical-history.service';
 import { OfflineConsultationQueueService } from '../../../core/services/offline-consultation-queue.service';
 import { DrugInteractionService } from '../../../core/services/drug-interaction.service';
+import { SupabaseService } from '../../../core/services/supabase.service';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { FollowUpDraftView } from '../components/follow-up-form/follow-up-form.component';
@@ -132,6 +133,8 @@ interface ConsultationHistoryEntry {
   editorRole: string;
   section: string;
   detail: string;
+  action: string;
+  tone: 'default' | 'amendment';
   sectionKey: 'soap' | 'diagnosis' | 'prescription' | 'lab-orders' | 'vaccinations' | 'followup' | 'pf-decision' | 'general';
 }
 
@@ -172,13 +175,12 @@ type ProgressSectionId =
               <div class="cvh__actions">
                 <button class="cr-btn cr-btn--secondary" type="button" (click)="openHistoryDrawer(vm)">History</button>
                 <div class="cvh__finalized">
-                  <span class="cvh__finalized-badge">FINALIZED</span>
-                  <span class="cvh__finalized-meta">
-                    Finalized by {{ vm.doctor.fullName || 'Doctor' }} on {{ (vm.booking.doctorCompletedAt || vm.consultation?.updatedAt || vm.booking.createdAt) | date : 'MMMM d, y' }} at {{ (vm.booking.doctorCompletedAt || vm.consultation?.updatedAt || vm.booking.createdAt) | date : 'shortTime' }}
-                  </span>
+                  <span class="cvh__finalized-badge">COMPLETED</span>
+                  <span class="cvh__finalized-meta">{{ getCompletionStatusText(vm) }}</span>
                 </div>
-                <button class="cr-btn cr-btn--secondary cvh__modify" disabled>
-                  Request Amendment
+                <button class="cr-btn cr-btn--secondary cvh__modify" type="button" (click)="enterAmendMode(vm)">
+                  <i class="ti ti-pencil"></i>
+                  Edit Consultation
                 </button>
               </div>
             </div>
@@ -246,37 +248,65 @@ type ProgressSectionId =
           <div class="cr-top">
             <div class="cr-hdr">
               <div class="cr-hdr__left">
-                <h1 class="cr-hdr__title">Consultation Room{{ isViewOnlyConsultation(vm) ? ' (View Only)' : '' }}</h1>
+                <h1 class="cr-hdr__title">Consultation Room{{ isViewOnlyConsultation(vm) && !isAmendMode ? ' (View Only)' : '' }}</h1>
                 <p class="cr-hdr__sub">{{ vm.patient.firstName || 'Patient' }} {{ vm.patient.lastName || '' }} &middot; {{ vm.booking.appointmentDate | date:'MMMM d, y (EEE)' }} &middot; Queue #{{ vm.booking.queueNumber ?? '--' }}</p>
               </div>
               <div class="cr-hdr__right">
-                <app-status-badge [status]="vm.booking.status"></app-status-badge>
-                <a class="cr-btn" routerLink="/doctor/appointments">Back to Appointments</a>
-                <button class="cr-btn cr-btn--outline" (click)="cancelAmendMode()" *ngIf="isAmendMode" [disabled]="isSavingAmendment">Cancel</button>
-                <button class="cr-btn cr-btn--primary" (click)="saveAmendment(vm)" *ngIf="isAmendMode" [disabled]="isSavingAmendment">{{ isSavingAmendment ? 'Saving...' : 'Save Amendment' }}</button>
-                <button class="cr-btn cr-btn--secondary" type="button" (click)="openHistoryDrawer(vm)">History</button>
-                <div class="cr-save-state" [ngClass]="'cr-save-state--' + saveState">
-                  <span class="cr-save-state__icon" *ngIf="saveState === 'saved'"></span>
-                  <span class="cr-save-state__icon cr-save-state__icon--spinner" *ngIf="saveState === 'saving'"></span>
-                  <span class="cr-save-state__icon" *ngIf="saveState === 'unsaved'"></span>
-                  <span class="cr-save-state__icon" *ngIf="saveState === 'failed'"></span>
-                  <span class="cr-save-state__label">{{ getSaveStateLabel() }}</span>
-                </div>
-                <button class="cr-btn cr-btn--primary" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft || isAutosaving">{{ getDraftButtonLabel() }}</button>
-                <span class="cr-complete-wrap" [attr.title]="getCompleteTooltip(vm)">
-                  <button
-                    *ngIf="currentClinicalRole === 'physician'"
-                    class="cr-btn cr-btn--complete"
-                    [class.cr-btn--complete--ready]="!isCompleteActionDisabled(vm)"
-                    (click)="requestCompletion(vm)"
-                    [disabled]="isCompleteActionDisabled(vm)"
-                  >
-                    Complete Consultation
+                <ng-container *ngIf="isCompletedConsultation(vm); else activeActions">
+                  <div class="cr-complete-pill">
+                    <span class="cr-complete-pill__badge">COMPLETED</span>
+                    <span class="cr-complete-pill__meta">{{ getCompletionStatusText(vm) }}</span>
+                  </div>
+                  <button class="cr-btn cr-btn--secondary" type="button" (click)="openHistoryDrawer(vm)">History</button>
+                  <div class="cr-save-state" [class.cr-save-state--editing]="isAmendMode" [ngClass]="!isAmendMode ? 'cr-save-state--' + saveState : ''">
+                    <ng-container *ngIf="!isAmendMode; else editingState">
+                      <span class="cr-save-state__icon" *ngIf="saveState === 'saved'"></span>
+                      <span class="cr-save-state__icon cr-save-state__icon--spinner" *ngIf="saveState === 'saving'"></span>
+                      <span class="cr-save-state__icon" *ngIf="saveState === 'unsaved'"></span>
+                      <span class="cr-save-state__icon" *ngIf="saveState === 'failed'"></span>
+                    </ng-container>
+                    <ng-template #editingState>
+                      <span class="cr-save-state__icon cr-save-state__icon--editing"><i class="ti ti-pencil"></i></span>
+                    </ng-template>
+                    <span class="cr-save-state__label">{{ getSaveStateLabel() }}</span>
+                  </div>
+                  <button *ngIf="!isAmendMode" class="cr-btn cr-btn--secondary cvh__modify" type="button" (click)="enterAmendMode(vm)">
+                    <i class="ti ti-pencil"></i>
+                    Edit Consultation
                   </button>
-                  <span *ngIf="currentClinicalRole !== 'physician'" class="cr-complete-wrap__message">
-                    Consultation can only be completed by the attending physician.
+                  <button *ngIf="isAmendMode" class="cr-btn cr-btn--primary" (click)="saveAmendment(vm)" [disabled]="isSavingAmendment">
+                    {{ isSavingAmendment ? 'Saving...' : 'Save Changes' }}
+                  </button>
+                  <button *ngIf="isAmendMode" class="cr-btn cr-btn--outline" type="button" (click)="cancelAmendMode()">
+                    Cancel
+                  </button>
+                  <div class="cr-cancel-prompt" *ngIf="editCancelPromptOpen">
+                    <span>Discard unsaved changes?</span>
+                    <div class="cr-cancel-prompt__actions">
+                      <button type="button" class="cr-btn cr-btn--secondary" (click)="keepEditing()">Keep Editing</button>
+                      <button type="button" class="cr-btn cr-btn--outline" (click)="discardEditChanges(vm)">Discard Changes</button>
+                    </div>
+                  </div>
+                </ng-container>
+                <ng-template #activeActions>
+                  <app-status-badge [status]="vm.booking.status"></app-status-badge>
+                  <a class="cr-btn" routerLink="/doctor/appointments">Back to Appointments</a>
+                  <button class="cr-btn cr-btn--primary" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft || isAutosaving">{{ getDraftButtonLabel() }}</button>
+                  <span class="cr-complete-wrap" [attr.title]="getCompleteTooltip(vm)">
+                    <button
+                      *ngIf="currentClinicalRole === 'physician'"
+                      class="cr-btn cr-btn--complete"
+                      [class.cr-btn--complete--ready]="!isCompleteActionDisabled(vm)"
+                      (click)="requestCompletion(vm)"
+                      [disabled]="isCompleteActionDisabled(vm)"
+                    >
+                      Complete Consultation
+                    </button>
+                    <span *ngIf="currentClinicalRole !== 'physician'" class="cr-complete-wrap__message">
+                      Consultation can only be completed by the attending physician.
+                    </span>
                   </span>
-                </span>
+                </ng-template>
               </div>
             </div>
 
@@ -326,6 +356,15 @@ type ProgressSectionId =
             </a>
           </nav>
 
+          <div class="cr-edit-banner" *ngIf="isAmendMode">
+            <i class="ti ti-pencil"></i>
+            <span>You are editing a completed consultation. Click Save Changes to apply your edits.</span>
+          </div>
+          <div class="cr-edit-error" *ngIf="editSaveErrorMessage">
+            <span>{{ editSaveErrorMessage }}</span>
+            <button type="button" (click)="saveAmendment(vm)" [disabled]="isSavingAmendment">{{ isSavingAmendment ? 'Saving...' : 'Retry' }}</button>
+          </div>
+
           <div class="cr-body" role="main">
             <div class="cr-workspace">
               <app-consultation-overview
@@ -344,12 +383,13 @@ type ProgressSectionId =
                   [clinicalRole]="currentClinicalRole"
                   [prescriptionItems]="prescriptionItems"
                   [professionalFee]="professionalFeeAmount"
-                  [professionalFeePaymentMode]="professionalFeePaymentMode"
-                  [professionalFeeNotes]="professionalFeeNotes"
-                  [pendingVaccinations]="pendingVaccinations"
-                  (vitalSignsChange)="onVitalsChange($event)"
-                  (vitalsValidityChange)="vitalsValid = $event"
-                  (soapChange)="onSoapChange($event)"
+                [professionalFeePaymentMode]="professionalFeePaymentMode"
+                [professionalFeeNotes]="professionalFeeNotes"
+                [pendingVaccinations]="pendingVaccinations"
+                [validationRequested]="editValidationRequested"
+                (vitalSignsChange)="onVitalsChange($event)"
+                (vitalsValidityChange)="vitalsValid = $event"
+                (soapChange)="onSoapChange($event)"
                   (soapValidityChange)="soapValid = $event"
                   (diagnosesChange)="onDiagnosesChange($event)"
                   (diagnosisValidityChange)="diagnosisValid = $event"
@@ -382,9 +422,9 @@ type ProgressSectionId =
               <div class="cr-side-card">
                 <div class="cr-progress-summary">
                   <div class="cr-progress-summary__label">
-                    {{ getCompletedSectionCount(vm) === getVisibleProgressSectionIds().length ? 'Ready to complete ✓' : (getCompletedSectionCount(vm) + ' of ' + getVisibleProgressSectionIds().length + ' sections complete') }}
+                    {{ getProgressSummaryLabel(vm) }}
                   </div>
-                  <div class="cr-progress-summary__bar" [class.cr-progress-summary__bar--ready]="getCompletedSectionCount(vm) === getVisibleProgressSectionIds().length">
+                  <div class="cr-progress-summary__bar" [class.cr-progress-summary__bar--ready]="isCompletedConsultation(vm) && !isAmendMode" [class.cr-progress-summary__bar--editing]="isAmendMode">
                     <span class="cr-progress-summary__fill" [style.width.%]="getProgressPercent(vm)"></span>
                   </div>
                 </div>
@@ -466,15 +506,40 @@ type ProgressSectionId =
           </div>
 
           <div class="cr-mobile-actions">
-            <button type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--outline" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft || isAutosaving">
-              {{ getDraftButtonLabel() }}
-            </button>
-            <button *ngIf="currentClinicalRole === 'physician'" type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--primary" (click)="requestCompletion(vm)" [disabled]="isCompleteActionDisabled(vm)">
-              Complete ▶
-            </button>
-            <button *ngIf="currentClinicalRole !== 'physician'" type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--primary" disabled>
-              Physician Only
-            </button>
+            <ng-container *ngIf="isCompletedConsultation(vm) && !isAmendMode; else mobileActiveOrEdit">
+              <button type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--outline cr-mobile-actions__btn--full" (click)="enterAmendMode(vm)">
+                <i class="ti ti-pencil"></i>
+                Edit Consultation
+              </button>
+            </ng-container>
+            <ng-template #mobileActiveOrEdit>
+              <ng-container *ngIf="isAmendMode; else mobileActiveActions">
+                <button type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--outline cr-mobile-actions__btn--cancel" (click)="cancelAmendMode()">
+                  Cancel
+                </button>
+                <button type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--primary cr-mobile-actions__btn--save" (click)="saveAmendment(vm)" [disabled]="isSavingAmendment">
+                  {{ isSavingAmendment ? 'Saving...' : 'Save Changes' }}
+                </button>
+                <div class="cr-cancel-prompt cr-cancel-prompt--mobile" *ngIf="editCancelPromptOpen">
+                  <span>Discard unsaved changes?</span>
+                  <div class="cr-cancel-prompt__actions">
+                    <button type="button" class="cr-btn cr-btn--secondary" (click)="keepEditing()">Keep Editing</button>
+                    <button type="button" class="cr-btn cr-btn--outline" (click)="discardEditChanges(vm)">Discard Changes</button>
+                  </div>
+                </div>
+              </ng-container>
+            </ng-template>
+            <ng-template #mobileActiveActions>
+              <button type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--outline" (click)="saveDraft(vm)">
+                Save Draft
+              </button>
+              <button *ngIf="currentClinicalRole === 'physician'" type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--primary" (click)="requestCompletion(vm)" [disabled]="isCompleteActionDisabled(vm)">
+                Complete ▶
+              </button>
+              <button *ngIf="currentClinicalRole !== 'physician'" type="button" class="cr-mobile-actions__btn cr-mobile-actions__btn--primary" disabled>
+                Physician Only
+              </button>
+            </ng-template>
           </div>
         </ng-template>
 
@@ -526,9 +591,9 @@ type ProgressSectionId =
             <button type="button" class="history-drawer__close" (click)="closeHistoryDrawer()">&times;</button>
           </div>
 
-          <ng-container *ngIf="historyEntries.length > 0; else emptyHistory">
+          <ng-container *ngIf="hasRealAuditHistory && historyEntries.length > 0; else emptyHistory">
             <ol class="history-list">
-              <li class="history-item" *ngFor="let entry of historyEntries">
+              <li class="history-item" [class.history-item--amendment]="entry.tone === 'amendment'" *ngFor="let entry of historyEntries">
                 <div class="history-item__timestamp">{{ entry.timestamp | date : 'MMM d, y h:mm a' }}</div>
                 <div class="history-item__meta">
                   <strong>{{ entry.editorName }}</strong>
@@ -564,6 +629,7 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   private readonly offlineQueue = inject(OfflineConsultationQueueService);
   private readonly patientClinicalHistoryService = inject(PatientClinicalHistoryService);
   private readonly drugInteractionService = inject(DrugInteractionService);
+  private readonly supabase = inject(SupabaseService);
   private readonly patientState = inject(PatientStateService);
   private readonly vaccinationService = inject(PatientVaccinationsService);
   private readonly route = inject(ActivatedRoute);
@@ -587,6 +653,10 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   isAutosaving = false;
   isSavingAmendment = false;
   isAmendMode = false;
+  editCancelPromptOpen = false;
+  editValidationRequested = false;
+  editSaveErrorMessage = '';
+  private editModeSnapshot: ConsultationLocalDraft | null = null;
   completionValidationRequested = false;
   showStickyIdentityStrip = false;
   identityStripExpanded = false;
@@ -760,13 +830,22 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
     if (key.toLowerCase() === 's') {
       event.preventDefault();
       if (this.currentVm) {
-        void this.saveDraft(this.currentVm);
+        if (this.isAmendMode && this.isCompletedConsultation(this.currentVm)) {
+          void this.saveAmendment(this.currentVm);
+        } else {
+          void this.saveDraft(this.currentVm);
+        }
       }
       return;
     }
 
     if (key === 'Enter') {
       event.preventDefault();
+      if (this.currentVm && this.isAmendMode && this.isCompletedConsultation(this.currentVm)) {
+        void this.saveAmendment(this.currentVm);
+        return;
+      }
+
       if (this.currentVm && this.currentClinicalRole === 'physician') {
         this.requestCompletion(this.currentVm);
       }
@@ -894,6 +973,10 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
     const currentSnapshot = this.createDraftSnapshot();
     this.draftDirty = currentSnapshot !== this.lastSavedDraftSnapshot;
 
+    if (this.isAmendMode && this.currentVm && this.isCompletedConsultation(this.currentVm)) {
+      return;
+    }
+
     if (!this.draftDirty) {
       this.saveState = 'saved';
       if (this.autosaveTimer) {
@@ -916,7 +999,7 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   }
 
   private scheduleAutosave(): void {
-    if (!this.draftDirty || !this.currentVm || this.isSavingDraft || this.isSubmittingComplete) {
+    if (!this.draftDirty || !this.currentVm || this.isSavingDraft || this.isSubmittingComplete || this.isAmendMode) {
       return;
     }
 
@@ -937,6 +1020,10 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
 
   private async performAutosave(): Promise<void> {
     if (!this.currentVm || !this.draftDirty) {
+      return;
+    }
+
+    if (this.isAmendMode && this.currentVm && this.isCompletedConsultation(this.currentVm)) {
       return;
     }
 
@@ -981,7 +1068,7 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
     this.networkBannerMessage = 'Back online — syncing your changes...';
     this.networkSyncFailed = false;
     void this.syncQueuedDrafts();
-    if (this.draftDirty) {
+    if (this.draftDirty && !this.isAmendMode) {
       void this.performAutosave();
     }
     window.setTimeout(() => {
@@ -998,6 +1085,10 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   }
 
   getSaveStateLabel(): string {
+    if (this.isAmendMode && this.currentVm && this.isCompletedConsultation(this.currentVm)) {
+      return 'Editing - save manually';
+    }
+
     switch (this.saveState) {
       case 'saving':
         return 'Saving...';
@@ -1011,6 +1102,10 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   }
 
   getDraftButtonLabel(): string {
+    if (this.isAmendMode && this.currentVm && this.isCompletedConsultation(this.currentVm)) {
+      return 'Save Changes';
+    }
+
     if (!this.isNetworkOnline) {
       return 'Saved Locally';
     }
@@ -1605,9 +1700,23 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
     }
   }
 
-  enterAmendMode(): void {
+  enterAmendMode(vm: ConsultationPageVm): void {
+    if (!this.isCompletedConsultation(vm)) {
+      return;
+    }
+
+    if (this.autosaveTimer) {
+      clearTimeout(this.autosaveTimer);
+      this.autosaveTimer = null;
+    }
+
     this.isAmendMode = true;
     this.isSavingAmendment = false;
+    this.editCancelPromptOpen = false;
+    this.editValidationRequested = false;
+    this.editSaveErrorMessage = '';
+    this.editModeSnapshot = this.captureEditSnapshot();
+    this.saveState = 'saved';
   }
 
   cancelAmendMode(): void {
@@ -1615,8 +1724,31 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
       return;
     }
 
-    this.isAmendMode = false;
-    this.reload();
+    if (!this.isAmendMode) {
+      return;
+    }
+
+    if (!this.hasEditChanges()) {
+      this.exitAmendMode(true);
+      return;
+    }
+
+    this.editCancelPromptOpen = true;
+  }
+
+  keepEditing(): void {
+    this.editCancelPromptOpen = false;
+  }
+
+  discardEditChanges(vm: ConsultationPageVm): void {
+    if (this.editModeSnapshot) {
+      this.restoreEditSnapshot(this.editModeSnapshot);
+    }
+    this.editValidationRequested = false;
+    this.editSaveErrorMessage = '';
+    this.editCancelPromptOpen = false;
+    this.exitAmendMode(true);
+    void vm;
   }
 
   async saveAmendment(vm: ConsultationPageVm): Promise<void> {
@@ -1624,19 +1756,159 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
       return;
     }
 
+    this.editValidationRequested = true;
+    this.editSaveErrorMessage = '';
+
+    if (!this.hasChiefComplaint() || this.diagnoses.length === 0 || !this.hasRequiredVitals()) {
+      await this.presentToast('Complete the required fields before saving changes.', 'warning');
+      return;
+    }
+
     const payload = this.buildConsultationRecordUpdatePayload();
+    const changedSections = this.getAmendedSections();
     this.isSavingAmendment = true;
 
     try {
       await firstValueFrom(this.bookingService.updateConsultationRecord(vm.booking.id, payload));
+      await this.recordConsultationAmendmentAuditLogs(vm, changedSections);
       this.clearLocalDraft(vm.booking.id);
-      this.isAmendMode = false;
+      this.exitAmendMode(true);
       this.reload();
       await this.presentToast('Consultation amendment saved.', 'success');
     } catch (error) {
+      this.editSaveErrorMessage = 'Save failed — please try again';
       await this.presentToast(extractApiErrorMessage(error, 'Failed to save consultation amendment.'), 'danger');
     } finally {
       this.isSavingAmendment = false;
+    }
+  }
+
+  private exitAmendMode(resetSnapshot: boolean): void {
+    this.isAmendMode = false;
+    this.editCancelPromptOpen = false;
+    this.editValidationRequested = false;
+    this.editSaveErrorMessage = '';
+    this.isSavingAmendment = false;
+    if (resetSnapshot) {
+      this.editModeSnapshot = null;
+    }
+  }
+
+  private captureEditSnapshot(): ConsultationLocalDraft {
+    return {
+      bookingId: this.currentVm?.booking.id ?? '',
+      savedAt: new Date().toISOString(),
+      soap: { ...this.soapValue },
+      vitalsValue: this.vitalsValue ? { ...this.vitalsValue } : null,
+      diagnoses: this.diagnoses.map((diagnosis) => ({ ...diagnosis })),
+      prescriptionItems: this.prescriptionItems.map((item) => ({ ...item })),
+      labRequests: this.labRequests.map((request) => ({ ...request })),
+      followUpValue: this.followUpValue ? { ...this.followUpValue } : null,
+      pendingVaccinations: this.pendingVaccinations.map((payload) => ({ ...payload })),
+      professionalFeeAmount: this.professionalFeeAmount,
+      professionalFeePaymentMode: this.professionalFeePaymentMode,
+      professionalFeeNotes: this.professionalFeeNotes,
+      isProfessionalFeeWaived: this.isProfessionalFeeWaived,
+      finalAmount: this.completionFinalAmount,
+      professionalFeeWaivedReason: this.completionWaivedReason
+    };
+  }
+
+  private restoreEditSnapshot(snapshot: ConsultationLocalDraft): void {
+    this.soapValue = { ...snapshot.soap };
+    this.vitalsValue = snapshot.vitalsValue ? { ...snapshot.vitalsValue } : null;
+    this.diagnoses = snapshot.diagnoses.map((diagnosis) => ({ ...diagnosis }));
+    this.prescriptionItems = snapshot.prescriptionItems.map((item) => ({ ...item }));
+    this.labRequests = snapshot.labRequests.map((request) => ({ ...request }));
+    this.followUpValue = snapshot.followUpValue ? { ...snapshot.followUpValue } : null;
+    this.pendingVaccinations = snapshot.pendingVaccinations.map((payload) => ({ ...payload }));
+    this.professionalFeeAmount = snapshot.professionalFeeAmount;
+    this.professionalFeePaymentMode = snapshot.professionalFeePaymentMode;
+    this.professionalFeeNotes = snapshot.professionalFeeNotes;
+    this.isProfessionalFeeWaived = snapshot.isProfessionalFeeWaived;
+    this.completionFinalAmount = snapshot.finalAmount;
+    this.completionWaivedReason = snapshot.professionalFeeWaivedReason;
+    this.lastSavedDraftSnapshot = this.createDraftSnapshot();
+    this.draftDirty = false;
+    this.saveState = 'saved';
+  }
+
+  private hasEditChanges(): boolean {
+    if (!this.editModeSnapshot) {
+      return false;
+    }
+
+    return JSON.stringify(this.captureEditSnapshot()) !== JSON.stringify(this.editModeSnapshot);
+  }
+
+  private getAmendedSections(): Array<'soap' | 'diagnosis' | 'prescription' | 'lab-orders' | 'vaccinations' | 'followup' | 'pf-decision'> {
+    if (!this.editModeSnapshot) {
+      return [];
+    }
+
+    const next = this.captureEditSnapshot();
+    const sections: Array<'soap' | 'diagnosis' | 'prescription' | 'lab-orders' | 'vaccinations' | 'followup' | 'pf-decision'> = [];
+    if (JSON.stringify(next.soap) !== JSON.stringify(this.editModeSnapshot.soap)) sections.push('soap');
+    if (JSON.stringify(next.diagnoses) !== JSON.stringify(this.editModeSnapshot.diagnoses)) sections.push('diagnosis');
+    if (JSON.stringify(next.prescriptionItems) !== JSON.stringify(this.editModeSnapshot.prescriptionItems)) sections.push('prescription');
+    if (JSON.stringify(next.labRequests) !== JSON.stringify(this.editModeSnapshot.labRequests)) sections.push('lab-orders');
+    if (JSON.stringify(next.pendingVaccinations) !== JSON.stringify(this.editModeSnapshot.pendingVaccinations)) sections.push('vaccinations');
+    if (JSON.stringify(next.followUpValue) !== JSON.stringify(this.editModeSnapshot.followUpValue)) sections.push('followup');
+    if (
+      next.professionalFeeAmount !== this.editModeSnapshot.professionalFeeAmount ||
+      next.professionalFeePaymentMode !== this.editModeSnapshot.professionalFeePaymentMode ||
+      next.professionalFeeNotes !== this.editModeSnapshot.professionalFeeNotes ||
+      next.isProfessionalFeeWaived !== this.editModeSnapshot.isProfessionalFeeWaived
+    ) {
+      sections.push('pf-decision');
+    }
+    return sections;
+  }
+
+  private async recordConsultationAmendmentAuditLogs(
+    vm: ConsultationPageVm,
+    sections: Array<'soap' | 'diagnosis' | 'prescription' | 'lab-orders' | 'vaccinations' | 'followup' | 'pf-decision'>
+  ): Promise<void> {
+    if (sections.length === 0) {
+      return;
+    }
+
+    const performedBy = this.authState.snapshot?.fullName || vm.doctor.fullName || 'Doctor';
+    const performedAt = new Date().toISOString();
+    const details = `Fields changed: ${sections.map((section) => this.getSectionDisplayName(section)).join(', ')}`;
+
+    try {
+      await this.supabase.client.from('audit_logs').insert(
+        sections.map((section) => ({
+          entity_type: 'Consultation',
+          entity_id: vm.consultation?.id || vm.booking.id,
+          action: `Amended ${this.getSectionDisplayName(section)}`,
+          performed_by: performedBy,
+          performed_at: performedAt,
+          details: `${details}; section=${section}`
+        }))
+      );
+    } catch (error) {
+      console.warn('[DoctorConsultation] Failed to record amendment audit log', error);
+    }
+  }
+
+  private getSectionDisplayName(section: 'soap' | 'diagnosis' | 'prescription' | 'lab-orders' | 'vaccinations' | 'followup' | 'pf-decision'): string {
+    switch (section) {
+      case 'soap':
+        return 'SOAP Notes';
+      case 'diagnosis':
+        return 'Diagnosis';
+      case 'prescription':
+        return 'Prescription';
+      case 'lab-orders':
+        return 'Order Labs';
+      case 'vaccinations':
+        return 'Vaccinations';
+      case 'followup':
+        return 'Follow-up';
+      case 'pf-decision':
+        return 'PF Decision';
     }
   }
 
@@ -1881,12 +2153,41 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   }
 
   getCompletedSectionCount(vm: ConsultationPageVm): number {
+    if (this.isCompletedConsultation(vm)) {
+      return this.getVisibleProgressSectionIds().length;
+    }
+
     return this.getVisibleProgressSectionIds().filter((sectionId) => this.getProgressStepState(sectionId, vm) === 'complete').length;
   }
 
   getProgressPercent(vm: ConsultationPageVm): number {
+    if (this.isCompletedConsultation(vm)) {
+      return 100;
+    }
+
     const total = this.getVisibleProgressSectionIds().length || 1;
     return Math.round((this.getCompletedSectionCount(vm) / total) * 100);
+  }
+
+  getProgressSummaryLabel(vm: ConsultationPageVm): string {
+    if (this.isCompletedConsultation(vm)) {
+      return this.isAmendMode ? 'Editing in progress...' : 'Consultation complete ✓';
+    }
+
+    const complete = this.getCompletedSectionCount(vm);
+    const total = this.getVisibleProgressSectionIds().length;
+    return complete === total ? 'Ready to complete ✓' : `${complete} of ${total} sections complete`;
+  }
+
+  getCompletionStatusText(vm: ConsultationPageVm): string {
+    const completionSource = vm.booking.doctorCompletedAt || vm.consultation?.updatedAt || vm.booking.createdAt;
+    const base = `Completed by ${vm.doctor.fullName || 'Doctor'} · ${this.formatDateForDisplay(completionSource)} · ${this.formatTimeForAudit(completionSource)}`;
+    const latestAmendment = this.hasRealAuditHistory ? this.historyEntries.find((entry) => entry.tone === 'amendment') : null;
+    if (!latestAmendment) {
+      return base;
+    }
+
+    return `${base} · Last amended by ${latestAmendment.editorName} at ${this.formatTimeForAudit(latestAmendment.timestamp)}`;
   }
 
   openHistoryDrawer(vm: ConsultationPageVm): void {
@@ -1909,7 +2210,7 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
 
     const entry = this.historyEntries.find((item) => item.sectionKey === sectionKey);
     if (entry) {
-      return `Last edited by ${entry.editorName} at ${this.formatTimeForAudit(entry.timestamp)}`;
+      return `${entry.tone === 'amendment' ? 'Last amended by' : 'Last edited by'} ${entry.editorName} at ${this.formatTimeForAudit(entry.timestamp)}`;
     }
 
     return 'Not yet edited this visit';
@@ -1946,12 +2247,14 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
       (log.entityType === 'Booking' && log.entityId === bookingId)
     );
 
-    const mappedLogs = relevantLogs.map((log) => ({
+    const mappedLogs = relevantLogs.map((log): ConsultationHistoryEntry => ({
       timestamp: log.performedAt,
       editorName: log.performedBy || vm.doctor.fullName || 'Doctor',
       editorRole: log.entityType === 'Consultation' ? 'Doctor' : 'Staff',
       section: this.mapAuditLogSection(log.action, log.entityType),
       detail: log.details?.trim() || 'Content updated',
+      action: log.action,
+      tone: /amend/i.test(log.action) ? 'amendment' : 'default',
       sectionKey: this.mapSectionKey(log.action, log.entityType)
     }));
 
@@ -1979,6 +2282,8 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
         detail: this.soapValue.chiefComplaint.trim().length <= 80
           ? `— → ${this.soapValue.chiefComplaint.trim() || 'Updated'}`
           : 'Content updated',
+        action: 'Completed SOAP Notes',
+        tone: 'default',
         sectionKey: 'soap'
       });
     }
@@ -1993,6 +2298,8 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
           .slice(0, 2)
           .map((diagnosis) => `${diagnosis.code || diagnosis.icd10Code || 'N/A'} ${diagnosis.description}`)
           .join(' • '),
+        action: 'Completed Diagnosis',
+        tone: 'default',
         sectionKey: 'diagnosis'
       });
     }
@@ -2004,6 +2311,8 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
         editorRole,
         section: `Prescription — ${this.prescriptionItems.length} medication${this.prescriptionItems.length > 1 ? 's' : ''} added`,
         detail: 'Content updated',
+        action: 'Completed Prescription',
+        tone: 'default',
         sectionKey: 'prescription'
       });
     }
@@ -2015,6 +2324,8 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
         editorRole,
         section: `Order Labs — ${this.labRequests.length} request${this.labRequests.length > 1 ? 's' : ''} added`,
         detail: 'Content updated',
+        action: 'Completed Order Labs',
+        tone: 'default',
         sectionKey: 'lab-orders'
       });
     }
@@ -2026,6 +2337,8 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
         editorRole,
         section: 'Vaccinations — record updated',
         detail: 'Content updated',
+        action: 'Completed Vaccinations',
+        tone: 'default',
         sectionKey: 'vaccinations'
       });
     }

@@ -123,6 +123,12 @@
   color: inherit;
 }
 
+.soap-error {
+  font-size: var(--text-xs);
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 .field--full {
   grid-column: 1 / -1;
 }

@@ -203,6 +203,22 @@
   background: #d97706;
 }
 
+.cr-save-state--editing {
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+
+.cr-save-state__icon--editing {
+  width: auto;
+  height: auto;
+  background: transparent;
+  color: #b45309;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .cr-clinical-link {
   font-size: var(--text-xs); color: #5d3e8e; text-decoration: none; font-weight: 600;
   cursor: pointer; display: inline-block; margin-top: 2px;
@@ -235,6 +251,32 @@
 .cvh__back:hover { background: #f1f5f9; color: #1e293b; }
 .cvh__actions { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
 .cvh__modify { min-height: 34px; }
+
+.cr-complete-pill {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+
+.cr-complete-pill__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.cr-complete-pill__meta {
+  font-size: 0.72rem;
+  color: #64748b;
+  text-align: right;
+  max-width: 36ch;
+}
 
 .cvh__finalized {
   display: grid;
@@ -406,6 +448,10 @@
   background: var(--ion-color-success);
 }
 
+.cr-progress-summary__bar--editing .cr-progress-summary__fill {
+  background: var(--ion-color-primary);
+}
+
 .cr-progress { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2); }
 .cr-progress__item {
   padding: var(--space-2) var(--space-3); font-size: var(--text-sm);
@@ -532,6 +578,10 @@
   background: linear-gradient(180deg, #ffffff, #f8fafc);
 }
 
+.history-item--amendment {
+  border-left: 4px solid #d97706;
+}
+
 .history-item__timestamp {
   font-size: 0.72rem;
   color: #94a3b8;
@@ -568,6 +618,74 @@
   color: #334155;
   font-size: 0.84rem;
   line-height: 1.5;
+}
+
+.cr-edit-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cr-edit-banner i {
+  font-size: 16px;
+}
+
+.cr-edit-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cr-edit-error button {
+  border: none;
+  background: #dc2626;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cr-cancel-prompt {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  width: 100%;
+}
+
+.cr-cancel-prompt > span {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cr-cancel-prompt__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cr-cancel-prompt--mobile {
+  width: 100%;
+  margin-top: 4px;
 }
 
 .history-empty {
@@ -778,6 +896,19 @@
   .cr-mobile-actions__btn--outline {
     background: #fff;
     color: #475569;
+  }
+
+  .cr-mobile-actions__btn--full {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .cr-mobile-actions__btn--cancel {
+    flex: 0 0 40%;
+  }
+
+  .cr-mobile-actions__btn--save {
+    flex: 1 1 60%;
   }
 
   .cr-side {

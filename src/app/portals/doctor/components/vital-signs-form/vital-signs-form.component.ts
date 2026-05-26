@@ -84,6 +84,7 @@ interface CriticalAlert {
             <span class="status-badge" *ngIf="getDisplayStatus('bloodPressureSystolic') as status" [class.status-badge--normal]="status === 'Normal'" [class.status-badge--borderline]="status === 'Borderline'" [class.status-badge--critical]="status === 'Critical'" [attr.aria-label]="getStatusAriaLabel('bloodPressureSystolic', status)">{{ status }}</span>
           </div>
           <div class="field-hint">Normal: &lt;120 mmHg</div>
+          <div class="field-error" *ngIf="validationRequested && !hasValue('bloodPressureSystolic')">Blood pressure systolic is required.</div>
         </div>
 
         <div class="field-wrap">
@@ -95,6 +96,7 @@ interface CriticalAlert {
             <span class="status-badge" *ngIf="getDisplayStatus('bloodPressureDiastolic') as status" [class.status-badge--normal]="status === 'Normal'" [class.status-badge--borderline]="status === 'Borderline'" [class.status-badge--critical]="status === 'Critical'" [attr.aria-label]="getStatusAriaLabel('bloodPressureDiastolic', status)">{{ status }}</span>
           </div>
           <div class="field-hint">Normal: &lt;80 mmHg</div>
+          <div class="field-error" *ngIf="validationRequested && !hasValue('bloodPressureDiastolic')">Blood pressure diastolic is required.</div>
         </div>
 
         <div class="field-wrap">
@@ -106,6 +108,7 @@ interface CriticalAlert {
             <span class="status-badge" *ngIf="getDisplayStatus('heartRate') as status" [class.status-badge--normal]="status === 'Normal'" [class.status-badge--borderline]="status === 'Borderline'" [class.status-badge--critical]="status === 'Critical'" [attr.aria-label]="getStatusAriaLabel('heartRate', status)">{{ status }}</span>
           </div>
           <div class="field-hint">Normal: 60-100 bpm</div>
+          <div class="field-error" *ngIf="validationRequested && !hasValue('heartRate')">Heart rate is required.</div>
         </div>
 
         <div class="field-wrap">
@@ -187,6 +190,7 @@ interface CriticalAlert {
 export class VitalSignsFormComponent implements OnChanges {
   @Input() value: VitalSigns | null = null;
   @Input() locked = false;
+  @Input() validationRequested = false;
 
   @Output() vitalSignsChange = new EventEmitter<VitalSigns>();
   @Output() validityChange = new EventEmitter<boolean>();
@@ -254,6 +258,11 @@ export class VitalSignsFormComponent implements OnChanges {
 
   markTouched(field: VitalFieldKey): void {
     this.touchedFields.add(field);
+  }
+
+  hasValue(field: VitalFieldKey): boolean {
+    const value = this.form.get(field)?.value;
+    return value !== null && value !== undefined && String(value).trim().length > 0;
   }
 
   acknowledgeCriticalAlerts(): void {
@@ -418,11 +427,6 @@ export class VitalSignsFormComponent implements OnChanges {
     }
 
     return alerts;
-  }
-
-  private hasValue(field: VitalFieldKey): boolean {
-    const raw = this.form.get(field)?.value;
-    return raw !== null && raw !== undefined && String(raw).trim().length > 0;
   }
 
   private toNumber(value: string | number | null | undefined): number | undefined {

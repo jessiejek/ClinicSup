@@ -17,6 +17,11 @@
   color: var(--clinic-text-secondary);
 }
 
+.helper--error {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 :host {
   display: block;
   scroll-margin-top: 128px;

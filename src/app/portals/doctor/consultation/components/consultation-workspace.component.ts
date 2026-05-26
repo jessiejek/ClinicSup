@@ -43,6 +43,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
           id="section-vitals"
           [value]="vm.consultation?.vitalSigns ?? null"
           [locked]="locked"
+          [validationRequested]="validationRequested"
           (vitalSignsChange)="vitalSignsChange.emit($event)"
           (validityChange)="vitalsValidityChange.emit($event)"
         ></app-vital-signs-form>
@@ -53,6 +54,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
           [lastVisitSoap]="getLastVisitSoap(vm)"
           [auditText]="getSectionAuditText('soap', vm)"
           [locked]="locked"
+          [validationRequested]="validationRequested"
           (soapChange)="soapChange.emit($event)"
           (validityChange)="soapValidityChange.emit($event)"
           (loadFromLastVisit)="loadFromLastVisit.emit()"
@@ -63,6 +65,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
           [value]="vm.consultation?.diagnoses ?? emptyDiagnoses"
           [auditText]="getSectionAuditText('diagnosis', vm)"
           [locked]="locked"
+          [validationRequested]="validationRequested"
           (diagnosesChange)="diagnosesChange.emit($event)"
           (validityChange)="diagnosisValidityChange.emit($event)"
         ></app-diagnosis-picker>
@@ -181,6 +184,7 @@ export class ConsultationWorkspaceComponent {
   @Input() professionalFeeNotes = '';
   @Input() pendingVaccinations: CreatePatientVaccinationRequest[] = [];
   @Input() clinicalRole: ClinicalRole = 'physician';
+  @Input() validationRequested = false;
 
   @Output() vitalSignsChange = new EventEmitter<VitalSigns>();
   @Output() vitalsValidityChange = new EventEmitter<boolean>();

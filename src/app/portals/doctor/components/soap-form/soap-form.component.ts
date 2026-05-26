@@ -58,6 +58,9 @@ export interface SoapFormValue {
           <ion-item class="field" [disabled]="locked">
             <ion-textarea #chiefComplaintInput formControlName="chiefComplaint" autoGrow="true" placeholder="Required"></ion-textarea>
           </ion-item>
+          <div class="soap-error" *ngIf="validationRequested && form.get('chiefComplaint')?.invalid">
+            Chief Complaint is required.
+          </div>
           <div class="soap-template-panel" *ngIf="openTemplateFor === 'chiefComplaint'">
             <button type="button" *ngFor="let phrase of templatePhrases.chiefComplaint" (click)="insertTemplatePhrase('chiefComplaint', phrase)">{{ phrase }}</button>
           </div>
@@ -148,6 +151,7 @@ export class SoapFormComponent implements OnChanges {
   @Input() lastVisitSoap: SoapFormValue | null = null;
   @Input() auditText = 'Not yet edited this visit';
   @Input() locked = false;
+  @Input() validationRequested = false;
 
   @Output() soapChange = new EventEmitter<SoapFormValue>();
   @Output() validityChange = new EventEmitter<boolean>();
