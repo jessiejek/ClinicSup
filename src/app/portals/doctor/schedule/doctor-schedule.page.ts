@@ -1,7 +1,7 @@
 import { AsyncPipe, NgIf } from '@angular/common';
 import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { ToastController } from '@ionic/angular/standalone';
-import { forkJoin } from 'rxjs';
+import { EMPTY, forkJoin } from 'rxjs';
 import { catchError, finalize, switchMap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
@@ -16,7 +16,6 @@ import {
   DoctorScheduleSavePayload,
   DoctorWeeklyScheduleDraft
 } from '../components/doctor-schedule-editor/doctor-schedule-editor.component';
-import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { SkeletonComponent } from '../../../shared/components/skeleton/skeleton.component';
 
 const DAY_NAMES: DayOfWeek[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -24,9 +23,24 @@ const DAY_NAMES: DayOfWeek[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thu
 @Component({
   standalone: true,
   selector: 'app-doctor-schedule-page',
-  imports: [AsyncPipe, NgIf, PageHeaderComponent, DoctorScheduleEditorComponent, SkeletonComponent],
+  imports: [AsyncPipe, NgIf, DoctorScheduleEditorComponent, SkeletonComponent],
   template: `
-    <app-page-header title="Schedule" subtitle="Weekly availability and blocked dates"></app-page-header>
+    <section class="schedule-page-head">
+      <div class="schedule-page-head__copy">
+        <div class="schedule-page-head__title-row">
+          <h1>Schedule</h1>
+          <span class="schedule-page-head__status schedule-page-head__status--dirty" *ngIf="isDirty">
+            <span aria-hidden="true">●</span>
+            Unsaved changes
+          </span>
+          <span class="schedule-page-head__status schedule-page-head__status--saved" *ngIf="isSaved">
+            <span aria-hidden="true">✓</span>
+            Saved
+          </span>
+        </div>
+        <p>Weekly availability and blocked dates</p>
+      </div>
+    </section>
 
     <app-skeleton *ngIf="isLoading" variant="card" [count]="2"></app-skeleton>
 
@@ -36,10 +50,6 @@ const DAY_NAMES: DayOfWeek[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thu
     </div>
 
     <ng-container *ngIf="doctorId && !isLoading && !error">
-      <div class="note-banner">
-        <span>Changes here affect patient booking slot availability.</span>
-      </div>
-
       <app-doctor-schedule-editor
         [schedules]="draftSchedules"
         [blockedDates]="blockedDates"
@@ -47,10 +57,14 @@ const DAY_NAMES: DayOfWeek[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thu
         [previewDate]="previewDate"
         [isSaving]="isSaving"
         [dailyPatientLimit]="dailyPatientLimit"
+        [previewDayIsActive]="previewDayIsActive"
+        [previewDayHasSlots]="previewDayHasSlots"
+        [previewDayIsBlocked]="previewDayIsBlocked"
         (schedulesSaved)="saveSchedules($event)"
         (blockedDateAdded)="addBlockedDate($event.blockedDate, $event.reason)"
         (blockedDateRemoved)="removeBlockedDate($event)"
         (previewDateChanged)="updatePreviewDate($event)"
+        (dirtyChanged)="markDirty()"
       ></app-doctor-schedule-editor>
     </ng-container>
   `,
@@ -66,6 +80,8 @@ export class DoctorSchedulePage implements OnInit {
   isLoading = true;
   error = false;
   isSaving = false;
+  isDirty = false;
+  isSaved = false;
   previewDate = new Date().toISOString().slice(0, 10);
   previewSlots: TimeSlot[] = [];
   draftSchedules: DoctorWeeklyScheduleDraft[] = [];
@@ -83,7 +99,7 @@ export class DoctorSchedulePage implements OnInit {
       catchError(() => {
         this.isLoading = false;
         this.error = true;
-        return [];
+        return EMPTY;
       }),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe((doctor) => {
@@ -106,7 +122,7 @@ export class DoctorSchedulePage implements OnInit {
         catchError(() => {
           this.isLoading = false;
           this.error = true;
-          return [];
+          return EMPTY;
         }),
         takeUntilDestroyed(this.destroyRef)
       ).subscribe(([schedules, blockedDates]) => {
@@ -119,6 +135,8 @@ export class DoctorSchedulePage implements OnInit {
   }
 
   saveSchedules(payload: DoctorScheduleSavePayload): void {
+    this.isDirty = true;
+    this.isSaved = false;
     const drafts = payload.schedules.map((d) => ({ ...d }));
     this.draftSchedules = drafts;
     this.dailyPatientLimit = payload.dailyPatientLimit;
@@ -146,11 +164,12 @@ export class DoctorSchedulePage implements OnInit {
       finalize(() => (this.isSaving = false)),
       catchError(() => {
         void this.presentToast('Failed to save schedule.', 'danger');
-        return [];
+        return EMPTY;
       }),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(() => {
       this.refreshPreview();
+      this.onSaveSuccess();
       void this.presentToast('Schedule saved successfully.', 'success');
     });
   }
@@ -164,7 +183,7 @@ export class DoctorSchedulePage implements OnInit {
       finalize(() => (this.isSaving = false)),
       catchError(() => {
         void this.presentToast('Failed to add blocked date.', 'danger');
-        return [];
+        return EMPTY;
       }),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe((record) => {
@@ -183,7 +202,7 @@ export class DoctorSchedulePage implements OnInit {
       finalize(() => (this.isSaving = false)),
       catchError(() => {
         void this.presentToast('Failed to remove blocked date.', 'danger');
-        return [];
+        return EMPTY;
       }),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(() => {
@@ -196,6 +215,24 @@ export class DoctorSchedulePage implements OnInit {
   updatePreviewDate(date: string): void {
     this.previewDate = date;
     this.refreshPreview();
+  }
+
+  markDirty(): void {
+    this.isDirty = true;
+    this.isSaved = false;
+  }
+
+  get previewDayIsActive(): boolean {
+    const day = this.getPreviewScheduleDay();
+    return day?.isActive ?? false;
+  }
+
+  get previewDayIsBlocked(): boolean {
+    return !!this.previewDate && this.blockedDates.some((item) => item.blockedDate === this.previewDate);
+  }
+
+  get previewDayHasSlots(): boolean {
+    return this.previewSlots.length > 0;
   }
 
   private buildDraftSchedules(
@@ -239,6 +276,14 @@ export class DoctorSchedulePage implements OnInit {
     this.previewSlots = this.generatePreviewSlots(this.previewDate);
   }
 
+  private onSaveSuccess(): void {
+    this.isDirty = false;
+    this.isSaved = true;
+    window.setTimeout(() => {
+      this.isSaved = false;
+    }, 3000);
+  }
+
   private generatePreviewSlots(date: string): TimeSlot[] {
     if (!this.doctorId || !date) {
       return [];
@@ -259,8 +304,7 @@ export class DoctorSchedulePage implements OnInit {
       return [];
     }
 
-    const dayName = DAY_NAMES[previewDate.getDay()];
-    const schedule = this.draftSchedules.find((item) => item.dayOfWeek === dayName && item.isActive);
+    const schedule = this.getPreviewScheduleDay();
     if (!schedule) {
       return [];
     }
@@ -281,6 +325,20 @@ export class DoctorSchedulePage implements OnInit {
     }
 
     return slots;
+  }
+
+  private getPreviewScheduleDay(): DoctorWeeklyScheduleDraft | undefined {
+    if (!this.previewDate) {
+      return undefined;
+    }
+
+    const previewDate = new Date(`${this.previewDate}T00:00:00`);
+    if (Number.isNaN(previewDate.getTime())) {
+      return undefined;
+    }
+
+    const dayName = DAY_NAMES[previewDate.getDay()];
+    return this.draftSchedules.find((item) => item.dayOfWeek === dayName);
   }
 
   private minutesFromTime(time: string): number {
