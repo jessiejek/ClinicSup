@@ -253,16 +253,33 @@ export class PublicService {
   }
 
   private async fetchAvailableSlots(doctorId: string, date: string): Promise<AvailableSlot[]> {
-    const { data, error } = await this.supabase.rpc('get_available_slots', {
-      p_doctor_id: doctorId,
-      p_appointment_date: date
-    });
+    const [rpcResponse, doctor, schedules] = await Promise.all([
+      this.supabase.rpc('get_available_slots', {
+        p_doctor_id: doctorId,
+        p_appointment_date: date
+      }),
+      this.fetchPublicDoctorById(doctorId),
+      this.fetchDoctorSchedules(doctorId)
+    ]);
 
+    const { data, error } = rpcResponse;
     if (error) {
       throw error;
     }
 
-    return ((data ?? []) as AvailableSlotRpcRow[]).map((row) => mapAvailableSlotRow(row));
+    const rpcRows = (data ?? []) as AvailableSlotRpcRow[];
+    const slotTimes = buildScheduledSlotTimes(date, schedules, Math.max(5, doctor?.slotDurationMinutes ?? 30));
+    const capacity = Math.max(1, doctor?.slotCapacity ?? 1);
+
+    return slotTimes.map((slotTime, index) =>
+      mapAvailableSlotRow(rpcRows.find((row) => normalizeString(row.slot_start_time) === slotTime.startTime) ?? rpcRows[index] ?? {
+        slot_start_time: slotTime.startTime,
+        slot_end_time: slotTime.endTime,
+        is_available: true,
+        booked_count: 0,
+        capacity
+      }, slotTime)
+    );
   }
 
   private async fetchActiveAnnouncements(): Promise<Announcement[]> {
@@ -386,9 +403,12 @@ function mapDoctorScheduleRow(row: DoctorScheduleRow): DoctorSchedule {
   };
 }
 
-function mapAvailableSlotRow(row: AvailableSlotRpcRow): AvailableSlot {
-  const slotStartTime = normalizeString(row.slot_start_time) || '';
-  const slotEndTime = normalizeString(row.slot_end_time) || '';
+function mapAvailableSlotRow(
+  row: AvailableSlotRpcRow,
+  fallbackTime?: { startTime: string; endTime: string }
+): AvailableSlot {
+  const slotStartTime = fallbackTime?.startTime || normalizeString(row.slot_start_time) || '';
+  const slotEndTime = fallbackTime?.endTime || normalizeString(row.slot_end_time) || '';
   const isAvailable = row.is_available ?? true;
 
   return {
@@ -402,6 +422,66 @@ function mapAvailableSlotRow(row: AvailableSlotRpcRow): AvailableSlot {
     IsAvailable: isAvailable
   };
 }
+
+function buildScheduledSlotTimes(
+  appointmentDate: string,
+  schedules: DoctorSchedule[],
+  slotDurationMinutes: number
+): Array<{ startTime: string; endTime: string }> {
+  const previewDate = new Date(`${appointmentDate}T00:00:00`);
+  if (Number.isNaN(previewDate.getTime())) {
+    return [];
+  }
+
+  const duration = Math.max(5, Math.round(slotDurationMinutes || 30));
+  const dayName = DAY_NAMES[previewDate.getDay()];
+  const schedule = schedules.find((item) => normalizeDayOfWeek(item.dayOfWeek) === dayName);
+
+  if (!schedule) {
+    return [];
+  }
+
+  const startMinutes = timeToMinutes(schedule.startTime);
+  const endMinutes = timeToMinutes(schedule.endTime);
+
+  if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
+    return [];
+  }
+
+  const slots: Array<{ startTime: string; endTime: string }> = [];
+  for (let current = startMinutes; current + duration <= endMinutes; current += duration) {
+    slots.push({
+      startTime: minutesToTime(current),
+      endTime: minutesToTime(current + duration)
+    });
+  }
+
+  return slots;
+}
+
+function timeToMinutes(value: NullableString): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const [hourText, minuteText = '0'] = value.trim().slice(0, 5).split(':');
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+    return null;
+  }
+
+  return hour * 60 + minute;
+}
+
+function minutesToTime(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+const DAY_NAMES: DayOfWeek[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function normalizeString(value: NullableString): string | undefined {
   const trimmed = value?.trim();

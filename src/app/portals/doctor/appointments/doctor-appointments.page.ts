@@ -126,8 +126,8 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
                 <td>{{ booking.patientName || 'Patient' }}</td>
                 <td>{{ servicesLabel(booking) }}</td>
                 <td>{{ timeRangeLabel(booking) }}</td>
-                <td><app-status-badge [status]="booking.status"></app-status-badge></td>
-                <td><app-status-badge [status]="booking.paymentStatus"></app-status-badge></td>
+                <td><app-status-badge [status]="booking.status" portal="doctor"></app-status-badge></td>
+                <td><app-status-badge [status]="booking.paymentStatus" portal="doctor"></app-status-badge></td>
                 <td>
                   <div class="action-row">
                     <button type="button" class="btn-ghost" (click)="view(booking.id)">View</button>
@@ -168,12 +168,12 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
 
             <div class="mobile-card__row">
               <span class="mobile-card__label">Status</span>
-              <app-status-badge [status]="booking.status"></app-status-badge>
+              <app-status-badge [status]="booking.status" portal="doctor"></app-status-badge>
             </div>
 
             <div class="mobile-card__row">
               <span class="mobile-card__label">Payment</span>
-              <app-status-badge [status]="booking.paymentStatus"></app-status-badge>
+              <app-status-badge [status]="booking.paymentStatus" portal="doctor"></app-status-badge>
             </div>
 
             <div class="mobile-card__row">

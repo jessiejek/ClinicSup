@@ -18,6 +18,11 @@ export interface DoctorWeeklyScheduleDraft {
   slotCapacity: number;
 }
 
+export interface DoctorScheduleSavePayload {
+  schedules: DoctorWeeklyScheduleDraft[];
+  dailyPatientLimit: number | null;
+}
+
 @Component({
   selector: 'app-doctor-schedule-editor',
   standalone: true,
@@ -31,6 +36,19 @@ export interface DoctorWeeklyScheduleDraft {
             <h2>Schedule Editor</h2>
           </div>
           <button type="button" class="btn-primary" [disabled]="isSaving" (click)="save()">Save Schedule</button>
+        </div>
+
+        <div class="schedule-meta">
+          <label class="schedule-meta__field">
+            <span>Daily Patient Limit</span>
+            <ion-input
+              type="number"
+              min="1"
+              step="1"
+              [(ngModel)]="dailyPatientLimit"
+              placeholder="No limit"
+            ></ion-input>
+          </label>
         </div>
 
         <table class="clinic-table schedule-table">
@@ -139,8 +157,9 @@ export class DoctorScheduleEditorComponent implements OnChanges {
   @Input() previewSlots: TimeSlot[] = [];
   @Input() previewDate = '';
   @Input() isSaving = false;
+  @Input() dailyPatientLimit: number | string | null = null;
 
-  @Output() schedulesSaved = new EventEmitter<DoctorWeeklyScheduleDraft[]>();
+  @Output() schedulesSaved = new EventEmitter<DoctorScheduleSavePayload>();
   @Output() blockedDateAdded = new EventEmitter<{ blockedDate: string; reason: string }>();
   @Output() blockedDateRemoved = new EventEmitter<string>();
   @Output() previewDateChanged = new EventEmitter<string>();
@@ -159,7 +178,12 @@ export class DoctorScheduleEditorComponent implements OnChanges {
   }
 
   save(): void {
-    this.schedulesSaved.emit(this.draftSchedules.map((schedule) => ({ ...schedule })));
+    this.schedulesSaved.emit({
+      schedules: this.draftSchedules.map((schedule) => ({ ...schedule })),
+      dailyPatientLimit: this.dailyPatientLimit === null || this.dailyPatientLimit === undefined || this.dailyPatientLimit === ''
+        ? null
+        : Number(this.dailyPatientLimit)
+    });
   }
 
   addBlockedDate(): void {

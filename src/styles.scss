@@ -723,81 +723,100 @@ button,
   font-weight: var(--font-semibold);
   letter-spacing: 0.03em;
   text-transform: uppercase;
+  border: 1px solid transparent;
 
   &.badge--pending {
-    background: var(--color-warning-100);
+    background: #fef3c7;
     color: #92400e;
+    border-color: #fde68a;
   }
   &.badge--confirmed {
-    background: var(--color-success-100);
+    background: #dcfce7;
     color: #14532d;
+    border-color: #bbf7d0;
   }
   &.badge--booked {
-    background: var(--color-success-100);
+    background: #dcfce7;
     color: #14532d;
+    border-color: #bbf7d0;
   }
   &.badge--checked-in,
   &.badge--in-clinic {
-    background: var(--color-warning-100);
-    color: #92400e;
+    background: #dbeafe;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
   }
   &.badge--completed {
-    background: var(--color-primary-100);
-    color: var(--color-primary-900);
+    background: #ede9fe;
+    color: #5b21b6;
+    border-color: #ddd6fe;
   }
   &.badge--completed-paid {
-    background: var(--color-primary-100);
-    color: var(--color-primary-900);
+    background: #dcfce7;
+    color: #166534;
+    border-color: #bbf7d0;
   }
   &.badge--cancelled {
-    background: var(--color-neutral-100);
-    color: var(--color-neutral-600);
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fecaca;
   }
   &.badge--expired {
-    background: var(--color-neutral-100);
-    color: var(--color-neutral-500);
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #e2e8f0;
   }
   &.badge--on-hold {
-    background: var(--color-secondary-100);
-    color: #1e3a8a;
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
   }
   &.badge--no-show {
-    background: var(--color-danger-100);
-    color: #7f1d1d;
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #e2e8f0;
   }
   &.badge--proof-submitted {
     background: #fdf4ff;
     color: #6b21a8;
+    border-color: #e9d5ff;
   }
   &.badge--for-payment {
-    background: #fff7ed;
-    color: #9a3412;
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fecaca;
   }
   &.badge--pfwaived,
   &.badge--pf-waived {
-    background: var(--color-neutral-100);
-    color: var(--color-neutral-600);
+    background: #e2e8f0;
+    color: #475569;
+    border-color: #cbd5e1;
   }
   &.badge--rescheduled {
-    background: #fff7ed;
+    background: #ffedd5;
     color: #9a3412;
+    border-color: #fed7aa;
   }
 
   &.badge--paid {
-    background: var(--color-success-100);
+    background: #dcfce7;
     color: #14532d;
+    border-color: #bbf7d0;
   }
   &.badge--unpaid {
-    background: var(--color-danger-100);
+    background: #fee2e2;
     color: #7f1d1d;
+    border-color: #fecaca;
   }
   &.badge--waived {
-    background: var(--color-neutral-100);
-    color: var(--color-neutral-600);
+    background: #e2e8f0;
+    color: #475569;
+    border-color: #cbd5e1;
   }
   &.badge--refunded {
-    background: var(--color-secondary-100);
-    color: #1e3a8a;
+    background: #dbeafe;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
   }
 
   &.badge--active {

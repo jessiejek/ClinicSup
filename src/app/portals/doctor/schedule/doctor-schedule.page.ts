@@ -2,7 +2,7 @@ import { AsyncPipe, NgIf } from '@angular/common';
 import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { ToastController } from '@ionic/angular/standalone';
 import { forkJoin } from 'rxjs';
-import { catchError, finalize } from 'rxjs/operators';
+import { catchError, finalize, switchMap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   DoctorBlockedDate,
@@ -13,6 +13,7 @@ import {
 import { DoctorService } from '../services/doctor.service';
 import {
   DoctorScheduleEditorComponent,
+  DoctorScheduleSavePayload,
   DoctorWeeklyScheduleDraft
 } from '../components/doctor-schedule-editor/doctor-schedule-editor.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
@@ -45,6 +46,7 @@ const DAY_NAMES: DayOfWeek[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thu
         [previewSlots]="previewSlots"
         [previewDate]="previewDate"
         [isSaving]="isSaving"
+        [dailyPatientLimit]="dailyPatientLimit"
         (schedulesSaved)="saveSchedules($event)"
         (blockedDateAdded)="addBlockedDate($event.blockedDate, $event.reason)"
         (blockedDateRemoved)="removeBlockedDate($event)"
@@ -60,6 +62,7 @@ export class DoctorSchedulePage implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   doctorId = '';
+  currentDoctor: { slotDurationMinutes: number; slotCapacity: number; dailyPatientLimit: number | null } | null = null;
   isLoading = true;
   error = false;
   isSaving = false;
@@ -67,6 +70,7 @@ export class DoctorSchedulePage implements OnInit {
   previewSlots: TimeSlot[] = [];
   draftSchedules: DoctorWeeklyScheduleDraft[] = [];
   blockedDates: DoctorBlockedDate[] = [];
+  dailyPatientLimit: number | null = null;
 
   ngOnInit(): void {
     this.loadData();
@@ -89,6 +93,12 @@ export class DoctorSchedulePage implements OnInit {
         return;
       }
       this.doctorId = doctor.id;
+      this.currentDoctor = {
+        slotDurationMinutes: doctor.slotDurationMinutes,
+        slotCapacity: doctor.slotCapacity,
+        dailyPatientLimit: doctor.dailyPatientLimit ?? null
+      };
+      this.dailyPatientLimit = this.currentDoctor.dailyPatientLimit;
       forkJoin([
         this.doctorService.getDoctorSchedules(doctor.id),
         this.doctorService.getDoctorBlockedDates(doctor.id)
@@ -108,8 +118,10 @@ export class DoctorSchedulePage implements OnInit {
     });
   }
 
-  saveSchedules(drafts: DoctorWeeklyScheduleDraft[]): void {
-    this.draftSchedules = drafts.map((d) => ({ ...d }));
+  saveSchedules(payload: DoctorScheduleSavePayload): void {
+    const drafts = payload.schedules.map((d) => ({ ...d }));
+    this.draftSchedules = drafts;
+    this.dailyPatientLimit = payload.dailyPatientLimit;
     const activeSchedules = drafts
       .filter((d) => d.isActive)
       .map((d) => ({
@@ -117,9 +129,20 @@ export class DoctorSchedulePage implements OnInit {
         startTime: this.toBackendTime(d.startTime),
         endTime: this.toBackendTime(d.endTime)
       } as DoctorScheduleInput));
+    const scheduleSettings = this.draftSchedules.find((item) => item.isActive) ?? this.draftSchedules[0] ?? {
+      slotDurationMinutes: this.currentDoctor?.slotDurationMinutes ?? 30,
+      slotCapacity: this.currentDoctor?.slotCapacity ?? 1
+    };
 
     this.isSaving = true;
     this.doctorService.updateSchedule(this.doctorId, activeSchedules).pipe(
+      switchMap(() =>
+        this.doctorService.updateScheduleSettings(this.doctorId, {
+          slotDurationMinutes: scheduleSettings.slotDurationMinutes,
+          slotCapacity: scheduleSettings.slotCapacity,
+          dailyPatientLimit: this.dailyPatientLimit
+        })
+      ),
       finalize(() => (this.isSaving = false)),
       catchError(() => {
         void this.presentToast('Failed to save schedule.', 'danger');

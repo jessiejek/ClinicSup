@@ -31,6 +31,12 @@ export interface UpdateDoctorDto {
   status: DoctorStatus;
 }
 
+export interface UpdateScheduleSettingsDto {
+  slotDurationMinutes: number;
+  slotCapacity: number;
+  dailyPatientLimit: number | null;
+}
+
 export interface SetDayStatusDto {
   date: string;
   status: AvailabilityStatus;
@@ -84,6 +90,10 @@ export class DoctorService {
 
   updateSchedule(doctorId: string, schedules: DoctorScheduleInput[]): Observable<DoctorSchedule[]> {
     return from(this.upsertSchedule(doctorId, schedules));
+  }
+
+  updateScheduleSettings(doctorId: string, dto: UpdateScheduleSettingsDto): Observable<DoctorDetail> {
+    return from(this.updateDoctorScheduleSettings(doctorId, dto));
   }
 
   createBlockedDate(doctorId: string, payload: { blockedDate: string; reason?: string | null }): Observable<DoctorBlockedDate> {
@@ -217,6 +227,25 @@ export class DoctorService {
 
     if (error) throw error;
     return ((data ?? []) as Record<string, unknown>[]).map((row) => mapDoctorScheduleRow(row));
+  }
+
+  private async updateDoctorScheduleSettings(
+    doctorId: string,
+    dto: UpdateScheduleSettingsDto
+  ): Promise<DoctorDetail> {
+    const { data, error } = await this.supabase
+      .from('doctors')
+      .update({
+        slot_duration_minutes: dto.slotDurationMinutes,
+        slot_capacity: dto.slotCapacity,
+        daily_patient_limit: dto.dailyPatientLimit,
+      })
+      .eq('id', doctorId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapDoctorRow(data as Record<string, unknown>);
   }
 
   private async insertBlockedDate(doctorId: string, payload: { blockedDate: string; reason?: string | null }): Promise<DoctorBlockedDate> {
