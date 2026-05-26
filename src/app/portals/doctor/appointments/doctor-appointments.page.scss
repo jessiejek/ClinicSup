@@ -12,30 +12,75 @@
   gap: var(--space-5);
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--space-4);
-  align-items: stretch;
-  min-width: 0;
+.stat-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  padding: 12px 16px;
+  margin-bottom: 0;
+  border: 1px solid var(--clinic-border);
+  background: white;
 }
 
-.stats-grid .stat-card {
-  min-width: 0;
-  min-height: 120px;
-  padding: var(--space-4);
-  display: grid;
-  gap: var(--space-2);
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--clinic-text-primary);
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-.stats-grid .stat-card__value {
-  font-size: var(--text-2xl);
-  line-height: 1;
+.stat-pill strong {
+  font-size: 15px;
+  font-weight: var(--font-bold);
+}
+
+.stat-pill--muted {
+  color: var(--clinic-text-secondary);
+}
+
+.stat-pill--muted strong {
+  color: var(--clinic-text-secondary);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--ion-color-medium);
+}
+
+.dot--blue {
+  background: #3b82f6;
+}
+
+.dot--green {
+  background: #22c55e;
+}
+
+.dot--amber {
+  background: #f59e0b;
+}
+
+.dot--purple {
+  background: #8b5cf6;
+}
+
+.dot--red {
+  background: #ef4444;
+}
+
+.dot--neutral {
+  background: var(--clinic-text-secondary);
 }
 
 .filters-card {
   margin-bottom: 0;
-  padding: var(--space-5);
+  padding: var(--space-4) var(--space-5);
 }
 
 .filters-grid {
@@ -71,9 +116,69 @@
   justify-content: flex-end;
 }
 
+.filters-grid__refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filters-grid__refresh-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
 .appointments-desktop {
-  padding: var(--space-5);
+  padding: 12px 0 0;
   min-width: 0;
+}
+
+.appointments-desktop .clinic-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.appointments-desktop .clinic-table thead th {
+  padding: 8px 12px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--clinic-text-secondary);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.appointments-desktop .clinic-table tbody td {
+  padding: 10px 12px;
+  font-size: 13px;
+  vertical-align: middle;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.appointments-desktop .clinic-table tbody tr {
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.appointments-desktop .clinic-table tbody tr:hover td {
+  background: rgba(248, 250, 252, 0.78);
+}
+
+.appointments-desktop .clinic-table tbody tr.row--in-clinic td {
+  background: #fffbeb;
+}
+
+.appointments-desktop .clinic-table tbody tr.row--in-clinic td:first-child {
+  box-shadow: inset 4px 0 0 #22c55e;
+}
+
+.appointments-desktop .clinic-table tbody tr.row--waiting td:first-child {
+  box-shadow: inset 4px 0 0 #f59e0b;
+}
+
+.appointments-desktop .clinic-table tbody tr.row--completed {
+  opacity: 0.6;
+}
+
+.appointments-desktop .clinic-table tbody tr.row--inactive {
+  opacity: 0.5;
 }
 
 .action-row {
@@ -91,6 +196,19 @@
   min-width: 0;
 }
 
+.appointment-card.row--in-clinic {
+  background: #fffbeb;
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.appointment-card.row--waiting {
+  border-color: rgba(245, 158, 11, 0.32);
+}
+
+.appointment-card.row--completed {
+  opacity: 0.6;
+}
+
 .appointment-card__actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -103,8 +221,8 @@
 }
 
 @media (max-width: 1023px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .stat-bar {
+    gap: 8px 16px;
   }
 }
 
@@ -123,18 +241,9 @@
     gap: var(--space-4);
   }
 
-  .stats-grid {
-    grid-template-columns: 1fr;
-    gap: var(--space-3);
-  }
-
-  .stats-grid .stat-card {
-    min-height: 108px;
-    padding: var(--space-3);
-  }
-
-  .stats-grid .stat-card__value {
-    font-size: var(--text-xl);
+  .stat-bar {
+    padding: 10px 12px;
+    gap: 8px 14px;
   }
 
   .filters-card,

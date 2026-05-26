@@ -52,30 +52,30 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
     ></app-page-header>
 
     <section class="doctor-appointments-page">
-      <section class="stats-grid" *ngIf="summary">
-        <div class="stat-card stat-card--blue">
-          <div class="stat-card__value">{{ summary.bookedToday }}</div>
-          <div class="stat-card__label">Booked Today</div>
+      <section class="stat-bar clinic-card" *ngIf="summary as stats">
+        <div class="stat-pill">
+          <span class="dot dot--blue"></span>
+          <span>Booked <strong>{{ stats.bookedToday }}</strong></span>
         </div>
-        <div class="stat-card stat-card--amber">
-          <div class="stat-card__value">{{ summary.checkedIn }}</div>
-          <div class="stat-card__label">In Clinic</div>
+        <div class="stat-pill">
+          <span class="dot dot--purple"></span>
+          <span>In Clinic <strong>{{ stats.checkedIn }}</strong></span>
         </div>
-        <div class="stat-card stat-card--green">
-          <div class="stat-card__value">{{ summary.waiting }}</div>
-          <div class="stat-card__label">Waiting</div>
+        <div class="stat-pill">
+          <span class="dot dot--amber"></span>
+          <span>Waiting <strong>{{ stats.waiting }}</strong></span>
         </div>
-        <div class="stat-card stat-card--blue">
-          <div class="stat-card__value">{{ summary.completed }}</div>
-          <div class="stat-card__label">Completed</div>
+        <div class="stat-pill">
+          <span class="dot dot--green"></span>
+          <span>Completed <strong>{{ stats.completed }}</strong></span>
         </div>
-        <div class="stat-card stat-card--red">
-          <div class="stat-card__value">{{ summary.noShow }}</div>
-          <div class="stat-card__label">No Show</div>
+        <div class="stat-pill" [class.stat-pill--muted]="stats.noShow === 0">
+          <span class="dot dot--red" [class.dot--neutral]="stats.noShow === 0"></span>
+          <span>No Show <strong>{{ stats.noShow }}</strong></span>
         </div>
-        <div class="stat-card stat-card--red">
-          <div class="stat-card__value">{{ summary.cancelled }}</div>
-          <div class="stat-card__label">Cancelled</div>
+        <div class="stat-pill" [class.stat-pill--muted]="stats.cancelled === 0">
+          <span class="dot dot--red" [class.dot--neutral]="stats.cancelled === 0"></span>
+          <span>Cancelled <strong>{{ stats.cancelled }}</strong></span>
         </div>
       </section>
 
@@ -92,7 +92,10 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
             <input type="search" [(ngModel)]="searchQuery" placeholder="Search queue" />
           </label>
           <div class="filters-grid__actions">
-            <button type="button" class="btn-ghost" (click)="loadSummary()" [disabled]="isLoading">Refresh</button>
+            <button type="button" class="btn-ghost filters-grid__refresh" (click)="loadSummary()" [disabled]="isLoading">
+              <span class="filters-grid__refresh-icon" aria-hidden="true">↻</span>
+              <span>Refresh</span>
+            </button>
           </div>
         </div>
       </section>
@@ -113,7 +116,7 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
               <tr>
                 <th>Queue</th>
                 <th>Patient</th>
-                <th>Services</th>
+                <th>Service Type</th>
                 <th>Time</th>
                 <th>Status</th>
                 <th>Payment</th>
@@ -121,7 +124,13 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let booking of filteredBookings">
+              <tr
+                *ngFor="let booking of filteredBookings"
+                [class.row--in-clinic]="booking.status === 'CheckedIn' || booking.status === 'InProgress'"
+                [class.row--waiting]="booking.status === 'Confirmed'"
+                [class.row--completed]="booking.status === 'Completed'"
+                [class.row--inactive]="booking.status === 'Cancelled' || booking.status === 'NoShow'"
+              >
                 <td>{{ booking.queueNumber !== null ? '#' + booking.queueNumber : '-' }}</td>
                 <td>{{ booking.patientName || 'Patient' }}</td>
                 <td>{{ servicesLabel(booking) }}</td>
@@ -130,23 +139,23 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
                 <td><app-status-badge [status]="booking.paymentStatus" portal="doctor"></app-status-badge></td>
                 <td>
                   <div class="action-row">
-                    <button type="button" class="btn-ghost" (click)="view(booking.id)">View</button>
                     <button
-                      *ngIf="canStartConsultation(booking)"
+                      *ngIf="booking.status === 'Confirmed'"
                       type="button"
-                      class="btn-outline"
+                      class="btn-primary"
                       (click)="consult(booking.id)"
                     >
                       Start Consultation
                     </button>
                     <button
-                      *ngIf="canComplete(booking)"
+                      *ngIf="booking.status === 'CheckedIn' || booking.status === 'InProgress'"
                       type="button"
-                      class="btn-primary"
+                      class="btn-outline"
                       (click)="openCompleteModal(booking)"
                     >
                       Complete
                     </button>
+                    <button type="button" class="btn-ghost" (click)="view(booking.id)">View</button>
                   </div>
                 </td>
               </tr>
@@ -188,14 +197,19 @@ type DoctorQueueFilter = 'all' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'NoSh
 
             <div class="appointment-card__actions">
               <button
-                *ngIf="canStartConsultation(booking)"
+                *ngIf="booking.status === 'Confirmed'"
                 type="button"
-                class="btn-outline"
+                class="btn-primary"
                 (click)="consult(booking.id)"
               >
                 Start Consultation
               </button>
-              <button *ngIf="canComplete(booking)" type="button" class="btn-primary" (click)="openCompleteModal(booking)">
+              <button
+                *ngIf="booking.status === 'CheckedIn' || booking.status === 'InProgress'"
+                type="button"
+                class="btn-outline"
+                (click)="openCompleteModal(booking)"
+              >
                 Complete
               </button>
             </div>
@@ -471,7 +485,7 @@ function servicesLabel(booking: Booking): string {
     return names.join(', ');
   }
 
-  return booking.serviceName?.trim() || 'Service';
+  return booking.serviceName?.trim() || '—';
 }
 
 function timeRangeLabel(booking: Booking): string {
