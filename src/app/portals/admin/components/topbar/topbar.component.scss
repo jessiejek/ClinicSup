@@ -130,15 +130,17 @@
   align-items: flex-start;
 }
 
+.topbar__user-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .topbar__user-name {
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   color: var(--clinic-text-primary);
-}
-
-.topbar__user-role {
-  font-size: var(--text-xs);
-  color: var(--clinic-text-muted);
 }
 
 .topbar__role-badge {
@@ -191,6 +193,14 @@
     white-space: nowrap;
   }
 
+  .topbar__portal-label {
+    display: none;
+  }
+
+  .topbar__title-group {
+    min-width: 0;
+  }
+
   .topbar__actions {
     flex-shrink: 0;
     gap: var(--space-2);
@@ -202,8 +212,15 @@
   }
 
   .topbar__search,
-  .topbar__user-meta,
   .topbar__logout-label {
+    display: none;
+  }
+
+  .topbar__user-meta {
+    display: none;
+  }
+
+  .topbar__user-line {
     display: none;
   }
 
@@ -237,7 +254,7 @@
   }
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 767px) {
   .topbar__hamburger {
     display: inline-flex;
   }

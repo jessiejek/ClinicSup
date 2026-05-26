@@ -36,6 +36,7 @@ import {
   personAddOutline,
   personCircleOutline,
   personRemoveOutline,
+  personOutline,
   pricetagOutline,
   refreshOutline,
   searchOutline,
@@ -70,6 +71,7 @@ import { TopbarComponent } from '../../../portals/admin/components/topbar/topbar
           [currentUser]="currentUser$ | async"
           [isOpen]="sidebarOpen"
           (navClick)="closeSidebar()"
+          (menuToggle)="toggleSidebar()"
           (logout)="logout()"
       ></app-admin-sidebar>
 
@@ -149,6 +151,7 @@ export class PortalLayoutComponent implements OnInit {
       personAddOutline,
       personCircleOutline,
       personRemoveOutline,
+      personOutline,
       pricetagOutline,
       refreshOutline,
       searchOutline,

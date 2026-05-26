@@ -20,6 +20,15 @@ import { NotificationBellComponent } from '../notification-bell/notification-bel
         <h1 class="topbar__title">{{ title }}</h1>
       </div>
 
+      <button
+        type="button"
+        class="topbar__hamburger"
+        aria-label="Toggle sidebar"
+        (click)="menuToggle.emit()"
+      >
+        <ion-icon name="menu-outline"></ion-icon>
+      </button>
+
       <label class="topbar__search" aria-label="Search">
         <ion-icon name="search-outline"></ion-icon>
         <input type="search" [placeholder]="searchPlaceholder" />
@@ -30,8 +39,8 @@ import { NotificationBellComponent } from '../notification-bell/notification-bel
         <button type="button" class="topbar__user" aria-label="Account options" (click)="goToProfile()">
           <app-avatar [name]="currentUser?.fullName || 'Admin'" size="sm"></app-avatar>
           <span class="topbar__user-meta">
-            <span class="topbar__user-name">{{ currentUser?.fullName || 'Admin User' }}</span>
-            <span class="topbar__user-role">
+            <span class="topbar__user-line">
+              <span class="topbar__user-name">{{ displayUserName }}</span>
               <span class="topbar__role-badge" [ngClass]="roleBadge.className">{{ roleBadge.label }}</span>
             </span>
           </span>
@@ -41,10 +50,6 @@ import { NotificationBellComponent } from '../notification-bell/notification-bel
           <span class="topbar__logout-label">Logout</span>
         </button>
       </div>
-
-      <button type="button" class="topbar__hamburger" aria-label="Open navigation menu" (click)="menuToggle.emit()">
-        <ion-icon name="menu-outline"></ion-icon>
-      </button>
     </header>
   `,
   styleUrl: './topbar.component.scss'
@@ -68,11 +73,25 @@ export class TopbarComponent {
   };
 
   constructor() {
-    addIcons({ menuOutline, closeOutline, searchOutline, logOutOutline });
+    addIcons({ closeOutline, searchOutline, logOutOutline, menuOutline });
   }
 
   get roleBadge() {
     return getClinicalRoleBadge(resolveClinicalRole(this.currentUser));
+  }
+
+  get displayUserName(): string {
+    if (!this.currentUser) {
+      return 'Admin User';
+    }
+
+    if (this.currentUser.role === 'Doctor') {
+      const parts = (this.currentUser.fullName || '').split(' ').filter(Boolean);
+      const lastName = parts.length > 1 ? parts[parts.length - 1] : parts[0] || 'Doctor';
+      return `Dr. ${lastName}`;
+    }
+
+    return this.currentUser.fullName || 'Admin User';
   }
 
   goToProfile(): void {

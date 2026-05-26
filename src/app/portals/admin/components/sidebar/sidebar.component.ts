@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { closeOutline, logOutOutline } from 'ionicons/icons';
+import { closeOutline, logOutOutline, menuOutline } from 'ionicons/icons';
 import { AvatarComponent } from '../../../../shared/components/avatar/avatar.component';
 import { AuthUser, NavItem, Role } from '../../../../core/models';
 
@@ -67,7 +67,18 @@ import { AuthUser, NavItem, Role } from '../../../../core/models';
           <ion-icon name="log-out-outline"></ion-icon>
           <span class="sidebar__logout-label">Logout</span>
         </button>
+
+        <button
+          type="button"
+          class="sidebar__rail-toggle"
+          [attr.aria-label]="isOpen ? 'Collapse sidebar' : 'Expand sidebar'"
+          (click)="menuToggle.emit()"
+        >
+          <ion-icon [name]="isOpen ? 'close-outline' : 'menu-outline'"></ion-icon>
+        </button>
+
       </div>
+
     </aside>
   `,
   styleUrl: './sidebar.component.scss'
@@ -81,6 +92,7 @@ export class SidebarComponent {
 
   @Output() logout = new EventEmitter<void>();
   @Output() navClick = new EventEmitter<void>();
+  @Output() menuToggle = new EventEmitter<void>();
 
   private readonly router = inject(Router);
   private readonly profileRoutes: Record<Role, string> = {
@@ -91,7 +103,7 @@ export class SidebarComponent {
   };
 
   constructor() {
-    addIcons({ closeOutline, logOutOutline });
+    addIcons({ closeOutline, logOutOutline, menuOutline });
   }
 
   get profileRoute(): string | null {
