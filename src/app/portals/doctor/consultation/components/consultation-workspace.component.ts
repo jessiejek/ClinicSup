@@ -11,6 +11,10 @@ import { SoapFormComponent, SoapFormValue } from '../../components/soap-form/soa
 import { VaccinationFormComponent } from '../../components/vaccination-form/vaccination-form.component';
 import { VitalSignsFormComponent } from '../../components/vital-signs-form/vital-signs-form.component';
 import { VitalsTrendChartComponent } from '../../components/vitals-trend-chart/vitals-trend-chart.component';
+import {
+  ProfessionalFeeDecisionFormComponent,
+  ProfessionalFeePaymentMode
+} from './professional-fee-decision-form.component';
 import { ConsultationPageVm } from '../doctor-consultation.types';
 
 @Component({
@@ -28,12 +32,14 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
     LabRequestFormComponent,
     FollowUpFormComponent,
     VaccinationFormComponent,
-    VitalsTrendChartComponent
+    VitalsTrendChartComponent,
+    ProfessionalFeeDecisionFormComponent
   ],
   template: `
     <section class="consultation-grid">
       <div class="consultation-main">
         <app-vital-signs-form
+          id="section-vitals"
           [value]="vm.consultation?.vitalSigns ?? null"
           [locked]="locked"
           (vitalSignsChange)="vitalSignsChange.emit($event)"
@@ -41,6 +47,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         ></app-vital-signs-form>
 
         <app-soap-form
+          id="section-soap"
           [value]="vm.soap"
           [locked]="locked"
           (soapChange)="soapChange.emit($event)"
@@ -48,6 +55,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         ></app-soap-form>
 
         <app-diagnosis-picker
+          id="section-diagnosis"
           [value]="vm.consultation?.diagnoses ?? emptyDiagnoses"
           [locked]="locked"
           (diagnosesChange)="diagnosesChange.emit($event)"
@@ -60,12 +68,14 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         ></app-allergy-warning-banner>
 
         <app-prescription-form
+          id="section-prescription"
           [items]="vm.existingPrescription?.items ?? emptyPrescriptionItems"
           [locked]="locked"
           (itemsChange)="prescriptionItemsChange.emit($event)"
         ></app-prescription-form>
 
         <app-lab-request-form
+          id="section-lab-orders"
           [value]="vm.labRequestDrafts"
           [locked]="locked"
           (requestsChange)="labRequestsChange.emit($event)"
@@ -86,6 +96,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         ></app-vaccination-form>
 
         <app-follow-up-form
+          id="section-followup"
           [value]="vm.followUpDraft"
           [locked]="locked"
           (followUpChange)="followUpChange.emit($event)"
@@ -98,6 +109,19 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
             <p>{{ followUp.reason }} &bull; {{ followUp.status }}</p>
           </article>
         </div>
+
+        <app-professional-fee-decision-form
+          id="section-pf-decision"
+          [currentConsultationFee]="vm.booking.consultationFeeSnapshot ?? vm.booking.totalFee ?? 0"
+          [professionalFee]="professionalFee"
+          [paymentMode]="professionalFeePaymentMode"
+          [notes]="professionalFeeNotes"
+          [locked]="locked"
+          (professionalFeeChange)="professionalFeeChange.emit($event)"
+          (paymentModeChange)="professionalFeePaymentModeChange.emit($event)"
+          (notesChange)="professionalFeeNotesChange.emit($event)"
+          (validityChange)="professionalFeeValidityChange.emit($event)"
+        ></app-professional-fee-decision-form>
       </div>
 
       <aside class="consultation-side">
@@ -133,6 +157,9 @@ export class ConsultationWorkspaceComponent {
   @Input({ required: true }) vm!: ConsultationPageVm;
   @Input() locked = false;
   @Input() prescriptionItems: PrescriptionItem[] = [];
+  @Input() professionalFee = 0;
+  @Input() professionalFeePaymentMode: ProfessionalFeePaymentMode = 'Cash';
+  @Input() professionalFeeNotes = '';
 
   @Output() vitalSignsChange = new EventEmitter<VitalSigns>();
   @Output() vitalsValidityChange = new EventEmitter<boolean>();
@@ -143,6 +170,10 @@ export class ConsultationWorkspaceComponent {
   @Output() prescriptionItemsChange = new EventEmitter<PrescriptionItem[]>();
   @Output() labRequestsChange = new EventEmitter<LabRequestDraftView[]>();
   @Output() followUpChange = new EventEmitter<FollowUpDraftView | null>();
+  @Output() professionalFeeChange = new EventEmitter<number>();
+  @Output() professionalFeePaymentModeChange = new EventEmitter<ProfessionalFeePaymentMode>();
+  @Output() professionalFeeNotesChange = new EventEmitter<string>();
+  @Output() professionalFeeValidityChange = new EventEmitter<boolean>();
   @Output() vaccinationsAdded = new EventEmitter<CreatePatientVaccinationRequest[]>();
 
   readonly emptyDiagnoses: Diagnosis[] = [];

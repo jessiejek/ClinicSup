@@ -92,6 +92,7 @@ import { PRESCRIPTION_DRUG_LIST } from '../prescription-builder/prescription-dru
     </section>
   `,
   styles: [`
+    :host{display:block;scroll-margin-top:128px}
     .pf{display:grid;gap:var(--space-4)}
     .pf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-3)}
     .pf-f{display:grid;gap:4px;position:relative}

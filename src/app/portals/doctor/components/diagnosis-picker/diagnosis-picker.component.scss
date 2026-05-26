@@ -17,6 +17,11 @@
   color: var(--clinic-text-secondary);
 }
 
+:host {
+  display: block;
+  scroll-margin-top: 128px;
+}
+
 .diagnosis-controls {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

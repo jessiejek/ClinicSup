@@ -1,5 +1,5 @@
 import { AsyncPipe, DatePipe, NgIf } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { AfterViewChecked, Component, OnDestroy, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ModalController, ToastController } from '@ionic/angular/standalone';
 import { BehaviorSubject, Observable, combineLatest, firstValueFrom, of } from 'rxjs';
@@ -29,16 +29,22 @@ import { StatusBadgeComponent } from '../../../shared/components/status-badge/st
 import { FollowUpDraftView } from '../components/follow-up-form/follow-up-form.component';
 import { LabRequestDraftView } from '../components/lab-request-form/lab-request-form.component';
 import { SoapFormValue } from '../components/soap-form/soap-form.component';
+import { PatientIdentityStripComponent } from './components/patient-identity-strip.component';
+import { AllergyConfirmationState } from './components/allergy-badge.component';
 import { DoctorService } from '../services/doctor.service';
 import { ConsultationSummaryComponent } from './components/consultation-summary.component';
 import {
   ConsultationCompleteModalComponent,
-  ConsultationCompleteModalPayload
+  ConsultationChecklistItem,
+  ConsultationSummaryLine
 } from './components/consultation-complete-modal.component';
 import {
   ConsultationHeaderComponent,
   ConsultationHeaderMode
 } from './components/consultation-header.component';
+import {
+  ProfessionalFeePaymentMode
+} from './components/professional-fee-decision-form.component';
 import { ConsultationOverviewComponent } from './components/consultation-overview.component';
 import { ConsultationWorkspaceComponent } from './components/consultation-workspace.component';
 import { ConsultationPageVm } from './doctor-consultation.types';
@@ -99,12 +105,24 @@ interface ConsultationLocalDraft {
   prescriptionItems: PrescriptionItem[];
   labRequests: LabRequestDraftView[];
   followUpValue: FollowUpDraftView | null;
+  professionalFeeAmount: number;
+  professionalFeePaymentMode: ProfessionalFeePaymentMode;
+  professionalFeeNotes: string;
   isProfessionalFeeWaived: boolean;
   finalAmount: number;
   professionalFeeWaivedReason: string;
 }
 
 type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
+
+type ProgressSectionId =
+  | 'section-soap'
+  | 'section-vitals'
+  | 'section-diagnosis'
+  | 'section-prescription'
+  | 'section-lab-orders'
+  | 'section-followup'
+  | 'section-pf-decision';
 
 @Component({
   standalone: true,
@@ -115,6 +133,7 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
     ConsultationOverviewComponent,
     ConsultationSummaryComponent,
     ConsultationWorkspaceComponent,
+    PatientIdentityStripComponent,
     PatientMediaPanelComponent,
     StatusBadgeComponent
   ],
@@ -206,11 +225,20 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
                 <button class="cr-btn cr-btn--outline" (click)="cancelAmendMode()" *ngIf="isAmendMode" [disabled]="isSavingAmendment">Cancel</button>
                 <button class="cr-btn cr-btn--primary" (click)="saveAmendment(vm)" *ngIf="isAmendMode" [disabled]="isSavingAmendment">{{ isSavingAmendment ? 'Saving...' : 'Save Amendment' }}</button>
                 <button class="cr-btn cr-btn--primary" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft">{{ isSavingDraft ? 'Saving...' : 'Save Draft' }}</button>
-                <button class="cr-btn cr-btn--complete" (click)="requestCompletion(vm)" [disabled]="isCompleteActionDisabled(vm)">Complete Consultation</button>
+                <span class="cr-complete-wrap" [attr.title]="getCompleteTooltip(vm)">
+                  <button
+                    class="cr-btn cr-btn--complete"
+                    [class.cr-btn--complete--ready]="!isCompleteActionDisabled(vm)"
+                    (click)="requestCompletion(vm)"
+                    [disabled]="isCompleteActionDisabled(vm)"
+                  >
+                    Complete Consultation
+                  </button>
+                </span>
               </div>
             </div>
 
-            <div class="cr-patient">
+            <div class="cr-patient" id="patient-identity-card">
               <div class="cr-avatar">{{ (vm.patient.firstName?.charAt(0) || '?') }}{{ (vm.patient.lastName?.charAt(0) || '') }}</div>
               <div class="cr-patient__info">
                 <strong>{{ vm.patient.firstName }} {{ vm.patient.lastName }}</strong>
@@ -225,6 +253,14 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
               </div>
             </div>
           </div>
+
+          <app-patient-identity-strip
+            *ngIf="showStickyIdentityStrip"
+            [patient]="vm.patient"
+            [booking]="vm.booking"
+            [allergies]="vm.allergies"
+            [allergyConfirmationState]="getAllergyConfirmationState(vm)"
+          ></app-patient-identity-strip>
 
           <div class="cr-body">
             <div class="cr-workspace">
@@ -242,6 +278,9 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
                   [vm]="vm"
                   [locked]="isWorkspaceLocked(vm)"
                   [prescriptionItems]="prescriptionItems"
+                  [professionalFee]="professionalFeeAmount"
+                  [professionalFeePaymentMode]="professionalFeePaymentMode"
+                  [professionalFeeNotes]="professionalFeeNotes"
                   (vitalSignsChange)="onVitalsChange($event)"
                   (vitalsValidityChange)="vitalsValid = $event"
                   (soapChange)="onSoapChange($event)"
@@ -251,6 +290,10 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
                   (prescriptionItemsChange)="onPrescriptionItemsChange($event)"
                   (labRequestsChange)="onLabRequestsChange($event)"
                   (followUpChange)="onFollowUpChange($event)"
+                  (professionalFeeChange)="professionalFeeAmount = $event"
+                  (professionalFeePaymentModeChange)="professionalFeePaymentMode = $event"
+                  (professionalFeeNotesChange)="professionalFeeNotes = $event"
+                  (professionalFeeValidityChange)="pfDecisionValid = $event"
                   (vaccinationsAdded)="onVaccinationsAdded($event)"
                 ></app-consultation-workspace>
               </div>
@@ -260,15 +303,70 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
               <div class="cr-side-card">
                 <h3>Consultation Progress</h3>
                 <ul class="cr-progress">
-                  <li class="cr-progress__item" [class.done]="soapValid">Notes &amp; SOAP</li>
-                  <li class="cr-progress__item" [class.done]="true">Vitals</li>
-                  <li class="cr-progress__item" [class.done]="diagnosisValid">Diagnosis</li>
-                  <li class="cr-progress__item" [class.done]="prescriptionItems.length > 0">Prescription</li>
-                  <li class="cr-progress__item">Follow-up</li>
-                  <li class="cr-progress__item">PF Decision</li>
+                  <li class="cr-progress__item"
+                      [class.warning]="getProgressStepState('section-soap', vm) === 'warning'"
+                      [class.done]="getProgressStepState('section-soap', vm) === 'complete'"
+                      [class.active]="isStepActive('section-soap')">
+                    <a href="#section-soap" (click)="scrollToSection('section-soap', $event)">
+                      <span class="cr-progress__icon">{{ getProgressStepIcon('section-soap', vm) }}</span>
+                      <span class="cr-progress__label">Notes &amp; SOAP</span>
+                    </a>
+                  </li>
+                  <li class="cr-progress__item"
+                      [class.warning]="getProgressStepState('section-vitals', vm) === 'warning'"
+                      [class.done]="getProgressStepState('section-vitals', vm) === 'complete'"
+                      [class.active]="isStepActive('section-vitals')">
+                    <a href="#section-vitals" (click)="scrollToSection('section-vitals', $event)">
+                      <span class="cr-progress__icon">{{ getProgressStepIcon('section-vitals', vm) }}</span>
+                      <span class="cr-progress__label">Vitals</span>
+                    </a>
+                  </li>
+                  <li class="cr-progress__item"
+                      [class.warning]="getProgressStepState('section-diagnosis', vm) === 'warning'"
+                      [class.done]="getProgressStepState('section-diagnosis', vm) === 'complete'"
+                      [class.active]="isStepActive('section-diagnosis')">
+                    <a href="#section-diagnosis" (click)="scrollToSection('section-diagnosis', $event)">
+                      <span class="cr-progress__icon">{{ getProgressStepIcon('section-diagnosis', vm) }}</span>
+                      <span class="cr-progress__label">Diagnosis</span>
+                    </a>
+                  </li>
+                  <li class="cr-progress__item"
+                      [class.warning]="getProgressStepState('section-prescription', vm) === 'warning'"
+                      [class.done]="getProgressStepState('section-prescription', vm) === 'complete'"
+                      [class.active]="isStepActive('section-prescription')">
+                    <a href="#section-prescription" (click)="scrollToSection('section-prescription', $event)">
+                      <span class="cr-progress__icon">{{ getProgressStepIcon('section-prescription', vm) }}</span>
+                      <span class="cr-progress__label">Prescription</span>
+                    </a>
+                  </li>
+                  <li class="cr-progress__item"
+                      [class.warning]="getProgressStepState('section-lab-orders', vm) === 'warning'"
+                      [class.done]="getProgressStepState('section-lab-orders', vm) === 'complete'"
+                      [class.active]="isStepActive('section-lab-orders')">
+                    <a href="#section-lab-orders" (click)="scrollToSection('section-lab-orders', $event)">
+                      <span class="cr-progress__icon">{{ getProgressStepIcon('section-lab-orders', vm) }}</span>
+                      <span class="cr-progress__label">Lab Orders</span>
+                    </a>
+                  </li>
+                  <li class="cr-progress__item"
+                      [class.warning]="getProgressStepState('section-followup', vm) === 'warning'"
+                      [class.done]="getProgressStepState('section-followup', vm) === 'complete'"
+                      [class.active]="isStepActive('section-followup')">
+                    <a href="#section-followup" (click)="scrollToSection('section-followup', $event)">
+                      <span class="cr-progress__icon">{{ getProgressStepIcon('section-followup', vm) }}</span>
+                      <span class="cr-progress__label">Follow-up</span>
+                    </a>
+                  </li>
+                  <li class="cr-progress__item"
+                      [class.warning]="getProgressStepState('section-pf-decision', vm) === 'warning'"
+                      [class.done]="getProgressStepState('section-pf-decision', vm) === 'complete'"
+                      [class.active]="isStepActive('section-pf-decision')">
+                    <a href="#section-pf-decision" (click)="scrollToSection('section-pf-decision', $event)">
+                      <span class="cr-progress__icon">{{ getProgressStepIcon('section-pf-decision', vm) }}</span>
+                      <span class="cr-progress__label">PF Decision</span>
+                    </a>
+                  </li>
                 </ul>
-                <button class="cr-btn cr-btn--primary cr-btn--full" (click)="saveDraft(vm)" [disabled]="isWorkspaceLocked(vm) || isSavingDraft">{{ isSavingDraft ? 'Saving Draft...' : 'Save Draft' }}</button>
-                <button class="cr-btn cr-btn--complete cr-btn--full" (click)="requestCompletion(vm)" [disabled]="isCompleteActionDisabled(vm)" style="margin-top:8px">Complete Consultation</button>
               </div>
 
               <div class="cr-side-card">
@@ -288,7 +386,7 @@ type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
   `,
   styleUrl: './doctor-consultation.page.scss'
 })
-export class DoctorConsultationPage {
+export class DoctorConsultationPage implements AfterViewChecked, OnDestroy {
   private readonly apiService = inject(ApiService);
   private readonly authState = inject(AuthStateService);
   private readonly bookingService = inject(BookingService);
@@ -309,10 +407,20 @@ export class DoctorConsultationPage {
   isSavingDraft = false;
   isSavingAmendment = false;
   isAmendMode = false;
+  completionValidationRequested = false;
+  showStickyIdentityStrip = false;
+  identityStripExpanded = false;
+  activeSectionId: ProgressSectionId = 'section-soap';
+
+  currentConsultationFee = 0;
+  professionalFeeAmount = 0;
+  professionalFeePaymentMode: ProfessionalFeePaymentMode = 'Cash';
+  professionalFeeNotes = '';
 
   soapValid = false;
   diagnosisValid = false;
   vitalsValid = true;
+  pfDecisionValid = true;
   soapValue: SoapFormValue = {
     chiefComplaint: '',
     subjective: '',
@@ -326,6 +434,10 @@ export class DoctorConsultationPage {
   labRequests: LabRequestDraftView[] = [];
   followUpValue: FollowUpDraftView | null = null;
   pendingVaccinations: CreatePatientVaccinationRequest[] = [];
+
+  private sectionObserver: IntersectionObserver | null = null;
+  private identityObserver: IntersectionObserver | null = null;
+  private observersInitialized = false;
 
   readonly vm$ = combineLatest([
     this.route.paramMap.pipe(map((paramMap) => paramMap.get('bookingId') ?? '')),
@@ -384,6 +496,15 @@ export class DoctorConsultationPage {
     })
   );
 
+  ngAfterViewChecked(): void {
+    this.initializeObservers();
+  }
+
+  ngOnDestroy(): void {
+    this.sectionObserver?.disconnect();
+    this.identityObserver?.disconnect();
+  }
+
   onVitalsChange(value: VitalSigns): void {
     this.vitalsValue = value;
   }
@@ -412,6 +533,357 @@ export class DoctorConsultationPage {
     this.pendingVaccinations = payloads;
   }
 
+  private initializeObservers(): void {
+    if (this.observersInitialized || typeof document === 'undefined') {
+      return;
+    }
+
+    const patientCard = document.getElementById('patient-identity-card');
+    const sectionIds: ProgressSectionId[] = [
+      'section-soap',
+      'section-vitals',
+      'section-diagnosis',
+      'section-prescription',
+      'section-lab-orders',
+      'section-followup',
+      'section-pf-decision'
+    ];
+    const sections = sectionIds
+      .map((sectionId) => document.getElementById(sectionId))
+      .filter((element): element is HTMLElement => Boolean(element));
+
+    if (!patientCard || sections.length !== sectionIds.length) {
+      return;
+    }
+
+    this.identityObserver?.disconnect();
+    this.sectionObserver?.disconnect();
+
+    this.identityObserver = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        this.showStickyIdentityStrip = !entry.isIntersecting;
+      },
+      {
+        threshold: [0.05, 0.2, 0.95]
+      }
+    );
+    this.identityObserver.observe(patientCard);
+
+    this.sectionObserver = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+        if (visible?.target.id) {
+          this.activeSectionId = visible.target.id as ProgressSectionId;
+        }
+      },
+      {
+        rootMargin: '-18% 0px -58% 0px',
+        threshold: [0.1, 0.25, 0.5, 0.75]
+      }
+    );
+
+    for (const section of sections) {
+      this.sectionObserver.observe(section);
+    }
+
+    this.observersInitialized = true;
+  }
+
+  scrollToSection(sectionId: ProgressSectionId, event?: Event): void {
+    event?.preventDefault();
+    const element = typeof document !== 'undefined' ? document.getElementById(sectionId) : null;
+    element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    this.activeSectionId = sectionId;
+  }
+
+  getCompleteTooltip(vm: ConsultationPageVm): string {
+    const missing = this.getMissingCompletionFields(vm);
+    if (missing.length > 0) {
+      return `Missing: ${missing.join(', ')}`;
+    }
+
+    if (this.isWorkspaceLocked(vm) || this.isSavingDraft) {
+      return 'Consultation is currently locked.';
+    }
+
+    return 'Complete Consultation';
+  }
+
+  getProgressStepState(sectionId: ProgressSectionId, vm: ConsultationPageVm): 'empty' | 'progress' | 'complete' | 'warning' {
+    const showWarning = this.completionValidationRequested && this.isSectionMissing(sectionId, vm);
+    if (showWarning) {
+      return 'warning';
+    }
+
+    switch (sectionId) {
+      case 'section-soap': {
+        const hasChiefComplaint = this.hasChiefComplaint();
+        const hasAnySoap = this.hasAnySoapInput();
+        if (hasChiefComplaint) return 'complete';
+        if (hasAnySoap) return 'progress';
+        return 'empty';
+      }
+      case 'section-vitals': {
+        const hasRequired = this.hasRequiredVitals();
+        const hasAny = this.hasAnyVitalsInput();
+        if (hasRequired) return 'complete';
+        if (hasAny) return 'progress';
+        return 'empty';
+      }
+      case 'section-diagnosis':
+        return this.diagnoses.length > 0 ? 'complete' : 'empty';
+      case 'section-prescription':
+        return this.prescriptionItems.length > 0 ? 'complete' : 'empty';
+      case 'section-lab-orders':
+        return this.labRequests.length > 0 ? 'complete' : 'empty';
+      case 'section-followup':
+        if (this.followUpValue?.followUpDate) return 'complete';
+        if (this.followUpValue?.reason?.trim() || this.followUpValue?.reminderEnabled) return 'progress';
+        return 'empty';
+      case 'section-pf-decision':
+        if (this.hasProfessionalFeeDecision()) return 'complete';
+        if (this.professionalFeeNotes.trim().length > 0 || this.professionalFeeAmount > 0) return 'progress';
+        return 'empty';
+      default:
+        return 'empty';
+    }
+  }
+
+  getProgressStepIcon(sectionId: ProgressSectionId, vm: ConsultationPageVm): string {
+    switch (this.getProgressStepState(sectionId, vm)) {
+      case 'complete':
+        return '✓';
+      case 'progress':
+        return '◑';
+      case 'warning':
+        return '⚠';
+      default:
+        return '○';
+    }
+  }
+
+  getProgressStepLabel(sectionId: ProgressSectionId): string {
+    switch (sectionId) {
+      case 'section-soap':
+        return 'Notes & SOAP';
+      case 'section-vitals':
+        return 'Vitals';
+      case 'section-diagnosis':
+        return 'Diagnosis';
+      case 'section-prescription':
+        return 'Prescription';
+      case 'section-lab-orders':
+        return 'Lab Orders';
+      case 'section-followup':
+        return 'Follow-up';
+      case 'section-pf-decision':
+        return 'PF Decision';
+    }
+  }
+
+  isStepActive(sectionId: ProgressSectionId): boolean {
+    return this.activeSectionId === sectionId;
+  }
+
+  private isSectionMissing(sectionId: ProgressSectionId, vm: ConsultationPageVm): boolean {
+    switch (sectionId) {
+      case 'section-soap':
+        return !this.hasChiefComplaint();
+      case 'section-vitals':
+        return !this.hasRequiredVitals();
+      case 'section-diagnosis':
+        return this.diagnoses.length === 0;
+      case 'section-prescription':
+        return this.prescriptionItems.length === 0;
+      case 'section-lab-orders':
+        return this.labRequests.length === 0;
+      case 'section-followup':
+        return !this.followUpValue?.followUpDate;
+      case 'section-pf-decision':
+        return !this.hasProfessionalFeeDecision();
+    }
+  }
+
+  private getMissingCompletionFields(vm: ConsultationPageVm): string[] {
+    const missing: string[] = [];
+    if (!this.hasChiefComplaint()) missing.push('Chief Complaint');
+    if (this.diagnoses.length === 0) missing.push('At least one ICD-10 Diagnosis');
+    if (!this.hasBloodPressure()) missing.push('Blood Pressure');
+    if (!this.hasHeartRate()) missing.push('Heart Rate');
+    return missing;
+  }
+
+  private hasChiefComplaint(): boolean {
+    return this.soapValue.chiefComplaint.trim().length > 0;
+  }
+
+  private hasAnySoapInput(): boolean {
+    return [
+      this.soapValue.chiefComplaint,
+      this.soapValue.subjective,
+      this.soapValue.objective,
+      this.soapValue.assessment,
+      this.soapValue.plan
+    ].some((value) => value.trim().length > 0);
+  }
+
+  private hasBloodPressure(): boolean {
+    return this.hasNumberValue(this.vitalsValue?.bloodPressureSystolic) && this.hasNumberValue(this.vitalsValue?.bloodPressureDiastolic);
+  }
+
+  private hasHeartRate(): boolean {
+    return this.hasNumberValue(this.vitalsValue?.heartRate);
+  }
+
+  private hasRequiredVitals(): boolean {
+    return this.hasBloodPressure() && this.hasHeartRate();
+  }
+
+  private hasAnyVitalsInput(): boolean {
+    const value = this.vitalsValue;
+    if (!value) {
+      return false;
+    }
+
+    return [
+      value.bloodPressureSystolic,
+      value.bloodPressureDiastolic,
+      value.heartRate,
+      value.respiratoryRate,
+      value.temperatureCelsius,
+      value.temperature,
+      value.oxygenSaturation,
+      value.weightKg,
+      value.weight,
+      value.heightCm,
+      value.height,
+      value.bmi,
+      value.painScore
+    ].some((entry) => this.hasNumberOrTextValue(entry));
+  }
+
+  private hasProfessionalFeeDecision(): boolean {
+    return this.hasNumberValue(this.professionalFeeAmount) && this.professionalFeePaymentMode.length > 0;
+  }
+
+  private normalizeProfessionalFeePaymentMode(value: unknown): ProfessionalFeePaymentMode {
+    const allowed: ProfessionalFeePaymentMode[] = ['Cash', 'Card', 'PayMClinic', 'HMO', 'Waived'];
+    return allowed.includes(value as ProfessionalFeePaymentMode) ? (value as ProfessionalFeePaymentMode) : 'Cash';
+  }
+
+  private hasNumberValue(value: number | string | null | undefined): boolean {
+    if (value === null || value === undefined || value === '') {
+      return false;
+    }
+    const numeric = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(numeric);
+  }
+
+  private hasNumberOrTextValue(value: number | string | null | undefined): boolean {
+    if (value === null || value === undefined || value === '') {
+      return false;
+    }
+    return String(value).trim().length > 0;
+  }
+
+  getAllergyConfirmationState(vm: ConsultationPageVm): AllergyConfirmationState {
+    const patient = vm.patient as ConsultationPageVm['patient'] & {
+      allergyConfirmationState?: AllergyConfirmationState;
+      allergiesConfirmedEmpty?: boolean;
+    };
+
+    if (patient.allergyConfirmationState) {
+      return patient.allergyConfirmationState;
+    }
+
+    if (patient.allergiesConfirmedEmpty) {
+      return 'confirmed-empty';
+    }
+
+    return null;
+  }
+
+  private buildCompletionChecklist(vm: ConsultationPageVm): ConsultationChecklistItem[] {
+    const diagnosis = this.diagnoses[0];
+    return [
+      {
+        label: 'Chief Complaint',
+        complete: this.hasChiefComplaint(),
+        detail: this.hasChiefComplaint() ? this.soapValue.chiefComplaint.trim() : 'Missing'
+      },
+      {
+        label: 'Diagnosis',
+        complete: this.diagnoses.length > 0,
+        detail: diagnosis ? `${diagnosis.code || diagnosis.icd10Code || 'N/A'} - ${diagnosis.description}` : 'No diagnosis selected'
+      },
+      {
+        label: 'Vitals',
+        complete: this.hasRequiredVitals(),
+        detail: this.hasRequiredVitals() ? 'Blood pressure and heart rate entered' : 'Blood pressure and heart rate required'
+      },
+      {
+        label: `Prescriptions (${this.prescriptionItems.length})`,
+        complete: this.prescriptionItems.length > 0,
+        detail: this.prescriptionItems.length > 0 ? 'At least one prescription added' : 'No prescriptions added'
+      },
+      {
+        label: `Lab Orders (${this.labRequests.length})`,
+        complete: this.labRequests.length > 0,
+        detail: this.labRequests.length > 0 ? 'At least one lab order added' : 'No lab orders added'
+      },
+      {
+        label: 'Follow-up date',
+        complete: Boolean(this.followUpValue?.followUpDate?.trim()),
+        detail: this.followUpValue?.followUpDate ? this.followUpValue.followUpDate : 'No follow-up date set'
+      },
+      {
+        label: 'PF Decision',
+        complete: this.hasProfessionalFeeDecision(),
+        detail: `PHP ${this.professionalFeeAmount || 0} · ${this.professionalFeePaymentMode}`
+      }
+    ];
+  }
+
+  private buildCompletionSummary(vm: ConsultationPageVm): ConsultationSummaryLine[] {
+    return [
+      {
+        label: 'Diagnosis codes and descriptions',
+        value:
+          this.diagnoses.length > 0
+            ? this.diagnoses.map((diagnosis) => `${diagnosis.code || diagnosis.icd10Code || 'N/A'} - ${diagnosis.description}`)
+            : ['No diagnosis selected']
+      },
+      {
+        label: 'Prescriptions added',
+        value:
+          this.prescriptionItems.length > 0
+            ? this.prescriptionItems.map(
+                (item) => `${item.medicineName} · ${item.dosageForm || 'N/A'} · ${item.frequency || item.sig || 'N/A'}`
+              )
+            : ['No prescriptions added']
+      },
+      {
+        label: 'Lab orders placed',
+        value:
+          this.labRequests.length > 0
+            ? this.labRequests.map((request) => `${request.testName}${request.reason ? ` · ${request.reason}` : ''}`)
+            : ['No lab orders added']
+      },
+      {
+        label: 'Follow-up date',
+        value: this.followUpValue?.followUpDate?.trim() || 'Not set'
+      },
+      {
+        label: 'Professional fee',
+        value: `PHP ${this.isProfessionalFeeWaived ? 0 : this.professionalFeeAmount} (${this.professionalFeePaymentMode})`
+      }
+    ];
+  }
+
   saveDraft(vm: ConsultationPageVm): void {
     if (this.isWorkspaceLocked(vm) || this.isSavingDraft || this.isAmendMode) {
       return;
@@ -431,35 +903,37 @@ export class DoctorConsultationPage {
   requestCompletion(vm: ConsultationPageVm): void {
     if (this.isCompleteActionDisabled(vm)) {
       void this.presentToast(
-        'Complete the chief complaint and add at least one primary diagnosis before completing.',
+        'Complete the chief complaint, diagnosis, and required vitals before completing.',
         'warning'
       );
       return;
     }
 
+    this.completionValidationRequested = true;
     void this.openCompleteModal(vm);
   }
 
   async openCompleteModal(vm: ConsultationPageVm): Promise<void> {
     const booking = vm.booking;
-    const draft = this.readLocalDraft(booking.id);
     this.isSubmittingComplete = false;
-    this.isProfessionalFeeWaived =
-      draft?.isProfessionalFeeWaived ?? (booking.isProfessionalFeeWaived === true || booking.paymentStatus === 'Waived');
-    this.completionFinalAmount =
-      draft?.finalAmount ?? Math.max(0, booking.finalAmount ?? booking.consultationFeeSnapshot ?? 0);
-    this.completionWaivedReason = draft?.professionalFeeWaivedReason ?? booking.professionalFeeWaivedReason ?? '';
+    this.currentConsultationFee = booking.consultationFeeSnapshot ?? booking.totalFee ?? 0;
+    this.completionFinalAmount = this.professionalFeeAmount;
+    this.isProfessionalFeeWaived = this.professionalFeePaymentMode === 'Waived';
+    this.completionWaivedReason = this.isProfessionalFeeWaived ? this.professionalFeeNotes.trim() : '';
 
     const modal = await this.modalCtrl.create({
       component: ConsultationCompleteModalComponent,
       componentProps: {
         patientName: [vm.patient.firstName, vm.patient.lastName].filter(Boolean).join(' ') || 'Patient',
-        serviceLabel: this.servicesLabel(booking),
-        scheduleLabel: `${booking.appointmentDate} \u2022 ${booking.slotStartTime} - ${booking.slotEndTime}`,
-        initialFinalAmount: this.completionFinalAmount,
-        initialIsProfessionalFeeWaived: this.isProfessionalFeeWaived,
-        initialProfessionalFeeWaivedReason: this.completionWaivedReason,
-        submitHandler: (completion: ConsultationCompleteModalPayload) => this.submitCompletion(booking, completion)
+        patientDob: vm.patient.dateOfBirth ? `DOB: ${this.formatDateForDisplay(vm.patient.dateOfBirth)}` : 'DOB: --',
+        patientMrn: vm.patient.patientCode || vm.patient.id || 'Patient ID unavailable',
+        visitDateTime: new Date(`${booking.appointmentDate}T${booking.slotStartTime}`).toLocaleString('en-US', {
+          dateStyle: 'medium',
+          timeStyle: 'short'
+        }),
+        checklistItems: this.buildCompletionChecklist(vm),
+        summaryLines: this.buildCompletionSummary(vm),
+        submitHandler: () => this.submitCompletion(booking)
       },
       cssClass: 'modal-default',
       backdropDismiss: false
@@ -469,24 +943,20 @@ export class DoctorConsultationPage {
     await modal.onDidDismiss();
   }
 
-  servicesLabel(booking: Booking): string {
-    return formatServicesLabel(booking);
-  }
-
-  async submitCompletion(booking: Booking, completion: ConsultationCompleteModalPayload): Promise<boolean> {
+  async submitCompletion(booking: Booking): Promise<boolean> {
     if (this.isSubmittingComplete) {
       return false;
     }
 
-    this.isProfessionalFeeWaived = completion.isProfessionalFeeWaived;
-    this.completionFinalAmount = completion.isProfessionalFeeWaived ? 0 : completion.finalAmount;
-    this.completionWaivedReason = completion.professionalFeeWaivedReason;
+    this.isProfessionalFeeWaived = this.professionalFeePaymentMode === 'Waived';
+    this.completionFinalAmount = this.isProfessionalFeeWaived ? 0 : this.professionalFeeAmount;
+    this.completionWaivedReason = this.isProfessionalFeeWaived ? this.professionalFeeNotes.trim() : '';
 
     const finalAmount = this.completionFinalAmount;
     const professionalFeeWaivedReason = this.completionWaivedReason.trim();
 
     if (!this.isProfessionalFeeWaived && (!Number.isFinite(finalAmount) || finalAmount < 0)) {
-      await this.presentToast('Enter a valid final amount.', 'warning');
+      await this.presentToast('Enter a valid professional fee.', 'warning');
       return false;
     }
 
@@ -562,9 +1032,9 @@ export class DoctorConsultationPage {
       this.isWorkspaceLocked(vm) ||
       this.isSavingDraft ||
       this.isSubmittingComplete ||
-      !this.soapValid ||
-      !this.diagnosisValid ||
-      !this.vitalsValid
+      !this.hasChiefComplaint() ||
+      this.diagnoses.length === 0 ||
+      !this.hasRequiredVitals()
     );
   }
 
@@ -635,6 +1105,17 @@ export class DoctorConsultationPage {
     return a;
   }
 
+  private formatDateForDisplay(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${month}/${day}/${date.getFullYear()}`;
+  }
+
   private buildVm(args: {
     booking: Booking;
     patient: Patient;
@@ -643,6 +1124,13 @@ export class DoctorConsultationPage {
     consultationRecord: ConsultationRecordResponse | null;
   }): ConsultationPageVm {
     const localDraft = this.readLocalDraft(args.booking.id);
+    this.currentConsultationFee = args.booking.consultationFeeSnapshot ?? args.booking.totalFee ?? 0;
+    this.professionalFeeAmount = localDraft?.professionalFeeAmount ?? this.currentConsultationFee;
+    this.professionalFeePaymentMode = this.normalizeProfessionalFeePaymentMode(localDraft?.professionalFeePaymentMode);
+    this.professionalFeeNotes = localDraft?.professionalFeeNotes ?? '';
+    this.isProfessionalFeeWaived = this.professionalFeePaymentMode === 'Waived';
+    this.completionFinalAmount = this.isProfessionalFeeWaived ? 0 : this.professionalFeeAmount;
+    this.completionWaivedReason = this.isProfessionalFeeWaived ? this.professionalFeeNotes : '';
     const consultation = this.mapConsultationRecord(
       args.consultationRecord,
       args.booking,
@@ -740,8 +1228,8 @@ export class DoctorConsultationPage {
       finalAmount: this.isProfessionalFeeWaived ? 0 : finalAmount,
       isProfessionalFeeWaived: this.isProfessionalFeeWaived,
       professionalFeeWaivedReason: professionalFeeWaivedReason || undefined,
-      doctorFeeStatus: this.isProfessionalFeeWaived ? 'Waived' : 'Charged',
-      doctorFeeNotes: this.isProfessionalFeeWaived ? professionalFeeWaivedReason || undefined : undefined,
+      doctorFeeStatus: this.isProfessionalFeeWaived ? 'Waived' : this.professionalFeePaymentMode,
+      doctorFeeNotes: professionalFeeWaivedReason || this.professionalFeeNotes.trim() || undefined,
       generalNotes,
       vitalSigns: normalizedVitals,
       soap: normalizedSoap,
@@ -946,6 +1434,8 @@ export class DoctorConsultationPage {
       throw new Error('Local draft storage is not available in this browser.');
     }
 
+    const isProfessionalFeeWaived = this.professionalFeePaymentMode === 'Waived';
+
     const draft: ConsultationLocalDraft = {
       bookingId: vm.booking.id,
       savedAt: new Date().toISOString(),
@@ -961,9 +1451,12 @@ export class DoctorConsultationPage {
       prescriptionItems: this.prescriptionItems.map((item) => ({ ...item })),
       labRequests: this.labRequests.map((request) => ({ ...request })),
       followUpValue: this.followUpValue ? { ...this.followUpValue } : null,
-      isProfessionalFeeWaived: this.isProfessionalFeeWaived,
-      finalAmount: this.completionFinalAmount,
-      professionalFeeWaivedReason: this.completionWaivedReason.trim()
+      professionalFeeAmount: this.professionalFeeAmount,
+      professionalFeePaymentMode: this.professionalFeePaymentMode,
+      professionalFeeNotes: this.professionalFeeNotes,
+      isProfessionalFeeWaived,
+      finalAmount: isProfessionalFeeWaived ? 0 : this.professionalFeeAmount,
+      professionalFeeWaivedReason: isProfessionalFeeWaived ? this.professionalFeeNotes.trim() : ''
     };
 
     localStorage.setItem(buildConsultationDraftKey(vm.booking.id), JSON.stringify(draft));
@@ -1002,6 +1495,9 @@ export class DoctorConsultationPage {
           : [],
         labRequests: Array.isArray(parsed.labRequests) ? parsed.labRequests.map((request) => ({ ...request })) : [],
         followUpValue: parsed.followUpValue ? { ...parsed.followUpValue } : null,
+        professionalFeeAmount: typeof parsed.professionalFeeAmount === 'number' ? parsed.professionalFeeAmount : 0,
+        professionalFeePaymentMode: this.normalizeProfessionalFeePaymentMode(parsed.professionalFeePaymentMode),
+        professionalFeeNotes: parsed.professionalFeeNotes ?? '',
         isProfessionalFeeWaived: Boolean(parsed.isProfessionalFeeWaived),
         finalAmount: typeof parsed.finalAmount === 'number' ? parsed.finalAmount : 0,
         professionalFeeWaivedReason: parsed.professionalFeeWaivedReason ?? ''
@@ -1041,6 +1537,7 @@ export class DoctorConsultationPage {
     this.completionFinalAmount = 0;
     this.completionWaivedReason = '';
     this.isSubmittingComplete = false;
+    this.completionValidationRequested = false;
   }
 
   private loadConsultationRecord$(booking: Booking): Observable<ConsultationRecordResponse | null> {

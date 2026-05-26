@@ -1,0 +1,237 @@
+import { DatePipe, NgIf } from '@angular/common';
+import { Component, Input } from '@angular/core';
+import { Allergy, Booking, Patient } from '../../../../core/models';
+import { AllergyBadgeComponent, AllergyConfirmationState } from './allergy-badge.component';
+
+@Component({
+  selector: 'app-patient-identity-strip',
+  standalone: true,
+  imports: [DatePipe, NgIf, AllergyBadgeComponent],
+  template: `
+    <section
+      class="pis"
+      [class.pis--expanded]="expanded"
+      (click)="toggleExpanded()"
+      (keydown.enter)="toggleExpanded()"
+      (keydown.space)="$event.preventDefault(); toggleExpanded()"
+      tabindex="0"
+      role="button"
+      [attr.aria-expanded]="expanded"
+      [attr.title]="mobileHint"
+    >
+      <div class="pis__avatar" *ngIf="showDetails">{{ initials }}</div>
+
+      <div class="pis__main">
+        <strong class="pis__name">{{ fullNameUpper }}</strong>
+        <div class="pis__badges">
+          <app-allergy-badge [allergies]="allergies" [confirmationState]="allergyConfirmationState"></app-allergy-badge>
+          <span
+            *ngIf="showDetails"
+            class="pis__payment"
+            [class.pis__payment--paid]="isPaid"
+            [class.pis__payment--unpaid]="!isPaid"
+          >
+            {{ paymentLabel }}
+          </span>
+        </div>
+      </div>
+
+      <div class="pis__details" *ngIf="showDetails">
+        <span>{{ ageSexLabel }}</span>
+        <span>DOB: {{ patient.dateOfBirth | date : 'MM/dd/yyyy' }}</span>
+        <span>MRN: {{ mrnLabel }}</span>
+      </div>
+    </section>
+  `,
+  styles: [
+    `
+      :host {
+        display: block;
+        position: sticky;
+        top: 0;
+        z-index: 30;
+      }
+
+      .pis {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 16px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+        border: 1px solid #dbe3ee;
+        border-radius: 18px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+      }
+
+      .pis__avatar {
+        width: 52px;
+        height: 52px;
+        min-width: 52px;
+        min-height: 52px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #5b21b6, #2563eb);
+        color: #fff;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        box-shadow: 0 10px 20px rgba(91, 33, 182, 0.2);
+      }
+
+      .pis__main {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+
+      .pis__name {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.2;
+        letter-spacing: 0.02em;
+      }
+
+      .pis__badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .pis__details {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 14px;
+        color: #475569;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+
+      .pis__payment {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .pis__payment--paid {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #86efac;
+      }
+
+      .pis__payment--unpaid {
+        background: #fee2e2;
+        color: #b91c1c;
+        border: 1px solid #fca5a5;
+      }
+
+      @media (max-width: 767px) {
+        .pis {
+          cursor: pointer;
+        }
+
+        .pis__avatar,
+        .pis__details {
+          display: none;
+        }
+
+        .pis--expanded .pis__avatar,
+        .pis--expanded .pis__details {
+          display: flex;
+        }
+
+        .pis--expanded {
+          align-items: flex-start;
+        }
+
+        .pis--expanded .pis__details {
+          width: 100%;
+          margin-top: 4px;
+        }
+      }
+    `
+  ]
+})
+export class PatientIdentityStripComponent {
+  @Input({ required: true }) patient!: Patient;
+  @Input({ required: true }) booking!: Booking;
+  @Input() allergies: Allergy[] = [];
+  @Input() allergyConfirmationState: AllergyConfirmationState = null;
+  @Input() expanded = false;
+
+  get initials(): string {
+    const first = this.patient.firstName?.trim().charAt(0) ?? '';
+    const last = this.patient.lastName?.trim().charAt(0) ?? '';
+    return `${first}${last}`.toUpperCase() || '??';
+  }
+
+  get fullNameUpper(): string {
+    return [this.patient.firstName, this.patient.middleName, this.patient.lastName]
+      .filter((part) => !!part && part.trim().length > 0)
+      .join(' ')
+      .toUpperCase() || 'PATIENT';
+  }
+
+  get ageSexLabel(): string {
+    const sex = this.patient.sex?.trim() ? this.patient.sex.trim() : '--';
+    const age = this.patient.dateOfBirth ? `${this.calculateAge(this.patient.dateOfBirth)}y` : '--';
+    return `${this.capitalize(sex)}, ${age}`;
+  }
+
+  get mrnLabel(): string {
+    return this.patient.patientCode || this.patient.id || 'Patient ID unavailable';
+  }
+
+  get paymentLabel(): string {
+    return (this.booking.paymentStatus || 'Unpaid').toUpperCase();
+  }
+
+  get isPaid(): boolean {
+    return String(this.booking.paymentStatus || '').toLowerCase() === 'paid';
+  }
+
+  get showDetails(): boolean {
+    return this.isDesktopViewport() || this.expanded;
+  }
+
+  get mobileHint(): string {
+    return this.isDesktopViewport() ? '' : 'Tap to expand patient details';
+  }
+
+  toggleExpanded(): void {
+    if (!this.isDesktopViewport()) {
+      this.expanded = !this.expanded;
+    }
+  }
+
+  private isDesktopViewport(): boolean {
+    return typeof window !== 'undefined' ? window.innerWidth >= 768 : true;
+  }
+
+  private calculateAge(dob: string): number {
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return Math.max(age, 0);
+  }
+
+  private capitalize(value: string): string {
+    if (!value || value === '--') {
+      return value || '--';
+    }
+
+    return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+  }
+}

@@ -16,6 +16,11 @@
   color: var(--clinic-text-secondary);
 }
 
+:host {
+  display: block;
+  scroll-margin-top: 128px;
+}
+
 .lab-grid {
   display: grid;
   gap: var(--space-3);
