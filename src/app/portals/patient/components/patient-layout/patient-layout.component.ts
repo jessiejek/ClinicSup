@@ -45,7 +45,6 @@ import { PATIENT_NAV_ITEMS } from '../../patient.routes';
         <app-admin-topbar
           [title]="pageTitle"
           [portalLabel]="portalLabel"
-          [searchPlaceholder]="searchPlaceholder"
           [currentUser]="currentUser()"
           [unreadCount]="unreadCount()"
           (menuToggle)="openSidebar()"
@@ -105,7 +104,6 @@ export class PatientLayoutComponent implements OnInit {
   portalLabel = 'Patient Portal';
   portalTitle = 'Dashboard';
   pageTitle = 'Dashboard';
-  searchPlaceholder = 'Search doctors, bookings...';
   navItems: NavItem[] = PATIENT_NAV_ITEMS;
   sidebarOpen = false;
   downloadingClinicalRecords = false;

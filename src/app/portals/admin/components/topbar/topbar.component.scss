@@ -33,35 +33,6 @@
   font-weight: var(--font-bold);
 }
 
-.topbar__search {
-  flex: 1;
-  max-width: 420px;
-  height: 40px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--clinic-border);
-  background: var(--color-neutral-50);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0 var(--space-4);
-  color: var(--clinic-text-muted);
-}
-
-.topbar__search:focus-within {
-  border-color: var(--ion-color-primary);
-  background: white;
-  box-shadow: 0 0 0 3px rgba(93, 62, 142, 0.1);
-}
-
-.topbar__search input {
-  width: 100%;
-  border: none;
-  background: transparent;
-  color: var(--clinic-text-primary);
-  font-size: var(--text-sm);
-  outline: none;
-}
-
 .topbar__actions {
   display: flex;
   align-items: center;
@@ -211,7 +182,6 @@
     display: inline-flex;
   }
 
-  .topbar__search,
   .topbar__logout-label {
     display: none;
   }

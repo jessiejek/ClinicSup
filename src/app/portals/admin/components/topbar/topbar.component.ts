@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { closeOutline, logOutOutline, menuOutline, searchOutline } from 'ionicons/icons';
+import { closeOutline, logOutOutline, menuOutline } from 'ionicons/icons';
 import { AuthUser, Role } from '../../../../core/models';
 import { getClinicalRoleBadge, resolveClinicalRole } from '../../../../core/utils/clinical-role.util';
 import { AvatarComponent } from '../../../../shared/components/avatar/avatar.component';
@@ -29,11 +29,6 @@ import { NotificationBellComponent } from '../notification-bell/notification-bel
         <ion-icon name="menu-outline"></ion-icon>
       </button>
 
-      <label class="topbar__search" aria-label="Search">
-        <ion-icon name="search-outline"></ion-icon>
-        <input type="search" [placeholder]="searchPlaceholder" />
-      </label>
-
       <div class="topbar__actions">
         <app-notification-bell [unreadCount]="unreadCount"></app-notification-bell>
         <button type="button" class="topbar__user" aria-label="Account options" (click)="goToProfile()">
@@ -57,7 +52,6 @@ import { NotificationBellComponent } from '../notification-bell/notification-bel
 export class TopbarComponent {
   @Input() title = 'Dashboard';
   @Input() portalLabel = 'Portal';
-  @Input() searchPlaceholder = 'Search patients, bookings...';
   @Input() currentUser: AuthUser | null = null;
   @Input() unreadCount = 0;
 
@@ -73,7 +67,7 @@ export class TopbarComponent {
   };
 
   constructor() {
-    addIcons({ closeOutline, searchOutline, logOutOutline, menuOutline });
+    addIcons({ closeOutline, logOutOutline, menuOutline });
   }
 
   get roleBadge() {
