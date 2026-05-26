@@ -1,7 +1,7 @@
 import { DestroyRef, Injectable, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getMessaging, getToken, isSupported, type Messaging } from 'firebase/messaging';
+import { getMessaging, getToken, isSupported, onMessage, type Messaging } from 'firebase/messaging';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthStateService } from './auth-state.service';
@@ -66,6 +66,7 @@ export class PushNotificationService {
 
   private firebaseApp: FirebaseApp | null = null;
   private messaging: Messaging | null = null;
+  private foregroundListenerRegistered = false;
 
   /** Live stream of in-app notifications (newest first). */
   readonly notifications$: Observable<InAppNotification[]> =
@@ -171,6 +172,8 @@ export class PushNotificationService {
       return { success: false, error: 'Firebase Messaging unavailable.' };
     }
 
+    this.registerForegroundMessageHandler(messaging);
+
     try {
       const token = await getToken(messaging, {
         vapidKey: config.vapidKey,
@@ -261,6 +264,57 @@ export class PushNotificationService {
 
     this.messaging = getMessaging(app);
     return this.messaging;
+  }
+
+  private registerForegroundMessageHandler(messaging: Messaging): void {
+    if (this.foregroundListenerRegistered) {
+      return;
+    }
+
+    this.foregroundListenerRegistered = true;
+
+    onMessage(messaging, (payload) => {
+      const notification = (payload.notification ?? {}) as Record<string, string>;
+      const data = (payload.data ?? {}) as Record<string, string>;
+      const title = notification['title'] || data['title'] || 'Clinic notification';
+      const body =
+        notification['body'] ||
+        data['body'] ||
+        data['message'] ||
+        'You have a new notification.';
+      const navigateTo = data['navigate_to'] || data['navigateTo'] || '/doctor/appointments';
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const browserNotification = new Notification(title, {
+          body,
+          icon: '/assets/icons/icon-192x192.png',
+          badge: '/assets/icons/icon-192x192.png',
+          data: { navigateTo }
+        });
+
+        browserNotification.onclick = () => {
+          browserNotification.close();
+          window.focus();
+          if (navigateTo) {
+            void window.location.assign(navigateTo);
+          }
+        };
+      }
+
+      this.notificationsSubject.next([
+        {
+          id: crypto.randomUUID(),
+          userId: this.authState.snapshot?.id ?? '',
+          title,
+          message: body,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          navigateTo
+        },
+        ...this.notificationsSubject.value
+      ]);
+      this.unreadCountSubject.next(this.unreadCountSubject.value + 1);
+    });
   }
 
   private ensureFirebaseApp(): FirebaseApp | null {
