@@ -64,8 +64,8 @@ import { AuthUser, NavItem, Role } from '../../../../core/models';
         </button>
 
         <button type="button" class="sidebar__logout-action" aria-label="Logout" (click)="onLogoutClick($event)">
-          <span class="sidebar__logout-label">Logout</span>
           <ion-icon name="log-out-outline"></ion-icon>
+          <span class="sidebar__logout-label">Logout</span>
         </button>
       </div>
     </aside>

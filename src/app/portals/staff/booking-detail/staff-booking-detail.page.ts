@@ -54,7 +54,9 @@ type CollectPaymentMethod = 'Cash' | 'GCash' | 'Maya' | 'BankTransfer';
     ReceiptModalComponent
   ],
   template: `
-    <section class="page-shell no-print" *ngIf="!isLoading; else loadingTpl">
+    <section class="page-shell no-print">
+      <div class="loading-card" *ngIf="isLoading && !booking">Loading booking details...</div>
+
       <ng-container *ngIf="booking; else missingTpl">
         <div class="page-shell__header">
           <div>
@@ -209,14 +211,6 @@ type CollectPaymentMethod = 'Cash' | 'GCash' | 'Maya' | 'BankTransfer';
         </div>
       </ng-container>
     </section>
-
-    <ng-template #loadingTpl>
-      <section class="page-shell">
-        <div class="clinic-card">
-          <p>Loading booking details...</p>
-        </div>
-      </section>
-    </ng-template>
 
     <ng-template #missingTpl>
       <section class="page-shell">

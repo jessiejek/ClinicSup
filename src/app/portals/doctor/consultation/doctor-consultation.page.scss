@@ -31,7 +31,13 @@
 
 .cr-hdr__title { margin: 0; font-size: 1.25rem; font-weight: 750; color: #0f172a; letter-spacing: -0.01em; }
 .cr-hdr__sub { margin: 4px 0 0; color: #64748b; font-size: var(--text-sm); line-height: 1.45; }
-.cr-hdr__right { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.cr-hdr__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  position: relative;
+}
 
 .cr-btn {
   display: inline-flex; align-items: center; height: 34px; padding: 0 var(--space-3);
@@ -668,7 +674,12 @@
   border: 1px solid #e2e8f0;
   border-radius: 14px;
   background: #fff;
-  width: 100%;
+  width: min(320px, calc(100vw - 32px));
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.14);
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 20;
 }
 
 .cr-cancel-prompt > span {
@@ -686,6 +697,10 @@
 .cr-cancel-prompt--mobile {
   width: 100%;
   margin-top: 4px;
+  position: static;
+  top: auto;
+  right: auto;
+  box-shadow: none;
 }
 
 .history-empty {
@@ -857,6 +872,10 @@
 @media (max-width: 767px) {
   .cr-top {
     padding-bottom: 14px;
+  }
+
+  .cr-hdr__right .cr-cancel-prompt {
+    display: none !important;
   }
 
   .cr-hdr__right .cr-btn,

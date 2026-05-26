@@ -172,7 +172,7 @@
 
 .sidebar__logout-action {
   border: none;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.04);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -182,14 +182,17 @@
   font-weight: var(--font-semibold);
   width: 100%;
   min-width: 0;
-  padding-top: var(--space-3);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  min-height: 48px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
   cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
 .sidebar__logout-action:hover,
 .sidebar__logout-action:focus-visible {
   color: white;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .sidebar__logout-action:focus-visible {
@@ -260,12 +263,7 @@
   }
 
   .sidebar__logout-action {
-    min-height: 48px;
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-lg);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.08);
-    justify-content: space-between;
+    justify-content: flex-start;
     -webkit-tap-highlight-color: transparent;
   }
 
