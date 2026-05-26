@@ -70,7 +70,7 @@ interface CriticalAlert {
       </div>
 
       <div class="section-card__head">
-        <h3>Vital Signs</h3>
+        <h3>Vital Signs <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
         <p>Capture the latest measurements for this visit.</p>
       </div>
 

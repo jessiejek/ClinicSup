@@ -67,7 +67,26 @@ interface TrendMetric {
 
       <ng-template #emptyTpl>
         <div class="empty-state">
-          <p>There are not enough consultations with vitals to show a trend yet.</p>
+          <svg class="empty-state__chart" viewBox="0 0 320 160" aria-hidden="true" focusable="false">
+            <defs>
+              <pattern id="vitals-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 6"></path>
+              </pattern>
+            </defs>
+            <rect x="12" y="12" width="296" height="116" rx="16" fill="url(#vitals-grid)"></rect>
+            <g stroke="#e2e8f0" stroke-width="1">
+              <line x1="28" y1="36" x2="292" y2="36"></line>
+              <line x1="28" y1="60" x2="292" y2="60"></line>
+              <line x1="28" y1="84" x2="292" y2="84"></line>
+              <line x1="28" y1="108" x2="292" y2="108"></line>
+            </g>
+            <path d="M 32 96 C 64 88, 88 72, 120 74 S 180 86, 208 66 S 252 48, 288 56" fill="none" stroke="#cbd5e1" stroke-width="3" stroke-dasharray="6 6" stroke-linecap="round"></path>
+            <circle cx="120" cy="74" r="4" fill="#cbd5e1"></circle>
+            <circle cx="208" cy="66" r="4" fill="#cbd5e1"></circle>
+            <circle cx="288" cy="56" r="4" fill="#cbd5e1"></circle>
+          </svg>
+          <h4>No trend data yet</h4>
+          <p>Vitals trend appears after 3 consultations with recorded vitals.</p>
         </div>
       </ng-template>
     </section>

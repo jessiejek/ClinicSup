@@ -18,10 +18,32 @@
 }
 
 .empty-state {
-  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+  justify-items: center;
+  text-align: center;
+  padding: var(--space-5);
   border-radius: var(--radius-lg);
-  border: 1px dashed var(--clinic-border);
-  background: var(--color-neutral-50);
+  border: 1px solid var(--clinic-border);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.96));
+}
+
+.empty-state__chart {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+}
+
+.empty-state h4 {
+  margin: 0;
+  color: var(--clinic-text-primary);
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+}
+
+.empty-state p {
+  margin: 0;
+  max-width: 26rem;
 }
 
 .vitals-grid {

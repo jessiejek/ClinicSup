@@ -27,10 +27,10 @@ export interface LabRequestDraftView {
   standalone: true,
   imports: [NgFor, NgIf, ReactiveFormsModule, IonButton, IonInput, IonItem, IonLabel, IonTextarea],
   template: `
-    <section class="clinic-card section-card">
+    <section class="clinic-card section-card" [class.section-card--locked]="locked">
       <div class="section-card__head" title="Tests you have ordered for this patient this visit">
         <div class="section-card__title-row">
-          <h3><i class="ti ti-clipboard-list"></i> Order Labs ({{ selectedLabOrders.length }} selected)</h3>
+          <h3><i class="ti ti-clipboard-list"></i> Order Labs ({{ selectedLabOrders.length }} selected) <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
           <p>Lab requests placed by you for this visit</p>
         </div>
       </div>
@@ -100,12 +100,17 @@ export interface LabRequestDraftView {
           </div>
         </article>
       </div>
+
+      <div class="section-card__footer">
+        <span>{{ auditText }}</span>
+      </div>
     </section>
   `,
   styleUrl: './lab-request-form.component.scss'
 })
 export class LabRequestFormComponent implements OnChanges {
   @Input() value: LabRequestDraftView[] = [];
+  @Input() auditText = 'Not yet edited this visit';
   @Input() locked = false;
   @Output() requestsChange = new EventEmitter<LabRequestDraftView[]>();
 

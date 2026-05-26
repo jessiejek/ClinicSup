@@ -1,12 +1,13 @@
-import { DatePipe, NgIf } from '@angular/common';
-import { Component, Input } from '@angular/core';
+import { DatePipe, NgIf, NgClass, NgStyle } from '@angular/common';
+import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { Allergy, Booking, Patient } from '../../../../core/models';
 import { AllergyBadgeComponent, AllergyConfirmationState } from './allergy-badge.component';
+import { buildPatientAvatarStyle } from './patient-avatar.util';
 
 @Component({
   selector: 'app-patient-identity-strip',
   standalone: true,
-  imports: [DatePipe, NgIf, AllergyBadgeComponent],
+  imports: [DatePipe, NgIf, NgClass, NgStyle, AllergyBadgeComponent],
   template: `
     <section
       class="pis"
@@ -19,7 +20,7 @@ import { AllergyBadgeComponent, AllergyConfirmationState } from './allergy-badge
       [attr.aria-expanded]="expanded"
       [attr.title]="mobileHint"
     >
-      <div class="pis__avatar" *ngIf="showDetails">{{ initials }}</div>
+      <div class="pis__avatar" *ngIf="showDetails" [ngStyle]="avatarStyle">{{ initials }}</div>
 
       <div class="pis__main">
         <strong class="pis__name">{{ fullNameUpper }}</strong>
@@ -40,6 +41,10 @@ import { AllergyBadgeComponent, AllergyConfirmationState } from './allergy-badge
         <span>{{ ageSexLabel }}</span>
         <span>DOB: {{ patient.dateOfBirth | date : 'MM/dd/yyyy' }}</span>
         <span>MRN: {{ mrnLabel }}</span>
+        <span class="pis__duration" [ngClass]="durationToneClass">
+          <i class="ti ti-clock"></i>
+          Duration: {{ elapsedDuration }}
+        </span>
       </div>
     </section>
   `,
@@ -72,9 +77,10 @@ import { AllergyBadgeComponent, AllergyConfirmationState } from './allergy-badge
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(135deg, #5b21b6, #2563eb);
-        color: #fff;
+        background: linear-gradient(135deg, #dbeafe, #e0f2fe);
+        color: #0f172a;
         font-weight: 800;
+        font-size: 18px;
         letter-spacing: 0.04em;
         box-shadow: 0 10px 20px rgba(91, 33, 182, 0.2);
       }
@@ -108,6 +114,28 @@ import { AllergyBadgeComponent, AllergyConfirmationState } from './allergy-badge
         color: #475569;
         font-size: 0.78rem;
         font-weight: 600;
+      }
+
+      .pis__duration {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .pis__duration i {
+        font-size: 14px;
+      }
+
+      .pis__duration--green {
+        color: #166534;
+      }
+
+      .pis__duration--amber {
+        color: #b45309;
+      }
+
+      .pis__duration--red {
+        color: #dc2626;
       }
 
       .pis__payment {
@@ -160,12 +188,32 @@ import { AllergyBadgeComponent, AllergyConfirmationState } from './allergy-badge
     `
   ]
 })
-export class PatientIdentityStripComponent {
+export class PatientIdentityStripComponent implements OnInit, OnDestroy {
   @Input({ required: true }) patient!: Patient;
   @Input({ required: true }) booking!: Booking;
   @Input() allergies: Allergy[] = [];
   @Input() allergyConfirmationState: AllergyConfirmationState = null;
   @Input() expanded = false;
+
+  private timerHandle: ReturnType<typeof setInterval> | null = null;
+  private now = Date.now();
+
+  ngOnInit(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    this.timerHandle = window.setInterval(() => {
+      this.now = Date.now();
+    }, 1000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.timerHandle) {
+      clearInterval(this.timerHandle);
+      this.timerHandle = null;
+    }
+  }
 
   get initials(): string {
     const first = this.patient.firstName?.trim().charAt(0) ?? '';
@@ -200,6 +248,36 @@ export class PatientIdentityStripComponent {
 
   get showDetails(): boolean {
     return this.isDesktopViewport() || this.expanded;
+  }
+
+  get avatarStyle(): Record<string, string> {
+    const name = this.fullNameUpper || 'Patient';
+    const avatarStyle = buildPatientAvatarStyle(name);
+    return {
+      background: avatarStyle['background'],
+      color: avatarStyle['color']
+    };
+  }
+
+  get elapsedDuration(): string {
+    const start = new Date(this.booking.checkedInAt || this.booking.createdAt || Date.now()).getTime();
+    const diff = Math.max(0, this.now - start);
+    const totalSeconds = Math.floor(diff / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return [hours, minutes, seconds].map((value) => String(value).padStart(2, '0')).join(':');
+  }
+
+  get durationToneClass(): string {
+    const minutesElapsed = Math.floor((this.now - new Date(this.booking.checkedInAt || this.booking.createdAt || Date.now()).getTime()) / 60000);
+    if (minutesElapsed >= 30) {
+      return 'pis__duration--red';
+    }
+    if (minutesElapsed >= 15) {
+      return 'pis__duration--amber';
+    }
+    return 'pis__duration--green';
   }
 
   get mobileHint(): string {

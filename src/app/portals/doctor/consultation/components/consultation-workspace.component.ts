@@ -50,6 +50,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
           id="section-soap"
           [value]="vm.soap"
           [lastVisitSoap]="getLastVisitSoap(vm)"
+          [auditText]="getSectionAuditText('soap', vm)"
           [locked]="locked"
           (soapChange)="soapChange.emit($event)"
           (validityChange)="soapValidityChange.emit($event)"
@@ -59,6 +60,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         <app-diagnosis-picker
           id="section-diagnosis"
           [value]="vm.consultation?.diagnoses ?? emptyDiagnoses"
+          [auditText]="getSectionAuditText('diagnosis', vm)"
           [locked]="locked"
           (diagnosesChange)="diagnosesChange.emit($event)"
           (validityChange)="diagnosisValidityChange.emit($event)"
@@ -72,6 +74,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         <app-prescription-form
           id="section-prescription"
           [items]="vm.existingPrescription?.items ?? emptyPrescriptionItems"
+          [auditText]="getSectionAuditText('prescription', vm)"
           [locked]="locked"
           (itemsChange)="prescriptionItemsChange.emit($event)"
         ></app-prescription-form>
@@ -79,6 +82,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
         <app-lab-request-form
           id="section-lab-orders"
           [value]="vm.labRequestDrafts"
+          [auditText]="getSectionAuditText('lab-orders', vm)"
           [locked]="locked"
           (requestsChange)="labRequestsChange.emit($event)"
         ></app-lab-request-form>
@@ -95,6 +99,7 @@ import { ConsultationPageVm } from '../doctor-consultation.types';
           [locked]="locked"
           [existingVaccinations]="vm.vaccinations"
           [draftVaccinations]="pendingVaccinations"
+          [auditText]="getSectionAuditText('vaccinations', vm)"
           (vaccinationsAdded)="vaccinationsAdded.emit($event)"
         ></app-vaccination-form>
 
@@ -200,5 +205,38 @@ export class ConsultationWorkspaceComponent {
       assessment: last.assessment ?? '',
       plan: last.plan ?? ''
     };
+  }
+
+  getSectionAuditText(
+    sectionKey: 'soap' | 'diagnosis' | 'prescription' | 'lab-orders' | 'vaccinations',
+    vm: ConsultationPageVm
+  ): string {
+    const updatedAt = vm.consultation?.updatedAt || vm.booking.doctorCompletedAt || vm.booking.createdAt;
+    const doctorName = vm.doctor.fullName || 'Doctor';
+    if (sectionKey === 'soap' && !vm.soap.chiefComplaint.trim() && !vm.soap.subjective.trim() && !vm.soap.objective.trim() && !vm.soap.assessment.trim() && !vm.soap.plan.trim()) {
+      return 'Not yet edited this visit';
+    }
+
+    const hasContent =
+      (sectionKey === 'soap' && Boolean(vm.soap.chiefComplaint.trim() || vm.soap.subjective.trim() || vm.soap.objective.trim() || vm.soap.assessment.trim() || vm.soap.plan.trim())) ||
+      (sectionKey === 'diagnosis' && Boolean(vm.consultation?.diagnoses?.length)) ||
+      (sectionKey === 'prescription' && (vm.existingPrescription?.items?.length ?? 0) > 0) ||
+      (sectionKey === 'lab-orders' && vm.labRequestDrafts.length > 0) ||
+      (sectionKey === 'vaccinations' && (vm.vaccinations.length > 0 || this.pendingVaccinations.length > 0));
+
+    if (!hasContent) {
+      return 'Not yet edited this visit';
+    }
+
+    return `Last edited by ${doctorName} at ${this.formatAuditTime(updatedAt)}`;
+  }
+
+  private formatAuditTime(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
 }

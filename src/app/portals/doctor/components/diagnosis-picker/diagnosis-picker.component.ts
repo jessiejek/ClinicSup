@@ -57,9 +57,9 @@ const ICD10_ENTRIES = icd10Data as Icd10Entry[];
     IonSpinner
   ],
   template: `
-    <section class="clinic-card section-card">
+    <section class="clinic-card section-card" [class.section-card--locked]="locked">
       <div class="section-card__head">
-        <h3>Diagnosis ({{ diagnoses.length }} added)</h3>
+        <h3>Diagnosis ({{ diagnoses.length }} added) <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
         <p>Search the local ICD-10 list and pick one or more diagnoses.</p>
       </div>
 
@@ -126,12 +126,17 @@ const ICD10_ENTRIES = icd10Data as Icd10Entry[];
       <p class="helper" *ngIf="!hasPrimaryDiagnosis">
         At least one primary diagnosis is required before completing the consultation.
       </p>
+
+      <div class="section-card__footer">
+        <span>{{ auditText }}</span>
+      </div>
     </section>
   `,
   styleUrl: './diagnosis-picker.component.scss'
 })
 export class DiagnosisPickerComponent implements OnChanges {
   @Input() value: Diagnosis[] = [];
+  @Input() auditText = 'Not yet edited this visit';
   @Input() locked = false;
 
   @Output() diagnosesChange = new EventEmitter<Diagnosis[]>();

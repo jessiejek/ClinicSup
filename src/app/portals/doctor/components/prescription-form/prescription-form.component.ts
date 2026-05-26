@@ -13,9 +13,9 @@ import { PRESCRIPTION_DRUG_LIST } from '../prescription-builder/prescription-dru
   standalone: true,
   imports: [NgFor, NgIf, ReactiveFormsModule],
   template: `
-    <section class="clinic-card section-card">
+    <section class="clinic-card section-card" [class.section-card--locked]="locked">
       <div class="section-card__head">
-        <h3>Prescription</h3>
+        <h3>Prescription <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
         <p>Add medicines for this consultation using the searchable fields below.</p>
       </div>
 
@@ -89,6 +89,10 @@ import { PRESCRIPTION_DRUG_LIST } from '../prescription-builder/prescription-dru
         </div>
       </div>
       <p class="pf-empty" *ngIf="medicines.length === 0">No medicines added yet.</p>
+
+      <div class="section-card__footer">
+        <span>{{ auditText }}</span>
+      </div>
     </section>
   `,
   styles: [`
@@ -120,6 +124,7 @@ import { PRESCRIPTION_DRUG_LIST } from '../prescription-builder/prescription-dru
 })
 export class PrescriptionFormComponent implements OnChanges {
   @Input() items: PrescriptionItem[] = [];
+  @Input() auditText = 'Not yet edited this visit';
   @Input() locked = false;
   @Output() itemsChange = new EventEmitter<PrescriptionItem[]>();
 

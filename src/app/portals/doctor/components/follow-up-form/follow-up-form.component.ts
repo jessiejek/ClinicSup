@@ -26,9 +26,9 @@ export interface FollowUpDraftView {
   standalone: true,
   imports: [NgIf, ReactiveFormsModule, IonCheckbox, IonInput, IonItem, IonLabel],
   template: `
-    <section class="clinic-card section-card">
+    <section class="clinic-card section-card" [class.section-card--locked]="locked">
       <div class="section-card__head">
-        <h3>Follow-up</h3>
+        <h3>Follow-up <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
         <p>Add an optional follow-up appointment and reminder flag.</p>
       </div>
 

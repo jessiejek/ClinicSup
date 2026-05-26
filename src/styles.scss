@@ -353,6 +353,109 @@ button,
     transform: translateY(-1px);
   }
 }
+
+.clinic-card.section-card {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.clinic-card.section-card .section-card__head {
+  display: grid;
+  gap: 4px;
+}
+
+.clinic-card.section-card .section-card__title-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.clinic-card.section-card .section-card__head h3 {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: var(--font-medium);
+  color: var(--clinic-text-primary);
+}
+
+.clinic-card.section-card .section-card__head h3 i {
+  font-size: 20px;
+  color: inherit;
+  flex-shrink: 0;
+}
+
+.clinic-card.section-card .section-card__head p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: var(--font-normal);
+  color: var(--clinic-text-secondary);
+}
+
+.clinic-card.section-card label,
+.clinic-card.section-card ion-label {
+  font-size: 12px;
+  font-weight: var(--font-medium);
+  color: var(--clinic-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.clinic-card.section-card input,
+.clinic-card.section-card textarea,
+.clinic-card.section-card select,
+.clinic-card.section-card ion-input,
+.clinic-card.section-card ion-textarea,
+.clinic-card.section-card ion-select {
+  font-size: 14px;
+  font-weight: var(--font-normal);
+}
+
+.clinic-card.section-card .section-card__footer {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--clinic-border);
+  color: var(--clinic-text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.clinic-card.section-card .section-card__footer span {
+  color: inherit;
+}
+
+.clinic-card.section-card .section-card__lock {
+  font-size: 20px;
+  color: var(--clinic-text-muted);
+}
+
+.clinic-card.section-card--locked button,
+.clinic-card.section-card--locked ion-button {
+  display: none !important;
+}
+
+.clinic-card.section-card--locked input,
+.clinic-card.section-card--locked textarea,
+.clinic-card.section-card--locked select {
+  background: #f5f5f5 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--clinic-text-secondary) !important;
+}
+
+.clinic-card.section-card--locked ion-item.field,
+.clinic-card.section-card--locked ion-item {
+  --background: #f5f5f5;
+}
+
+.clinic-card.section-card--locked ion-input,
+.clinic-card.section-card--locked ion-textarea,
+.clinic-card.section-card--locked ion-select {
+  --background: #f5f5f5;
+  color: var(--clinic-text-secondary);
+}
 .clinic-card--accent-green {
   border-left: 3px solid var(--ion-color-primary);
 }

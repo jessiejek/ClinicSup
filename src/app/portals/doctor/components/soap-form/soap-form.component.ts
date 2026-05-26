@@ -30,11 +30,11 @@ export interface SoapFormValue {
   standalone: true,
   imports: [NgFor, NgIf, ReactiveFormsModule, BannerComponent, IonItem, IonLabel, IonTextarea],
   template: `
-    <section class="clinic-card section-card">
+    <section class="clinic-card section-card" [class.section-card--locked]="locked">
       <div class="section-card__head">
         <div class="section-card__title-row">
           <div>
-            <h3>SOAP Notes</h3>
+            <h3>SOAP Notes <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
             <p>Document the consultation in a structured format.</p>
           </div>
           <button type="button" class="section-card__action" [disabled]="!lastVisitSoap" (click)="loadFromLastVisit.emit()">
@@ -135,6 +135,10 @@ export interface SoapFormValue {
           </div>
         </div>
       </form>
+
+      <div class="section-card__footer">
+        <span>{{ auditText }}</span>
+      </div>
     </section>
   `,
   styleUrl: './soap-form.component.scss'
@@ -142,6 +146,7 @@ export interface SoapFormValue {
 export class SoapFormComponent implements OnChanges {
   @Input() value: SoapFormValue | null = null;
   @Input() lastVisitSoap: SoapFormValue | null = null;
+  @Input() auditText = 'Not yet edited this visit';
   @Input() locked = false;
 
   @Output() soapChange = new EventEmitter<SoapFormValue>();

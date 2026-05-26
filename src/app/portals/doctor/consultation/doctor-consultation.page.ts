@@ -1,4 +1,4 @@
-import { AsyncPipe, DatePipe, NgClass, NgIf } from '@angular/common';
+import { AsyncPipe, DatePipe, NgClass, NgFor, NgIf, NgStyle } from '@angular/common';
 import { AfterViewChecked, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ModalController, ToastController } from '@ionic/angular/standalone';
@@ -18,6 +18,7 @@ import { CreatePatientVaccinationRequest } from '../../../core/models/vaccinatio
 import { ApiService } from '../../../core/services/api.service';
 import { AuthStateService } from '../../../core/services/auth-state.service';
 import { BookingService, DoctorCompleteBookingRequest } from '../../../core/services/booking.service';
+import { AuditLogService } from '../../admin/services/audit-log.service';
 import {
   MedicalRecordsService,
   MedicalRecordsState
@@ -31,6 +32,7 @@ import { LabRequestDraftView } from '../components/lab-request-form/lab-request-
 import { SoapFormValue } from '../components/soap-form/soap-form.component';
 import { PatientIdentityStripComponent } from './components/patient-identity-strip.component';
 import { AllergyConfirmationState } from './components/allergy-badge.component';
+import { buildPatientAvatarStyle } from './components/patient-avatar.util';
 import { DoctorService } from '../services/doctor.service';
 import { ConsultationSummaryComponent } from './components/consultation-summary.component';
 import { SoapLastVisitModalComponent } from './components/soap-last-visit-modal.component';
@@ -117,6 +119,15 @@ interface ConsultationLocalDraft {
 
 type ConsultationInteractionMode = 'complete' | 'view' | 'amend';
 
+interface ConsultationHistoryEntry {
+  timestamp: string;
+  editorName: string;
+  editorRole: string;
+  section: string;
+  detail: string;
+  sectionKey: 'soap' | 'diagnosis' | 'prescription' | 'lab-orders' | 'vaccinations' | 'followup' | 'pf-decision' | 'general';
+}
+
 type ProgressSectionId =
   | 'section-soap'
   | 'section-vitals'
@@ -132,6 +143,8 @@ type ProgressSectionId =
   imports: [
     AsyncPipe, DatePipe, NgIf, RouterLink,
     NgClass,
+    NgFor,
+    NgStyle,
     EmptyStateComponent,
     ConsultationOverviewComponent,
     ConsultationSummaryComponent,
@@ -149,15 +162,21 @@ type ProgressSectionId =
             <div class="cvh__top">
               <a class="cvh__back" routerLink="/doctor/appointments">&larr; Back to Appointments</a>
               <div class="cvh__actions">
-                <div class="cvh__badge"><app-status-badge [status]="vm.booking.status"></app-status-badge></div>
-                <button class="cr-btn cr-btn--secondary cvh__modify" (click)="enterAmendMode()">
-                  <span class="btn-icon">&#9998;</span> Modify
+                <button class="cr-btn cr-btn--secondary" type="button" (click)="openHistoryDrawer(vm)">History</button>
+                <div class="cvh__finalized">
+                  <span class="cvh__finalized-badge">FINALIZED</span>
+                  <span class="cvh__finalized-meta">
+                    Finalized by {{ vm.doctor.fullName || 'Doctor' }} on {{ (vm.booking.doctorCompletedAt || vm.consultation?.updatedAt || vm.booking.createdAt) | date : 'MMMM d, y' }} at {{ (vm.booking.doctorCompletedAt || vm.consultation?.updatedAt || vm.booking.createdAt) | date : 'shortTime' }}
+                  </span>
+                </div>
+                <button class="cr-btn cr-btn--secondary cvh__modify" disabled>
+                  Request Amendment
                 </button>
               </div>
             </div>
             <div class="cvh__main">
               <div class="cvh__identity">
-                <div class="cvh__avatar">
+                <div class="cvh__avatar" [ngStyle]="getPatientAvatarStyle(vm.patient)">
                   {{ (vm.patient.firstName?.charAt(0) || '?') }}{{ (vm.patient.lastName?.charAt(0) || '') }}
                 </div>
                 <div class="cvh__patient">
@@ -219,7 +238,7 @@ type ProgressSectionId =
           <div class="cr-top">
             <div class="cr-hdr">
               <div class="cr-hdr__left">
-                <h1 class="cr-hdr__title">Consultation Room</h1>
+                <h1 class="cr-hdr__title">Consultation Room{{ isViewOnlyConsultation(vm) ? ' (View Only)' : '' }}</h1>
                 <p class="cr-hdr__sub">{{ vm.patient.firstName || 'Patient' }} {{ vm.patient.lastName || '' }} &middot; {{ vm.booking.appointmentDate | date:'MMMM d, y (EEE)' }} &middot; Queue #{{ vm.booking.queueNumber ?? '--' }}</p>
               </div>
               <div class="cr-hdr__right">
@@ -227,6 +246,7 @@ type ProgressSectionId =
                 <a class="cr-btn" routerLink="/doctor/appointments">Back to Appointments</a>
                 <button class="cr-btn cr-btn--outline" (click)="cancelAmendMode()" *ngIf="isAmendMode" [disabled]="isSavingAmendment">Cancel</button>
                 <button class="cr-btn cr-btn--primary" (click)="saveAmendment(vm)" *ngIf="isAmendMode" [disabled]="isSavingAmendment">{{ isSavingAmendment ? 'Saving...' : 'Save Amendment' }}</button>
+                <button class="cr-btn cr-btn--secondary" type="button" (click)="openHistoryDrawer(vm)">History</button>
                 <div class="cr-save-state" [ngClass]="'cr-save-state--' + saveState">
                   <span class="cr-save-state__icon" *ngIf="saveState === 'saved'"></span>
                   <span class="cr-save-state__icon cr-save-state__icon--spinner" *ngIf="saveState === 'saving'"></span>
@@ -248,13 +268,13 @@ type ProgressSectionId =
               </div>
             </div>
 
-            <div class="cr-patient" id="patient-identity-card">
-              <div class="cr-avatar">{{ (vm.patient.firstName?.charAt(0) || '?') }}{{ (vm.patient.lastName?.charAt(0) || '') }}</div>
-              <div class="cr-patient__info">
-                <strong>{{ vm.patient.firstName }} {{ vm.patient.lastName }}</strong>
-                <span>{{ vm.patient.sex || '--' }} &middot; {{ vm.patient.dateOfBirth ? (calcAge(vm.patient.dateOfBirth) + ' yrs') : '--' }}</span>
-                <span>{{ vm.booking.serviceNames?.join(', ') || vm.booking.serviceName || 'Service' }}</span>
-                <a class="cr-clinical-link" [routerLink]="['/doctor/patients', vm.patient.id]" (click)="$event.stopPropagation()">View Clinical History &rarr;</a>
+              <div class="cr-patient" id="patient-identity-card">
+              <div class="cr-avatar" [ngStyle]="getPatientAvatarStyle(vm.patient)">{{ (vm.patient.firstName?.charAt(0) || '?') }}{{ (vm.patient.lastName?.charAt(0) || '') }}</div>
+                <div class="cr-patient__info">
+                  <strong>{{ vm.patient.firstName }} {{ vm.patient.lastName }}</strong>
+                  <span>{{ vm.patient.sex || '--' }} &middot; {{ vm.patient.dateOfBirth ? (calcAge(vm.patient.dateOfBirth) + ' yrs') : '--' }}</span>
+                  <span>{{ vm.booking.serviceNames?.join(', ') || vm.booking.serviceName || 'Service' }}</span>
+                  <a class="cr-clinical-link" [routerLink]="['/doctor/patients', vm.patient.id]" (click)="$event.stopPropagation()">View Clinical History &rarr;</a>
               </div>
               <div class="cr-patient__meta">
                 <div><span class="ml">Fee</span><span class="mv">PHP {{ vm.booking.consultationFeeSnapshot ?? vm.booking.totalFee ?? 0 }}</span></div>
@@ -313,6 +333,14 @@ type ProgressSectionId =
 
             <div class="cr-side">
               <div class="cr-side-card">
+                <div class="cr-progress-summary">
+                  <div class="cr-progress-summary__label">
+                    {{ getCompletedSectionCount(vm) === 7 ? 'Ready to complete ✓' : (getCompletedSectionCount(vm) + ' of 7 sections complete') }}
+                  </div>
+                  <div class="cr-progress-summary__bar" [class.cr-progress-summary__bar--ready]="getCompletedSectionCount(vm) === 7">
+                    <span class="cr-progress-summary__fill" [style.width.%]="getProgressPercent(vm)"></span>
+                  </div>
+                </div>
                 <h3>Consultation Progress</h3>
                 <ul class="cr-progress">
                   <li class="cr-progress__item"
@@ -389,6 +417,35 @@ type ProgressSectionId =
             </div>
           </div>
         </ng-template>
+
+        <div class="history-drawer-backdrop" *ngIf="historyDrawerOpen" (click)="closeHistoryDrawer()"></div>
+        <aside class="history-drawer" *ngIf="historyDrawerOpen" role="dialog" aria-modal="true" aria-label="Consultation Edit History">
+          <div class="history-drawer__top">
+            <div>
+              <h2>Consultation Edit History</h2>
+              <p>Chronological edit events for this visit.</p>
+            </div>
+            <button type="button" class="history-drawer__close" (click)="closeHistoryDrawer()">&times;</button>
+          </div>
+
+          <ng-container *ngIf="historyEntries.length > 0; else emptyHistory">
+            <ol class="history-list">
+              <li class="history-item" *ngFor="let entry of historyEntries">
+                <div class="history-item__timestamp">{{ entry.timestamp | date : 'MMM d, y h:mm a' }}</div>
+                <div class="history-item__meta">
+                  <strong>{{ entry.editorName }}</strong>
+                  <span>{{ entry.editorRole }}</span>
+                </div>
+                <div class="history-item__section">{{ entry.section }}</div>
+                <p class="history-item__detail">{{ entry.detail }}</p>
+              </li>
+            </ol>
+          </ng-container>
+
+          <ng-template #emptyHistory>
+            <div class="history-empty">No edits recorded yet for this consultation.</div>
+          </ng-template>
+        </aside>
       </div>
     </ng-container>
 
@@ -402,6 +459,7 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   private readonly apiService = inject(ApiService);
   private readonly authState = inject(AuthStateService);
   private readonly bookingService = inject(BookingService);
+  private readonly auditLogService = inject(AuditLogService);
   private readonly doctorService = inject(DoctorService);
   private readonly medicalRecords = inject(MedicalRecordsService);
   private readonly modalCtrl = inject(ModalController);
@@ -459,6 +517,9 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   private sectionObserver: IntersectionObserver | null = null;
   private identityObserver: IntersectionObserver | null = null;
   private observersInitialized = false;
+  historyDrawerOpen = false;
+  historyEntries: ConsultationHistoryEntry[] = [];
+  hasRealAuditHistory = false;
 
   readonly vm$ = combineLatest([
     this.route.paramMap.pipe(map((paramMap) => paramMap.get('bookingId') ?? '')),
@@ -496,14 +557,20 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
                   this.loadConsultationRecord$(resolvedBooking).pipe(
                     switchMap((consultationRecord) =>
                       this.loadVaccinations$(patient.id).pipe(
-                        map((apiVaccinations) =>
-                          this.buildVm({
-                            booking: resolvedBooking,
-                            patient,
-                            doctor,
-                            records: { ...records, vaccinations: apiVaccinations },
-                            consultationRecord
-                          })
+                        switchMap((apiVaccinations) =>
+                          this.auditLogService.getAuditLogs().pipe(
+                            catchError(() => of([])),
+                            map((auditLogs) =>
+                              this.buildVm({
+                                booking: resolvedBooking,
+                                patient,
+                                doctor,
+                                records: { ...records, vaccinations: apiVaccinations },
+                                consultationRecord,
+                                auditLogs
+                              })
+                            )
+                          )
                         )
                       )
                     )
@@ -773,6 +840,10 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   }
 
   getProgressStepState(sectionId: ProgressSectionId, vm: ConsultationPageVm): 'empty' | 'progress' | 'complete' | 'warning' {
+    if (this.isViewOnlyConsultation(vm)) {
+      return 'complete';
+    }
+
     const showWarning = this.completionValidationRequested && this.isSectionMissing(sectionId, vm);
     if (showWarning) {
       return 'warning';
@@ -1237,7 +1308,7 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
   }
 
   isCompletedConsultation(vm: ConsultationPageVm): boolean {
-    return vm.booking.status === 'Completed';
+    return vm.booking.status === 'Completed' || vm.consultation?.status === 'Completed' || vm.consultation?.status === 'Locked';
   }
 
   private isEditableConsultation(vm: ConsultationPageVm): boolean {
@@ -1316,6 +1387,14 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
     doctor: ConsultationPageVm['doctor'];
     records: MedicalRecordsState;
     consultationRecord: ConsultationRecordResponse | null;
+    auditLogs: Array<{
+      entityType: string;
+      entityId: string;
+      action: string;
+      performedBy: string;
+      performedAt: string;
+      details?: string | undefined;
+    }>;
   }): ConsultationPageVm {
     const localDraft = this.readLocalDraft(args.booking.id);
     this.currentConsultationFee = args.booking.consultationFeeSnapshot ?? args.booking.totalFee ?? 0;
@@ -1389,6 +1468,7 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
     };
 
     this.currentVm = vm;
+    this.historyEntries = this.buildHistoryEntries(vm, args.auditLogs);
     this.lastSavedDraftSnapshot = this.createDraftSnapshot();
     this.draftDirty = false;
     this.saveState = 'saved';
@@ -1420,6 +1500,214 @@ export class DoctorConsultationPage implements AfterViewChecked, OnInit, OnDestr
       assessment: last.assessment ?? '',
       plan: last.plan ?? ''
     };
+  }
+
+  getPatientAvatarStyle(patient: Patient): Record<string, string> {
+    const fullName = [patient.firstName, patient.middleName, patient.lastName].filter(Boolean).join(' ') || patient.id || 'Patient';
+    return buildPatientAvatarStyle(fullName);
+  }
+
+  isViewOnlyConsultation(vm: ConsultationPageVm): boolean {
+    return this.isCompletedConsultation(vm) || vm.consultation?.status === 'Locked';
+  }
+
+  getCompletedSectionCount(vm: ConsultationPageVm): number {
+    const sectionIds: ProgressSectionId[] = [
+      'section-soap',
+      'section-vitals',
+      'section-diagnosis',
+      'section-prescription',
+      'section-lab-orders',
+      'section-followup',
+      'section-pf-decision'
+    ];
+    return sectionIds.filter((sectionId) => this.getProgressStepState(sectionId, vm) === 'complete').length;
+  }
+
+  getProgressPercent(vm: ConsultationPageVm): number {
+    return Math.round((this.getCompletedSectionCount(vm) / 7) * 100);
+  }
+
+  openHistoryDrawer(vm: ConsultationPageVm): void {
+    if (this.historyEntries.length === 0) {
+      this.historyEntries = this.buildHistoryEntries(vm, []);
+    }
+    this.historyDrawerOpen = true;
+  }
+
+  closeHistoryDrawer(): void {
+    this.historyDrawerOpen = false;
+  }
+
+  getSectionAuditText(vm: ConsultationPageVm, sectionKey: 'soap' | 'diagnosis' | 'prescription' | 'lab-orders' | 'vaccinations'): string {
+    void vm;
+
+    if (!this.hasRealAuditHistory) {
+      return 'Not yet edited this visit';
+    }
+
+    const entry = this.historyEntries.find((item) => item.sectionKey === sectionKey);
+    if (entry) {
+      return `Last edited by ${entry.editorName} at ${this.formatTimeForAudit(entry.timestamp)}`;
+    }
+
+    return 'Not yet edited this visit';
+  }
+
+  private formatTimeForAudit(value: string | undefined | null): string {
+    if (!value) {
+      return '--:--';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+
+  private buildHistoryEntries(
+    vm: ConsultationPageVm,
+    auditLogs: Array<{
+      entityType: string;
+      entityId: string;
+      action: string;
+      performedBy: string;
+      performedAt: string;
+      details?: string | undefined;
+    }>
+  ): ConsultationHistoryEntry[] {
+    const bookingId = vm.booking.id;
+    const consultationId = vm.consultation?.id;
+    const relevantLogs = auditLogs.filter((log) =>
+      (log.entityType === 'Consultation' && (log.entityId === bookingId || log.entityId === consultationId)) ||
+      (log.entityType === 'Booking' && log.entityId === bookingId)
+    );
+
+    const mappedLogs = relevantLogs.map((log) => ({
+      timestamp: log.performedAt,
+      editorName: log.performedBy || vm.doctor.fullName || 'Doctor',
+      editorRole: log.entityType === 'Consultation' ? 'Doctor' : 'Staff',
+      section: this.mapAuditLogSection(log.action, log.entityType),
+      detail: log.details?.trim() || 'Content updated',
+      sectionKey: this.mapSectionKey(log.action, log.entityType)
+    }));
+
+    if (mappedLogs.length > 0) {
+      this.hasRealAuditHistory = true;
+      return mappedLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
+
+    this.hasRealAuditHistory = false;
+    return this.buildSyntheticHistoryEntries(vm);
+  }
+
+  private buildSyntheticHistoryEntries(vm: ConsultationPageVm): ConsultationHistoryEntry[] {
+    const timestamp = vm.consultation?.updatedAt || vm.booking.doctorCompletedAt || vm.booking.createdAt;
+    const editorName = vm.doctor.fullName || 'Doctor';
+    const editorRole = 'Doctor';
+    const entries: ConsultationHistoryEntry[] = [];
+
+    if (this.hasAnySoapInput()) {
+      entries.push({
+        timestamp,
+        editorName,
+        editorRole,
+        section: 'SOAP Notes — Chief Complaint updated',
+        detail: this.soapValue.chiefComplaint.trim().length <= 80
+          ? `— → ${this.soapValue.chiefComplaint.trim() || 'Updated'}`
+          : 'Content updated',
+        sectionKey: 'soap'
+      });
+    }
+
+    if (this.diagnoses.length > 0) {
+      entries.push({
+        timestamp,
+        editorName,
+        editorRole,
+        section: `Diagnosis — ${this.diagnoses.length} diagnosis${this.diagnoses.length > 1 ? 'es' : ''} added`,
+        detail: this.diagnoses
+          .slice(0, 2)
+          .map((diagnosis) => `${diagnosis.code || diagnosis.icd10Code || 'N/A'} ${diagnosis.description}`)
+          .join(' • '),
+        sectionKey: 'diagnosis'
+      });
+    }
+
+    if (this.prescriptionItems.length > 0) {
+      entries.push({
+        timestamp,
+        editorName,
+        editorRole,
+        section: `Prescription — ${this.prescriptionItems.length} medication${this.prescriptionItems.length > 1 ? 's' : ''} added`,
+        detail: 'Content updated',
+        sectionKey: 'prescription'
+      });
+    }
+
+    if (this.labRequests.length > 0) {
+      entries.push({
+        timestamp,
+        editorName,
+        editorRole,
+        section: `Order Labs — ${this.labRequests.length} request${this.labRequests.length > 1 ? 's' : ''} added`,
+        detail: 'Content updated',
+        sectionKey: 'lab-orders'
+      });
+    }
+
+    if (this.pendingVaccinations.length > 0 || vm.vaccinations.length > 0) {
+      entries.push({
+        timestamp,
+        editorName,
+        editorRole,
+        section: 'Vaccinations — record updated',
+        detail: 'Content updated',
+        sectionKey: 'vaccinations'
+      });
+    }
+
+    return entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+  private mapAuditLogSection(action: string, entityType: string): string {
+    if (/soap/i.test(action) || entityType === 'Consultation') {
+      return 'SOAP Notes — content updated';
+    }
+    if (/diagnosis/i.test(action)) {
+      return 'Diagnosis — content updated';
+    }
+    if (/prescription|medication/i.test(action)) {
+      return 'Prescription — content updated';
+    }
+    if (/lab/i.test(action)) {
+      return 'Order Labs — content updated';
+    }
+    if (/vaccin/i.test(action)) {
+      return 'Vaccinations — content updated';
+    }
+    return action;
+  }
+
+  private mapSectionKey(action: string, entityType: string): ConsultationHistoryEntry['sectionKey'] {
+    if (/soap/i.test(action) || entityType === 'Consultation') {
+      return 'soap';
+    }
+    if (/diagnosis/i.test(action)) {
+      return 'diagnosis';
+    }
+    if (/prescription|medication/i.test(action)) {
+      return 'prescription';
+    }
+    if (/lab/i.test(action)) {
+      return 'lab-orders';
+    }
+    if (/vaccin/i.test(action)) {
+      return 'vaccinations';
+    }
+    return 'general';
   }
 
   private createDraftSnapshot(): string {

@@ -36,11 +36,11 @@ export interface VaccinationFormDraft {
   standalone: true,
   imports: [DatePipe, FormsModule, NgFor, NgIf],
   template: `
-    <section class="clinic-card section-card">
+    <section class="clinic-card section-card" [class.section-card--locked]="locked">
       <div class="section-card__head">
         <div class="section-card__title-row" (click)="toggleExpanded()">
           <div>
-            <h3>Vaccinations</h3>
+            <h3>Vaccinations <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
             <p>Add vaccination records for this patient. Required fields are marked with *.</p>
           </div>
           <button type="button" class="vf-expand-btn" (click)="expandAndStart($event)">
@@ -157,6 +157,10 @@ export interface VaccinationFormDraft {
           </div>
         </form>
       </div>
+
+      <div class="section-card__footer">
+        <span>{{ auditText }}</span>
+      </div>
     </section>
   `,
   styles: [`
@@ -195,6 +199,7 @@ export interface VaccinationFormDraft {
 })
 export class VaccinationFormComponent implements OnChanges {
   @Input() locked = false;
+  @Input() auditText = 'Not yet edited this visit';
   @Input() existingVaccinations: any[] = [];
   @Input() draftVaccinations: CreatePatientVaccinationRequest[] = [];
   @Output() vaccinationsAdded = new EventEmitter<CreatePatientVaccinationRequest[]>();

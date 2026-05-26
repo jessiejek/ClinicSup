@@ -22,9 +22,9 @@ export type ProfessionalFeePaymentMode = 'Cash' | 'Card' | 'PayMClinic' | 'HMO' 
     IonTextarea
   ],
   template: `
-    <section class="clinic-card section-card">
+    <section class="clinic-card section-card" [class.section-card--locked]="locked">
       <div class="section-card__head">
-        <h3>PF Decision</h3>
+        <h3>PF Decision <i *ngIf="locked" class="ti ti-lock section-card__lock"></i></h3>
         <p>Confirm the professional fee before finalizing the consultation.</p>
       </div>
 
