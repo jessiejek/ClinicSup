@@ -94,7 +94,7 @@ export class AuthService {
       catchError(() => of({ error: null }))
     ).subscribe(() => {
       this.clearSession();
-      void this.router.navigate(['/auth/login']);
+      void this.router.navigate(['/auth/login'], { replaceUrl: true });
     });
   }
 
