@@ -1,8 +1,11 @@
 export const environment = {
   production: false,
 
-  // Legacy .NET API target. Keep temporarily until all pages are migrated.
-  apiBaseUrl: 'https://localhost:44384/api',
+  // .NET backend API URL
+  apiUrl: 'https://localhost:5001/api',
+
+  // Legacy alias — kept for backward compatibility
+  apiBaseUrl: 'https://localhost:5001/api',
 
   // Supabase backend.
   // Use the publishable/anon key only. Never use service_role in Ionic/Angular.

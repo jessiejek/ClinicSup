@@ -5,7 +5,7 @@ import { getMessaging, getToken, isSupported, onMessage, type Messaging } from '
 import { BehaviorSubject, Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthStateService } from './auth-state.service';
-import { SupabaseService } from './supabase.service';
+import { ApiService } from './api.service';
 
 /** Shape of a notification received from Supabase Realtime. */
 export interface InAppNotification {
@@ -57,7 +57,7 @@ const FIREBASE_WEB_PLATFORM = 'firebase-web';
 @Injectable({ providedIn: 'root' })
 export class PushNotificationService {
   private readonly authState = inject(AuthStateService);
-  private readonly supabase = inject(SupabaseService);
+  private readonly apiService = inject(ApiService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly notificationsSubject = new BehaviorSubject<InAppNotification[]>([]);
@@ -97,37 +97,9 @@ export class PushNotificationService {
       });
   }
 
-  private subscribeToNotifications(userId: string): void {
-    this.supabase.client
-      .channel('realtime-notifications')
-      .on(
-        'postgres_changes' as any,
-        { event: 'INSERT', schema: 'public', table: 'notifications' },
-        (payload: any) => {
-          const row = payload.new;
-          if (!row || row.user_id !== userId) return;
-
-          const notif = rowToNotification(row);
-          const current = this.notificationsSubject.value;
-          this.notificationsSubject.next([notif, ...current]);
-          this.unreadCountSubject.next(this.unreadCountSubject.value + 1);
-        }
-      )
-      .on(
-        'postgres_changes' as any,
-        { event: 'UPDATE', schema: 'public', table: 'notifications' },
-        (payload: any) => {
-          const row = payload.new;
-          if (!row || row.user_id !== userId) return;
-
-          const current = this.notificationsSubject.value;
-          this.notificationsSubject.next(
-            current.map((n) => (n.id === row.id ? rowToNotification(row) : n))
-          );
-          this.recalculateUnreadCount();
-        }
-      )
-      .subscribe();
+  private subscribeToNotifications(_userId: string): void {
+    // In-app notifications delivered via NotificationService polling.
+    // SignalR integration will replace this for real-time delivery.
   }
 
   /**
@@ -184,15 +156,10 @@ export class PushNotificationService {
         return { success: false, error: 'Failed to obtain Firebase token.' };
       }
 
-      const { error } = await this.supabase.client.rpc('upsert_device_token', {
-        p_token: token,
-        p_platform: FIREBASE_WEB_PLATFORM
-      });
-
-      if (error) {
-        console.error('[PushNotification] Token registration failed:', error.message);
-        return { success: false, error: error.message };
-      }
+      await this.apiService.post('device-tokens', {
+        token,
+        platform: FIREBASE_WEB_PLATFORM
+      }).toPromise();
 
       this.deviceRegisteredSubject.next(true);
       return { success: true };
@@ -203,7 +170,6 @@ export class PushNotificationService {
     }
   }
 
-  /** Mark a single notification read (optimistic local + remote). */
   async markRead(notificationId: string): Promise<void> {
     this.notificationsSubject.next(
       this.notificationsSubject.value.map((n) =>
@@ -211,10 +177,9 @@ export class PushNotificationService {
       )
     );
     this.recalculateUnreadCount();
-    await this.supabase.client.from('notifications').update({ is_read: true }).eq('id', notificationId);
+    await this.apiService.put(`notifications/${notificationId}/read`, {}).toPromise();
   }
 
-  /** Mark all notifications read for the current user. */
   async markAllRead(): Promise<void> {
     const user = this.authState.snapshot;
     if (!user) return;
@@ -224,11 +189,7 @@ export class PushNotificationService {
     );
     this.unreadCountSubject.next(0);
 
-    await this.supabase.client
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', user.id)
-      .eq('is_read', false);
+    await this.apiService.put('notifications/read-all', {}).toPromise();
   }
 
   private cleanup(): void {

@@ -121,9 +121,9 @@ export class AuthStateService {
     this.authService.logout();
   }
 
-  /** @description Ensure a patients row exists for the logged-in user. Safe to call before booking. */
+  /** @description Ensure a patients row exists for the logged-in user. .NET backend handles this on register. */
   async ensurePatientRecord(): Promise<void> {
-    await this.authService.ensurePatientRecord();
+    return; // .NET handles patient record creation server-side
   }
 
   setUser(user: AuthUser): void {
